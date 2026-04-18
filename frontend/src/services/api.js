@@ -154,4 +154,32 @@ export const fetchBlueprintDetail = async (blueprintId) => {
 export const getBlueprintDownloadUrl = (blueprintId) =>
   `${api.defaults.baseURL}/blueprints/${blueprintId}/download`
 
+export const fetchEffortImpact = async (runId) => {
+  const { data } = await api.get(`/runs/${runId}/effort-impact`)
+  return data
+}
+
+export const fetchEffort = async (runId) => {
+  const { data } = await api.get(`/runs/${runId}/effort`)
+  return data
+}
+
+export const fetchImpact = async (runId) => {
+  const { data } = await api.get(`/runs/${runId}/impact`)
+  return data
+}
+
+export const fetchConversation = async (runId) => {
+  const { data } = await api.get(`/runs/${runId}/messages`)
+  return data
+}
+
+export const sendMessage = async (runId, question) => {
+  const { data } = await api.post(`/runs/${runId}/messages`, {
+    run_id: runId,
+    question,
+  })
+  return data
+}
+
 export default api

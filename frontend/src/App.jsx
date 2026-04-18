@@ -5,11 +5,13 @@ import {
   BrainCircuit,
   FileText,
   LayoutDashboard,
+  MessageCircle,
   MoonStar,
   Network,
   RotateCcw,
   Search,
   SunMedium,
+  TrendingUp,
   Zap,
 } from 'lucide-react'
 import AgentProgressBar from './components/AgentProgressBar'
@@ -17,7 +19,9 @@ import AgentTimeline from './components/AgentTimeline'
 import BlueprintProgress from './components/BlueprintProgress'
 import BlueprintViewer from './components/BlueprintViewer'
 import ConfidenceGauge from './components/ConfidenceGauge'
+import EffortImpactChart from './components/EffortImpactChart'
 import InteractiveGraph from './components/InteractiveGraph'
+import MessagingPanel from './components/MessagingPanel'
 import MetricsBar from './components/MetricsBar'
 import NodeDetailsPanel from './components/NodeDetailsPanel'
 import RiskBadge from './components/RiskBadge'
@@ -42,6 +46,8 @@ const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'graph', label: 'Graph Explorer', icon: Network },
   { id: 'agents', label: 'Agent Timeline', icon: BrainCircuit },
+  { id: 'strategy', label: 'Strategy', icon: TrendingUp },
+  { id: 'messages', label: 'Messages', icon: MessageCircle },
   { id: 'blueprint', label: 'Blueprint', icon: FileText },
 ]
 
@@ -629,6 +635,34 @@ function App() {
                   transition={{ duration: 0.3 }}
                 >
                   <AgentTimeline steps={runTrace?.steps ?? []} />
+                </motion.div>
+              )}
+
+              {/* ═══ STRATEGY TAB ═══ */}
+              {activeTab === 'strategy' && (
+                <motion.div
+                  key="strategy"
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={{ duration: 0.3 }}
+                >
+                  <EffortImpactChart runId={analysisResult?.run?.id} />
+                </motion.div>
+              )}
+
+              {/* ═══ MESSAGES TAB ═══ */}
+              {activeTab === 'messages' && (
+                <motion.div
+                  key="messages"
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={{ duration: 0.3 }}
+                >
+                  <MessagingPanel runId={analysisResult?.run?.id} />
                 </motion.div>
               )}
 

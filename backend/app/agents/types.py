@@ -98,6 +98,56 @@ class TrialStrategyOutput(BaseModel):
     mode: str
 
 
+class EffortEstimatorInput(BaseModel):
+    drug_name: str
+    original_indication: str
+    proposed_indication: str
+    risk_level: str
+    confidence: float
+    evidence_count: int
+    priority_level: str
+
+
+class EffortEstimatorOutput(BaseModel):
+    estimated_cost_usd: int
+    estimated_time_months: int
+    trial_complexity: str
+    effort_score: float
+    model_used: str = "deterministic"
+    mode: str = "rule_engine"
+
+
+class ImpactPredictorInput(BaseModel):
+    drug_name: str
+    original_indication: str
+    proposed_indication: str
+    confidence: float
+    risk_level: str
+    evidence_count: int
+    priority_level: str
+
+
+class ImpactPredictorOutput(BaseModel):
+    patient_population_size: int
+    expected_breakthrough_score: float
+    commercial_value_estimate: str
+    impact_score: float
+    model_used: str = "deterministic"
+    mode: str = "rule_engine"
+
+
+class FollowUpQuestion(BaseModel):
+    question: str
+
+
+class FollowUpAnswer(BaseModel):
+    question: str
+    answer: str
+    sources: list[str] = Field(default_factory=list)
+    model_used: str = "deterministic"
+    mode: str = "grounded_qa"
+
+
 class ParallelEvidenceBranchOutput(BaseModel):
     branch_name: str
     score: float
@@ -142,6 +192,8 @@ class ReasoningResult(BaseModel):
     evidence_curator: EvidenceCuratorOutput
     judge: JudgeOutput
     trial_strategist: TrialStrategyOutput
+    effort_estimator: EffortEstimatorOutput | None = None
+    impact_predictor: ImpactPredictorOutput | None = None
     parallel_evidence: ParallelEvidenceOutput
     assessment: ReasoningAssessment
     hitl: HITLDecision
@@ -155,6 +207,8 @@ class ReasoningTrace(BaseModel):
     evidence_curator: EvidenceCuratorOutput
     judge: JudgeOutput
     trial_strategist: TrialStrategyOutput
+    effort_estimator: EffortEstimatorOutput | None = None
+    impact_predictor: ImpactPredictorOutput | None = None
     parallel_evidence: ParallelEvidenceOutput
     assessment: ReasoningAssessment
     hitl: HITLDecision
