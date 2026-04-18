@@ -23,15 +23,21 @@ def list_assets(db: Session = Depends(get_db)):
 def get_asset(asset_id: UUID, db: Session = Depends(get_db)):
     asset = crud.get_asset(db, asset_id)
     if asset is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found."
+        )
     return asset
 
 
-@router.post("/assets", response_model=schemas.AssetResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/assets", response_model=schemas.AssetResponse, status_code=status.HTTP_201_CREATED
+)
 def create_asset(payload: schemas.AssetCreate, db: Session = Depends(get_db)):
     existing = crud.get_asset_by_code(db, payload.asset_code)
     if existing is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Asset code already exists.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Asset code already exists."
+        )
     return crud.create_asset(db, payload)
 
 
@@ -39,7 +45,9 @@ def create_asset(payload: schemas.AssetCreate, db: Session = Depends(get_db)):
 def get_patient_data(asset_id: UUID, db: Session = Depends(get_db)):
     asset = crud.get_asset(db, asset_id)
     if asset is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found."
+        )
 
     snapshot = fetch_patient_snapshot(
         drug_name=asset.internal_name,

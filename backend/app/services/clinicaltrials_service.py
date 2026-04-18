@@ -8,7 +8,6 @@ import urllib.request
 from collections import Counter
 from urllib.error import URLError
 
-
 CTGOV_BASE = "https://clinicaltrials.gov/api/v2/studies"
 
 
@@ -21,7 +20,9 @@ def _safe_int(value: object) -> int | None:
         return None
 
 
-def _extract_study_summary(study: dict) -> tuple[dict, int | None, list[str], str | None]:
+def _extract_study_summary(
+    study: dict,
+) -> tuple[dict, int | None, list[str], str | None]:
     protocol = study.get("protocolSection", {})
     ident = protocol.get("identificationModule", {})
     status = protocol.get("statusModule", {})
@@ -34,7 +35,11 @@ def _extract_study_summary(study: dict) -> tuple[dict, int | None, list[str], st
         for condition in (conditions.get("conditions", []) or [])
         if isinstance(condition, str) and condition.strip()
     ]
-    overall_status = status.get("overallStatus") if isinstance(status.get("overallStatus"), str) else None
+    overall_status = (
+        status.get("overallStatus")
+        if isinstance(status.get("overallStatus"), str)
+        else None
+    )
 
     summary = {
         "nct_id": ident.get("nctId"),
@@ -45,14 +50,18 @@ def _extract_study_summary(study: dict) -> tuple[dict, int | None, list[str], st
     return summary, enrollment_count, condition_list, overall_status
 
 
-def fetch_patient_snapshot(drug_name: str, disease: str, page_size: int = 20) -> dict | None:
+def fetch_patient_snapshot(
+    drug_name: str, disease: str, page_size: int = 20
+) -> dict | None:
     """Fetch a compact cohort snapshot from ClinicalTrials.gov.
 
     We intentionally fail open and return None on upstream errors so the API
     remains available during network hiccups.
     """
     query = f"{drug_name} {disease}".strip()
-    params = urllib.parse.urlencode({"query.term": query, "pageSize": max(5, min(page_size, 50))})
+    params = urllib.parse.urlencode(
+        {"query.term": query, "pageSize": max(5, min(page_size, 50))}
+    )
     url = f"{CTGOV_BASE}?{params}"
 
     try:
@@ -84,7 +93,9 @@ def fetch_patient_snapshot(drug_name: str, disease: str, page_size: int = 20) ->
     summarized_studies: list[dict] = []
 
     for study in studies:
-        summary, enrollment_count, condition_list, overall_status = _extract_study_summary(study)
+        summary, enrollment_count, condition_list, overall_status = (
+            _extract_study_summary(study)
+        )
 
         if enrollment_count is not None and enrollment_count > 0:
             enrollments.append(enrollment_count)
@@ -98,7 +109,9 @@ def fetch_patient_snapshot(drug_name: str, disease: str, page_size: int = 20) ->
         summarized_studies.append(summary)
 
     cohort_size = int(sum(enrollments) / len(enrollments)) if enrollments else None
-    target_subgroup = condition_counter.most_common(1)[0][0] if condition_counter else disease
+    target_subgroup = (
+        condition_counter.most_common(1)[0][0] if condition_counter else disease
+    )
     completed = status_counter.get("COMPLETED", 0)
     trial_count = len(studies)
 
