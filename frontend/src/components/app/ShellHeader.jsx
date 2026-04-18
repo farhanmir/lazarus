@@ -3,6 +3,13 @@ import PropTypes from 'prop-types'
 function ShellHeader({
   query,
   setQuery,
+  diseaseQuery,
+  setDiseaseQuery,
+  handleFindCandidates,
+  candidateLoading,
+  candidates,
+  selectedCandidateAssetId,
+  setSelectedCandidateAssetId,
   selectedAssetId,
   setSelectedAssetId,
   filteredAssets,
@@ -13,6 +20,14 @@ function ShellHeader({
   blueprintLoading,
   setShowResetConfirm,
 }) {
+  let runActionLabel = 'Run Analysis'
+  if (selectedCandidateAssetId) {
+    runActionLabel = 'Evaluate Candidate'
+  }
+  if (analysisLoading) {
+    runActionLabel = 'Running…'
+  }
+
   return (
     <header className="nexus-header">
       <div className="header-left">
@@ -37,6 +52,35 @@ function ShellHeader({
           className="header-search-input"
         />
 
+        <input
+          value={diseaseQuery}
+          onChange={(event) => setDiseaseQuery(event.target.value)}
+          placeholder="Disease input…"
+          className="header-search-input"
+        />
+
+        <button
+          type="button"
+          onClick={handleFindCandidates}
+          disabled={!diseaseQuery.trim() || candidateLoading}
+          className="term-btn"
+        >
+          {candidateLoading ? 'Finding…' : 'Find Drugs'}
+        </button>
+
+        <select
+          value={selectedCandidateAssetId}
+          onChange={(event) => setSelectedCandidateAssetId(event.target.value)}
+          className="term-select"
+        >
+          <option value="">— SELECT CANDIDATE —</option>
+          {candidates.map((candidate) => (
+            <option key={candidate.asset_id} value={candidate.asset_id}>
+              {candidate.drug_name} · {candidate.asset_code}
+            </option>
+          ))}
+        </select>
+
         <select value={selectedAssetId} onChange={(event) => setSelectedAssetId(event.target.value)} className="term-select">
           <option value="">— SELECT ASSET —</option>
           {filteredAssets.map((asset) => (
@@ -49,10 +93,10 @@ function ShellHeader({
         <button
           type="button"
           onClick={handleRunAnalysis}
-          disabled={!selectedAssetId || analysisLoading}
+          disabled={(!selectedAssetId && !selectedCandidateAssetId) || analysisLoading}
           className={`term-btn term-btn-execute${analysisLoading ? ' running' : ''}`}
         >
-          {analysisLoading ? 'Running…' : 'Run Analysis'}
+          {runActionLabel}
         </button>
 
         <button
@@ -82,6 +126,19 @@ function ShellHeader({
 ShellHeader.propTypes = {
   query: PropTypes.string.isRequired,
   setQuery: PropTypes.func.isRequired,
+  diseaseQuery: PropTypes.string.isRequired,
+  setDiseaseQuery: PropTypes.func.isRequired,
+  handleFindCandidates: PropTypes.func.isRequired,
+  candidateLoading: PropTypes.bool.isRequired,
+  candidates: PropTypes.arrayOf(
+    PropTypes.shape({
+      asset_id: PropTypes.string.isRequired,
+      asset_code: PropTypes.string,
+      drug_name: PropTypes.string,
+    })
+  ).isRequired,
+  selectedCandidateAssetId: PropTypes.string.isRequired,
+  setSelectedCandidateAssetId: PropTypes.func.isRequired,
   selectedAssetId: PropTypes.string.isRequired,
   setSelectedAssetId: PropTypes.func.isRequired,
   filteredAssets: PropTypes.arrayOf(

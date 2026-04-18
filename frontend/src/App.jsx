@@ -9,7 +9,9 @@ import { useGraphData } from './hooks/useGraphData'
 import { useAnalysisInsights } from './hooks/useAnalysisInsights'
 import { useRunStatus } from './hooks/useRunStatus'
 import {
+  evaluateCandidate,
   fetchAssets,
+  fetchCandidates,
   fetchBlueprintDetail,
   fetchGraph,
   startAnalysisJob,
@@ -47,6 +49,10 @@ function App() {
   const [blueprintResult, setBlueprintResult] = useState(null)
   const [activeTab, setActiveTab]         = useState('dashboard')
   const [query, setQuery]                 = useState('')
+  const [diseaseQuery, setDiseaseQuery]   = useState('')
+  const [candidateLoading, setCandidateLoading] = useState(false)
+  const [candidates, setCandidates]       = useState([])
+  const [selectedCandidateAssetId, setSelectedCandidateAssetId] = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -63,6 +69,11 @@ function App() {
       `${asset.asset_code} ${asset.original_indication} ${asset.internal_name}`.toLowerCase().includes(normalized),
     )
   }, [assets, query])
+
+  const selectedCandidate = useMemo(
+    () => candidates.find((candidate) => candidate.asset_id === selectedCandidateAssetId) ?? null,
+    [candidates, selectedCandidateAssetId],
+  )
 
   useEffect(() => {
     fetchAssets()
@@ -82,8 +93,30 @@ function App() {
     setErrorMessage('')
   }
 
+  const handleFindCandidates = async () => {
+    const disease = diseaseQuery.trim()
+    if (!disease) return
+
+    setCandidateLoading(true)
+    setErrorMessage('')
+    try {
+      const result = await fetchCandidates(disease)
+      const nextCandidates = result?.candidates ?? []
+      setCandidates(nextCandidates)
+      setSelectedCandidateAssetId(nextCandidates[0]?.asset_id ?? '')
+
+      if (!nextCandidates.length) {
+        setErrorMessage(`No candidate drugs found for "${disease}".`)
+      }
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.detail ?? error.message ?? 'Failed to fetch disease candidates.')
+    } finally {
+      setCandidateLoading(false)
+    }
+  }
+
   const handleRunAnalysis = async () => {
-    if (!selectedAssetId) return
+    if (!selectedAssetId && !selectedCandidate) return
     setActiveTab('dashboard')
     setAnalysisLoading(true)
     setErrorMessage('')
@@ -93,9 +126,16 @@ function App() {
     setGraphData(emptyGraph)
     setSelectedNode(null)
     try {
-      const job = await startAnalysisJob(selectedAssetId, 'manual')
+      const job = selectedCandidate
+        ? await evaluateCandidate({
+            drug: selectedCandidate.drug_name,
+            disease: diseaseQuery.trim() || selectedCandidate.proposed_disease,
+            assetCode: selectedCandidate.asset_code,
+          })
+        : await startAnalysisJob(selectedAssetId, 'manual')
+
       setAnalysisResult({ run: job.run, asset_code: job.asset_code, hypothesis: null })
-      const graph = await fetchGraph(selectedAssetId)
+      const graph = await fetchGraph(selectedCandidate?.asset_id ?? selectedAssetId)
       startTransition(() => {
         setGraphData(graph)
         setSelectedNode(graph.nodes.find((n) => n.highlight) ?? graph.nodes[0] ?? null)
@@ -163,6 +203,13 @@ function App() {
           <ShellHeader
             query={query}
             setQuery={setQuery}
+            diseaseQuery={diseaseQuery}
+            setDiseaseQuery={setDiseaseQuery}
+            handleFindCandidates={handleFindCandidates}
+            candidateLoading={candidateLoading}
+            candidates={candidates}
+            selectedCandidateAssetId={selectedCandidateAssetId}
+            setSelectedCandidateAssetId={setSelectedCandidateAssetId}
             selectedAssetId={selectedAssetId}
             setSelectedAssetId={setSelectedAssetId}
             filteredAssets={filteredAssets}

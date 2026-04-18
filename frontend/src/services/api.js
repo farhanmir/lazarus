@@ -9,6 +9,22 @@ export const fetchAssets = async () => {
   return data
 }
 
+export const fetchCandidates = async (disease, limit = 5) => {
+  const { data } = await api.get('/api/candidates', {
+    params: { disease, limit },
+  })
+  return data
+}
+
+export const evaluateCandidate = async ({ drug, disease, assetCode }) => {
+  const { data } = await api.post('/api/evaluate', {
+    drug,
+    disease,
+    asset_code: assetCode || null,
+  })
+  return data
+}
+
 export const runAnalysis = async (assetId, runType = 'manual') => {
   const { data } = await api.post('/run-analysis', {
     asset_id: assetId,
@@ -49,7 +65,7 @@ export const subscribeRunStream = (runId, { onMessage, onError, onClose } = {}) 
 
   const stopPolling = () => {
     if (intervalId) {
-      window.clearInterval(intervalId)
+      globalThis.clearInterval(intervalId)
       intervalId = null
     }
   }
@@ -72,13 +88,13 @@ export const subscribeRunStream = (runId, { onMessage, onError, onClose } = {}) 
     if (usingPolling || closed) return
     usingPolling = true
     pollOnce()
-    intervalId = window.setInterval(pollOnce, 900)
+    intervalId = globalThis.setInterval(pollOnce, 900)
   }
 
   try {
     socket = new WebSocket(`${wsUrl}/runs/${runId}/stream`)
 
-    const fallbackTimer = window.setTimeout(() => {
+    const fallbackTimer = globalThis.setTimeout(() => {
       if (!usingPolling && socket?.readyState !== WebSocket.OPEN) {
         try {
           socket?.close()
@@ -90,7 +106,7 @@ export const subscribeRunStream = (runId, { onMessage, onError, onClose } = {}) 
     }, 1200)
 
     socket.onopen = () => {
-      window.clearTimeout(fallbackTimer)
+      globalThis.clearTimeout(fallbackTimer)
     }
 
     socket.onmessage = (event) => {
@@ -99,7 +115,7 @@ export const subscribeRunStream = (runId, { onMessage, onError, onClose } = {}) 
     }
 
     socket.onerror = (event) => {
-      window.clearTimeout(fallbackTimer)
+      globalThis.clearTimeout(fallbackTimer)
       if (!usingPolling) {
         startPolling()
         return
@@ -108,14 +124,14 @@ export const subscribeRunStream = (runId, { onMessage, onError, onClose } = {}) 
     }
 
     socket.onclose = (event) => {
-      window.clearTimeout(fallbackTimer)
+      globalThis.clearTimeout(fallbackTimer)
       if (!usingPolling && !closed) {
         startPolling()
         return
       }
       onClose?.(event)
     }
-  } catch (error) {
+  } catch {
     startPolling()
   }
 
