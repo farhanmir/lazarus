@@ -48,13 +48,23 @@ Lazarus operates across three distinct scientific data environments:
 
 ---
 
-## 5. Swarm Logic: The Adversarial Court
-Lazarus employs a 4-agent adversarial reasoning loop, backed by a **Deterministic Biostatistics Engine (Python/SciPy)**. LLMs do not guess statistical significance; they ask the FastAPI backend to calculate actual synthetic P-Values (Fisher's Exact Test / Kaplan-Meier) on sub-cohorts.
+## 5. Swarm Logic: The Adversarial Court & Logistics
+Lazarus employs a multi-agent adversarial reasoning loop, backed by a **Deterministic Biostatistics Engine (Python/SciPy)**. LLMs do not guess statistical significance; they ask the FastAPI backend to calculate actual synthetic P-Values (Fisher's Exact Test / Kaplan-Meier) on sub-cohorts.
 
 1.  **The Mortician (Sourcing):** Scours the **VALLEY OF DEATH** (ClinicalTrials.gov) for terminated assets. 
-2.  **The Defibrillator (Gemma 4 - Advocate):** Ingests the full FDA clinical briefing (using 2M+ context). Finds the hidden efficacy spike and relies on Python for the deterministic math validation.
+2.  **The Defibrillator (Gemma - Advocate):** Ingests the full FDA clinical briefing (using 2M+ context). Finds the hidden efficacy spike and relies on Python for the deterministic math validation.
 3.  **The Coroner (K2 Think V2 - Skeptic):** Performs the 10-step "Biological Autopsy" to verify if the pulse is real. Its deep "Thinking Trace" explores mechanism of action and synthesis pathways.
-4.  **The High Priest (Judge):** Synthesizes the debate into a heavily cited (PMID) blueprint.
+4.  **The Quartermaster (Logistics):** Takes the surviving drug query and hits the Overpass API for `amenity=hospital` to map trial sites. Calculates level of effort vs. ROI.
+5.  **The Comptroller (Budget):** Calculates the Trial Burn Rate based on geographical trial mapping.
+6.  **The High Priest (Judge):** Synthesizes the debate into a heavily cited (PMID) blueprint.
+7.  **The Master Control (Follow-Up):** Stays in the loop via iMessage/Email to answer executive follow-up questions post-delivery.
+
+### Execution Circuit Breakers
+To prevent demo collapse, the Python backend rigorously enforces these edge cases:
+*   **The "Infinite Argument" Deadlock:** If Advocate and Skeptic argue past 3 turns, the orchestrator violently kills the loop and flags the drug as High Risk.
+*   **Overpass API Limits:** Postgres pre-caches local hospital coordinates so the Quartermaster doesn't get rate-limited.
+*   **Hallucination Trapping (PubMed):** The backend tools include a real PubMed Entrez API ping. Fake citations immediately invalidate the Advocate's thesis.
+*   **iMessage Timeout Ping:** Before the PDF is generated, Photon fires back "Acknowledged. Compiling blueprint..." instantly to avoid dead air.
 
 ---
 

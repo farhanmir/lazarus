@@ -10,6 +10,13 @@
 
 **Approach:** Option B — Hybrid. Infrastructure is all real. The Mortician makes a live CTG API v2 call. Gemini and K2 process a curated, pre-seeded dataset. The RX-782/Zeloprin demo scenario is deterministic (seeded into DB) but runs through real LLM calls. If any external API is unreachable, the affected agent auto-switches to replay mode from mock JSON — judges see zero difference.
 
+**Critical Edge Cases / Circuit Breakers:**
+- `max_turns=3` Deadlock cutoff to prevent infinite argument loops.
+- `Overpass API caching` in Postgres to prevent OSM rate-limiting.
+- `PubMed Entrez Verification` to trap hallucinatory citations.
+- `iMessage timeout ping` to prevent dead-air while rendering PDFs.
+- `Master Control Agent` handles QA and follow-up data synthesis post-delivery.
+
 **Deadline:** April 19, 2026 — 8:00 AM submission, 9:30 AM judging.
 
 ---
@@ -54,10 +61,15 @@ LOCAL DEV: Docker Compose          DEMO: Dedalus Distributed Swarm
                                     │  Role: The Coroner (K2 Think V2)  │
                                     └───────────────────────────────────┘
 
+                                    ┌─ DCS Machine 4 & 5: Logistics ────┐
+                                    │  Runs: OpenClaw Agent Worker      │
+                                    │  Role: Quartermaster & Comptroller│
+                                    └───────────────────────────────────┘
+
                                                   │
                                                   ▼
                                          exec's iMessage        React UI
-```
+                                     (Master Follow-Up Agent)
 
 **Two environments:** Docker Compose for local development, Dedalus DCS for the demo. **Key distinction:** The FastAPI Backend natively orchestrates the reasoning agents and handles the WebSocket logs pushing to React, while `cmd/lazarus/deploy.go` handles spinning up the Dedalus VMs.
 
