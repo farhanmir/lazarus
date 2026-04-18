@@ -1,0 +1,510 @@
+"""Reasoning orchestration service for Step 3."""
+
+from __future__ import annotations
+
+import os
+from datetime import datetime, timezone
+from threading import Thread
+from uuid import UUID
+
+from sqlalchemy.orm import Session
+
+from backend.app import crud, schemas
+from backend.app.agents.advocate import run_advocate
+from backend.app.agents.evidence_curator import run_evidence_curator
+from backend.app.agents.judge import run_judge
+from backend.app.agents.skeptic import run_skeptic
+from backend.app.agents.types import (
+    AdvocateOutput,
+    AssetContext,
+    EvidenceCuratorOutput,
+    HITLDecision,
+    JudgeOutput,
+    ParallelEvidenceOutput,
+    ReasoningAssessment,
+    TrialStrategyInput,
+    TrialStrategyOutput,
+    ReasoningResult,
+    ReasoningTrace,
+    SkepticOutput,
+)
+from backend.app.db import SessionLocal
+from backend.app.services.context_service import build_asset_context
+from backend.app.services.reasoning_enhancement_service import (
+    build_hitl_decision,
+    build_long_term_memory_note,
+    build_reasoning_assessment,
+    build_short_term_memory_entries,
+    merge_parallel_evidence_into_context,
+    retrieve_evidence_context,
+    revise_advocate_output,
+    run_parallel_evidence_branches,
+)
+from backend.app.services.spectrum_service import send_spectrum_run_summary
+from backend.app.services.trial_strategy_service import generate_trial_strategy
+
+
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _log_agent_step(
+    db: Session,
+    *,
+    run_id: UUID,
+    agent_name: str,
+    step_order: int,
+    input_summary: str,
+    output_summary: str,
+    score: float | None,
+    citations_json: dict | list | None,
+) -> None:
+    timestamp = now_utc()
+    crud.create_agent_step(
+        db,
+        run_id=run_id,
+        agent_name=agent_name,
+        step_order=step_order,
+        input_summary=input_summary,
+        output_summary=output_summary,
+        status="completed",
+        score=score,
+        citations_json=citations_json,
+        started_at=timestamp,
+        completed_at=timestamp,
+    )
+
+
+def _build_trace(
+    context: AssetContext,
+    advocate: AdvocateOutput,
+    skeptic: SkepticOutput,
+    evidence: EvidenceCuratorOutput,
+    judge: JudgeOutput,
+    trial_strategist: TrialStrategyOutput,
+    parallel_evidence: ParallelEvidenceOutput,
+    assessment: ReasoningAssessment,
+    hitl: HITLDecision,
+) -> ReasoningTrace:
+    return ReasoningTrace(
+        asset_code=context.asset_code,
+        context=context,
+        advocate=advocate,
+        skeptic=skeptic,
+        evidence_curator=evidence,
+        judge=judge,
+        trial_strategist=trial_strategist,
+        parallel_evidence=parallel_evidence,
+        assessment=assessment,
+        hitl=hitl,
+        citations=evidence.evidence,
+    )
+
+
+def _build_trial_strategy_input(
+    context: AssetContext,
+    advocate: AdvocateOutput,
+    skeptic: SkepticOutput,
+    evidence: EvidenceCuratorOutput,
+    judge: JudgeOutput,
+) -> TrialStrategyInput:
+    return TrialStrategyInput(
+        asset_code=context.asset_code,
+        drug_name=context.internal_name,
+        original_indication=context.source_disease,
+        proposed_indication=advocate.proposed_disease,
+        risk_level=skeptic.risk_level,
+        final_confidence=judge.final_confidence,
+        judge_decision=judge.final_decision,
+        evidence_summary=[
+            f"{item.source_ref}: {item.title}"
+            for item in evidence.evidence
+        ] or [evidence.evidence_summary],
+        business_failure_reason=context.business_failure_reason,
+        phase=context.phase,
+    )
+
+
+def _persist_short_term_memory(
+    db: Session,
+    *,
+    run_id: UUID,
+    entries: list[tuple[str, str]],
+) -> None:
+    for memory_type, content in entries:
+        crud.create_run_memory(
+            db,
+            run_id=run_id,
+            memory_type=memory_type,
+            content=content,
+        )
+
+
+def _persist_long_term_memory(
+    db: Session,
+    *,
+    asset_id: UUID,
+    run_id: UUID,
+    content: str,
+) -> None:
+    crud.create_asset_memory(
+        db,
+        asset_id=asset_id,
+        memory_type="reasoning_lesson",
+        content=content,
+        source_run_id=run_id,
+    )
+
+
+def _execute_reasoning_pipeline(
+    db: Session,
+    *,
+    asset,
+    run,
+) -> schemas.RunAnalysisResponse:
+    base_context = build_asset_context(asset)
+    prior_memories = crud.list_asset_memories(db, asset.id, limit=4)
+    context = retrieve_evidence_context(base_context, prior_memories=prior_memories)
+    try:
+        advocate = run_advocate(context)
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="advocate",
+            step_order=1,
+            input_summary=f"Asset context for {context.asset_code} with source disease {context.source_disease}.",
+            output_summary=advocate.model_dump_json(),
+            score=advocate.confidence,
+            citations_json={"model_used": advocate.model_used, "mode": advocate.mode},
+        )
+
+        skeptic = run_skeptic(context, advocate)
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="skeptic",
+            step_order=2,
+            input_summary=f"Advocate proposed {advocate.proposed_disease} for {context.asset_code}.",
+            output_summary=skeptic.model_dump_json(),
+            score=skeptic.skeptic_score,
+            citations_json={
+                "model_used": skeptic.model_used,
+                "mode": skeptic.mode,
+                "contraindications": skeptic.contraindications,
+            },
+        )
+
+        parallel_evidence = run_parallel_evidence_branches(context, advocate, skeptic)
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="parallel_evidence",
+            step_order=3,
+            input_summary=(
+                f"Fan out mechanism, safety, trial, and business branches for {context.asset_code} "
+                f"after proposal {advocate.proposed_disease}."
+            ),
+            output_summary=parallel_evidence.model_dump_json(),
+            score=parallel_evidence.combined_score,
+            citations_json={
+                "provenance": {
+                    "mechanism": parallel_evidence.mechanism.provenance,
+                    "safety": parallel_evidence.safety.provenance,
+                    "trial": parallel_evidence.trial.provenance,
+                    "business": parallel_evidence.business.provenance,
+                }
+            },
+        )
+
+        curated_context = merge_parallel_evidence_into_context(context, parallel_evidence)
+        evidence = run_evidence_curator(curated_context, advocate, skeptic)
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="evidence_curator",
+            step_order=4,
+            input_summary=(
+                f"Collect evidence for {context.asset_code} -> {advocate.proposed_disease} "
+                f"while checking skeptic concerns: {', '.join(skeptic.contraindications) or 'none'}."
+            ),
+            output_summary=evidence.model_dump_json(),
+            score=evidence.evidence_score,
+            citations_json=[item.model_dump() for item in evidence.evidence],
+        )
+
+        assessment = build_reasoning_assessment(advocate, skeptic, evidence, parallel_evidence)
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="assessment",
+            step_order=5,
+            input_summary="Evaluate disagreement, evidence coverage, and review escalation thresholds.",
+            output_summary=assessment.model_dump_json(),
+            score=assessment.evidence_coverage_score,
+            citations_json={
+                "disagreement_score": assessment.disagreement_score,
+                "requires_hitl": assessment.requires_hitl,
+            },
+        )
+
+        if assessment.should_iterate:
+            advocate = revise_advocate_output(context, advocate, assessment, parallel_evidence)
+            _log_agent_step(
+                db,
+                run_id=run.id,
+                agent_name="advocate_iteration",
+                step_order=6,
+                input_summary="Revise Advocate output using disagreement and parallel branch feedback.",
+                output_summary=advocate.model_dump_json(),
+                score=advocate.confidence,
+                citations_json={"iteration_reason": assessment.rationale},
+            )
+
+            skeptic = run_skeptic(context, advocate)
+            _log_agent_step(
+                db,
+                run_id=run.id,
+                agent_name="skeptic_iteration",
+                step_order=7,
+                input_summary=f"Re-test revised Advocate proposal {advocate.proposed_disease}.",
+                output_summary=skeptic.model_dump_json(),
+                score=skeptic.skeptic_score,
+                citations_json={"mode": skeptic.mode, "contraindications": skeptic.contraindications},
+            )
+
+            evidence = run_evidence_curator(curated_context, advocate, skeptic)
+            _log_agent_step(
+                db,
+                run_id=run.id,
+                agent_name="evidence_iteration",
+                step_order=8,
+                input_summary="Refresh evidence package after the iterative Advocate/Skeptic loop.",
+                output_summary=evidence.model_dump_json(),
+                score=evidence.evidence_score,
+                citations_json=[item.model_dump() for item in evidence.evidence],
+            )
+
+            assessment = build_reasoning_assessment(advocate, skeptic, evidence, parallel_evidence)
+            _log_agent_step(
+                db,
+                run_id=run.id,
+                agent_name="assessment_iteration",
+                step_order=9,
+                input_summary="Recompute disagreement and coverage after the iterative pass.",
+                output_summary=assessment.model_dump_json(),
+                score=assessment.evidence_coverage_score,
+                citations_json={
+                    "disagreement_score": assessment.disagreement_score,
+                    "requires_hitl": assessment.requires_hitl,
+                },
+            )
+
+        judge = run_judge(context, advocate, skeptic, evidence)
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="judge",
+            step_order=10,
+            input_summary="Combine Advocate, Skeptic, and Evidence Curator outputs.",
+            output_summary=judge.model_dump_json(),
+            score=judge.final_confidence,
+            citations_json={"model_used": judge.model_used, "mode": judge.mode},
+        )
+
+        trial_strategist_input = _build_trial_strategy_input(
+            context,
+            advocate,
+            skeptic,
+            evidence,
+            judge,
+        )
+        trial_started_at = now_utc()
+        trial_strategist = generate_trial_strategy(trial_strategist_input)
+        trial_completed_at = now_utc()
+        execution_time = round((trial_completed_at - trial_started_at).total_seconds(), 4)
+        hitl = build_hitl_decision(context, assessment, skeptic)
+        crud.create_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="trial_strategist",
+            step_order=11,
+            input_summary=(
+                f"Agent started. Build next-step recommendation for {context.asset_code} "
+                f"after judge decision '{judge.final_decision}' at {judge.final_confidence:.2f} confidence."
+            ),
+            output_summary=trial_strategist.model_dump_json(),
+            status="completed",
+            score=judge.final_confidence,
+            citations_json={
+                "model_used": trial_strategist.model_used,
+                "mode": trial_strategist.mode,
+                "priority_level": trial_strategist.priority_level,
+                "recommended_action": trial_strategist.recommended_action,
+                "execution_time": execution_time,
+                "logs": [
+                    "Agent started",
+                    "Agent completed",
+                    "Decision generated",
+                ],
+            },
+            started_at=trial_started_at,
+            completed_at=trial_completed_at,
+        )
+
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="hitl_router",
+            step_order=12,
+            input_summary="Determine whether this run requires a human-in-the-loop checkpoint.",
+            output_summary=hitl.model_dump_json(),
+            score=1.0 if hitl.required else 0.0,
+            citations_json={"review_type": hitl.review_type, "reviewer": hitl.recommended_reviewer},
+        )
+
+        hypothesis = crud.create_hypothesis(
+            db,
+            schemas.HypothesisCreate(
+                run_id=run.id,
+                asset_id=asset.id,
+                neo4j_hypothesis_id=f"mock-{context.asset_code.lower()}-{advocate.proposed_disease.lower().replace(' ', '-')}",
+                source_disease=context.source_disease,
+                target_disease=advocate.proposed_disease,
+                summary=judge.summary,
+                advocate_score=advocate.confidence,
+                skeptic_score=skeptic.skeptic_score,
+                judge_score=judge.judge_score,
+                final_confidence=judge.final_confidence,
+                recommended_action=trial_strategist.recommended_action,
+                priority_level=trial_strategist.priority_level,
+                disagreement_score=assessment.disagreement_score,
+                evidence_coverage_score=assessment.evidence_coverage_score,
+                requires_hitl=hitl.required,
+                status="proposed" if judge.final_confidence >= 0.65 else "rejected",
+            ),
+        )
+
+        if hitl.required:
+            crud.create_human_review(
+                db,
+                run_id=run.id,
+                asset_id=asset.id,
+                review_type=hitl.review_type,
+                reason=hitl.reason,
+                recommended_reviewer=hitl.recommended_reviewer,
+            )
+
+        run = crud.update_run_status(
+            db,
+            run,
+            status="completed",
+            final_confidence=judge.final_confidence,
+            final_recommendation=judge.final_decision,
+        )
+
+        _persist_short_term_memory(
+            db,
+            run_id=run.id,
+            entries=build_short_term_memory_entries(context, advocate, skeptic, assessment),
+        )
+        _persist_long_term_memory(
+            db,
+            asset_id=asset.id,
+            run_id=run.id,
+            content=build_long_term_memory_note(context, advocate, assessment, judge.summary),
+        )
+
+        if run.run_type == "manual":
+            spectrum_recipient = (os.getenv("SPECTRUM_RECIPIENT", "")).strip()
+            if spectrum_recipient:
+                send_spectrum_run_summary(
+                    recipient=spectrum_recipient,
+                    asset_code=context.asset_code,
+                    target_disease=advocate.proposed_disease,
+                    final_decision=judge.final_decision,
+                    final_confidence=judge.final_confidence,
+                    recommended_action=trial_strategist.recommended_action,
+                )
+
+        reasoning_result = ReasoningResult(
+            run_id=run.id,
+            hypothesis_id=hypothesis.id,
+            asset_id=asset.id,
+            asset_code=context.asset_code,
+            source_disease=context.source_disease,
+            target_disease=advocate.proposed_disease,
+            advocate=advocate,
+            skeptic=skeptic,
+            evidence_curator=evidence,
+            judge=judge,
+            trial_strategist=trial_strategist,
+            parallel_evidence=parallel_evidence,
+            assessment=assessment,
+            hitl=hitl,
+        )
+        trace = _build_trace(
+            context,
+            advocate,
+            skeptic,
+            evidence,
+            judge,
+            trial_strategist,
+            parallel_evidence,
+            assessment,
+            hitl,
+        )
+
+        return schemas.RunAnalysisResponse(
+            run=schemas.RunResponse.model_validate(run),
+            asset_code=context.asset_code,
+            reasoning=reasoning_result,
+            trace=trace,
+            hypothesis=schemas.HypothesisResponse.model_validate(hypothesis),
+            final_hypothesis_id=hypothesis.id,
+            final_confidence=judge.final_confidence,
+            final_decision=judge.final_decision,
+        )
+    except Exception as exc:
+        crud.update_run_status(db, run, status="failed", error_message=str(exc))
+        raise
+
+
+def run_reasoning_pipeline(db: Session, asset_id: UUID, run_type: str) -> schemas.RunAnalysisResponse:
+    """Execute the full 4-agent reasoning pipeline and persist the result."""
+    asset = crud.get_asset(db, asset_id)
+    if asset is None:
+        raise ValueError("Asset not found.")
+
+    run = crud.create_run(db, asset_id=asset.id, run_type=run_type, status="running")
+    return _execute_reasoning_pipeline(db, asset=asset, run=run)
+
+
+def create_analysis_run(db: Session, asset_id: UUID, run_type: str) -> schemas.RunResponse:
+    """Create a queued analysis run that can be processed asynchronously."""
+    asset = crud.get_asset(db, asset_id)
+    if asset is None:
+        raise ValueError("Asset not found.")
+
+    run = crud.create_run(db, asset_id=asset.id, run_type=run_type, status="queued")
+    return schemas.RunResponse.model_validate(run)
+
+
+def execute_analysis_run(run_id: UUID) -> None:
+    """Execute a previously created analysis run in a standalone session."""
+    with SessionLocal() as db:
+        run = crud.get_run(db, run_id)
+        if run is None:
+            return
+
+        asset = crud.get_asset(db, run.asset_id)
+        if asset is None:
+            crud.update_run_status(db, run, status="failed", error_message="Asset not found.")
+            return
+
+        run = crud.update_run_status(db, run, status="running", error_message=None)
+        _execute_reasoning_pipeline(db, asset=asset, run=run)
+
+
+def start_analysis_run(run_id: UUID) -> None:
+    """Launch an analysis run in the background."""
+    Thread(target=execute_analysis_run, args=(run_id,), daemon=True).start()

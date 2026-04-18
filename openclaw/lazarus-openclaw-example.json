@@ -1,0 +1,38 @@
+{
+  "notes": {
+    "purpose": "Example values for wiring OpenClaw to Lazarus via HTTP tool or webhook.",
+    "lazarusBaseUrl": "http://127.0.0.1:8000",
+    "lazarusOpenClawRoute": "/openclaw/review-asset",
+    "lazarusBlueprintRoute": "/openclaw/generate-blueprint"
+  },
+  "gateway": {
+    "auth": {
+      "mode": "token",
+      "token": "replace-with-openclaw-gateway-token"
+    }
+  },
+  "channels": {
+    "bluebubbles": {
+      "enabled": true,
+      "serverUrl": "http://your-mac:1234",
+      "password": "replace-with-bluebubbles-password",
+      "webhookPath": "/bluebubbles-webhook",
+      "dmPolicy": "pairing"
+    }
+  },
+  "hooks": {
+    "enabled": true,
+    "token": "replace-with-openclaw-hook-token",
+    "path": "/hooks"
+  },
+  "exampleReviewPayload": {
+    "asset_code": "RX-782",
+    "run_type": "manual",
+    "generate_blueprint": true,
+    "create_notification": false
+  },
+  "exampleBlueprintPayload": {
+    "asset_code": "RX-782",
+    "create_notification": false
+  }
+}

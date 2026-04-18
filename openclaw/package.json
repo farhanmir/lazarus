@@ -1,0 +1,22 @@
+{
+  "name": "lazarus-openclaw",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "tsx openclaw.ts",
+    "chat": "tsx chat.ts",
+    "spectrum:local": "tsx spectrum-local.ts"
+  },
+  "dependencies": {
+    "@photon-ai/imessage-kit": "^2.1.2",
+    "better-sqlite3": "^12.4.1",
+    "dedalus-labs": "^0.1.0-alpha.8",
+    "dotenv": "^16.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
