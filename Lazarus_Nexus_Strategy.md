@@ -5,7 +5,7 @@
 ## 1. The Pitch
 The pharmaceutical industry is a graveyard of "near-misses." Biotech firms bleed billions on clinical trials that fail not because of biology, but because of business: funding cuts, strategic pivots, or poor enrollment. These "dead" assets are shelved while patients wait for cures.
 
-Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resurrects' them by finding new patient sub-groups where the drug actually works. When it finds a billion-dollar match, it pings the executive's iMessage with a ready-to-sign R&D blueprint.
+Lazarus is an **Internal Clinical R&D Participant** orchestrated as an autonomous AI swarm. It monitors shelved assets in the **VALLEY OF DEATH** and 'resurrects' them by identifying hidden patient sub-groups where the drug actually works. When it finds a billion-dollar match, it pings the executive's iMessage with a ready-to-sign R&D blueprint.
 
 ---
 
@@ -30,8 +30,10 @@ Lazarus utilizes a high-concurrency microservices architecture to ensure continu
     * **Redis:** Real-time "Blackboard" for agent broadcasting via pub/sub.
     * **PostgreSQL:** "Truth Ledger" maintaining a durable event log, patient data, and historical R&D outcomes.
     * **Neo4j:** "Biological Knowledge Graph" managing complex relationships between Drugs, Targets, Diseases, and Evidence.
-* **Execution Environment:** Hosted on **Dedalus Containers** for enterprise-grade uptime.
-* **The Reasoning Engine:** **Gemma 4** (Massive context extraction & Advocate) + **IFM K2 Think V2** (Targeted skeptical logic/verification).
+* **Execution Environment (Dedalus Containers):** A high-concurrency, containerized environment ensuring zero-lag agent interactions and 24/7 sovereign operation.
+* **The Reasoning Engines:**
+    * **The Defibrillator (Gemma 4):** Powered by the **Gemini API** for massive context mining.
+    * **The Coroner (K2 Think V2):** Powered by **MBZUAI** for deep mechanistic logic.
 
 ---
 
@@ -56,11 +58,16 @@ Lazarus employs an adversarial reasoning loop to force a "survival of the fittes
 
 ---
 
-## 5. The Demo UX (The Sunday Moment)
-* **The Scenario:** Lazarus finds a match autonomously.
-* **The iMessage:** Judge’s phone buzzes via **Photon**: *"🚨 Lazarus identified an 84% match for RX-782 for Lupus. Reply DRAFT for blueprint."*
-* **The Action:** Reply "DRAFT".
-* **The Delivery:** Lazarus drops a professionally formatted, cited R&D PDF directly into the iMessage thread.
+## 6. The Demo UX: Participating in Truth (**Photon**)
+Instead of just "alerting," **The High Priest** participates in the corporate conversation with taste and social context.
+
+*   **The Scenario:** Lazarus finds a match autonomously.
+*   **The iMessage:** Executive’s phone buzzes: *"🚨 Lazarus unburied a pulse in Zeloprin. 84% efficacy signature detected in High-CRP females. Reply DRAFT for the blueprint."*
+*   **The Conversation (Participation):**
+    *   **User:** "Wait, what's the p-value?"
+    *   **The High Priest:** "0.003. The Coroner has already verified the biological plausibility via PPAR-gamma pathways. It’s not just noise—it’s a resurrection."
+    *   **User:** "Send the draft."
+*   **The Delivery:** **The High Priest** drops the professionally formatted, cited R&D PDF directly into the thread.
 
 ---
 
