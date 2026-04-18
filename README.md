@@ -1,6 +1,6 @@
 # Lazarus: Autonomous Clinical R&D Swarm
 
-Resurrecting shelved clinical assets using a sovereign, adversarial multi-agent swarm.
+Resurrecting shelved clinical assets from the **VALLEY OF DEATH** using a sovereign, adversarial multi-agent swarm.
 
 ## Quick Links
 - **[Project Strategy & Vision](Lazarus_Nexus_Strategy.md):** Deep dive into the Lazarus architecture, swarm logic, and the "Bio-Nexus" demo strategy.

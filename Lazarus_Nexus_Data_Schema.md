@@ -1,6 +1,6 @@
 # Lazarus Bio-Nexus Data Schema
 
-This document defines the data structures used for the "Smoke and Mirrors" MVP demo, ensuring authenticity and reliability during the Sunday pitch.
+This document defines the data structures used for the "Smoke and Mirrors" MVP demo, ensuring authenticity and reliability as we rescue assets from the **VALLEY OF DEATH**.
 
 ## 1. NHANES Laboratory Data (`patients_mock.json`)
 We use official NHANES variable prefixes to provide immediate scientific credibility to the datasets viewed by judges.

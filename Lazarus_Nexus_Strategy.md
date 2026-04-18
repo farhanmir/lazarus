@@ -5,7 +5,7 @@
 ## 1. The Pitch
 The pharmaceutical industry is a graveyard of "near-misses." Biotech firms bleed billions on clinical trials that fail not because of biology, but because of business: funding cuts, strategic pivots, or poor enrollment. These "dead" assets are shelved while patients wait for cures.
 
-**Lazarus** is a sovereign, multi-agent swarm designed to resurrect these assets. It acts as an autonomous, founder-level R&D engine that continuously mines a company’s proprietary clinical pipeline, cross-references it with global biological knowledge graphs, and actively pushes validated, citation-backed repurposing blueprints directly to executives via iMessage. Lazarus doesn't just "search"—it reasons, self-corrects, and executes.
+**Lazarus** is a sovereign, multi-agent swarm designed to resurrect these assets from the **VALLEY OF DEATH**. It acts as an autonomous, founder-level R&D engine that continuously mines a company’s proprietary clinical pipeline, cross-references it with global biological knowledge graphs, and actively pushes validated, citation-backed repurposing blueprints directly to executives via iMessage. Lazarus doesn't just "search"—it reasons, self-corrects, and executes.
 
 ---
 
@@ -60,7 +60,7 @@ Lazarus employs an adversarial reasoning loop to force a "survival of the fittes
 ---
 
 ## 7. Vision
-Lazarus ensures that the next life-saving cure doesn't die in a digital vault. We are raising the graveyard of medicine.
+Lazarus ensures that the next life-saving cure doesn't die in the **VALLEY OF DEATH** or a digital vault. We are raising the graveyard of medicine.
 
 ---
 
