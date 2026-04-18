@@ -9,17 +9,18 @@ Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resu
 
 ---
 
-## 2. Target Tracks & Bounty Strategy
-Lazarus is engineered to sweep the following high-value tracks:
+## 2. Target Tracks & Bounties
+Lazarus is engineered to aggressively capture the following prize pools:
 
-* **🏆 Best Overall Hack:** A bulletproof enterprise narrative combined with low-level systems engineering (Go/Redis).
-* **🏥 Best Healthcare Hack:** Addresses drug repurposing and clinical efficiency.
-* **🧬 Regeneron - AI & Tech for Clinical Trials ($1,000):** Purpose-built solution for biostatistics and trial asset recovery.
-* **✨ Best Use of Gemini API (MLH Season Prize):** Leveraging **Gemma 4** for massive context extraction and high-fidelity hypothesis generation.
-* **🧠 K2 Think V2 - IFM:** Using K2 as the **Coroner Agent** to execute multi-step biological logic validation.
-* **💬 Photon - Agents in iMessage ($700):** Leveraging Spectrum to move the UX from a dashboard to the executive’s pocket.
-* **⚙️ Eragon - Build What Actually Runs Monday:** A stateful, internal daemon running over real company stacks.
-* **🐳 Dedalus - Best Agent Swarm ($500):** High-concurrency swarm hosted natively on Dedalus Containers.
+*   **🏆 Best Healthcare / Overall Hack:** Solving the multibillion-dollar clinical "Valley of Death" problem.
+*   **🧬 Regeneron ($1,000):** AI & Tech for Clinical Trials — purpose-built for trial asset recovery.
+*   **✨ Best Use of Gemini API (MLH):** **The Defibrillator** agent uses Gemini's 2M+ context window to mine decades of clinical records.
+*   **🧠 MBZUAI - K2 Think V2:** **The Coroner** agent uses K2's high-parameter reasoning for "Biological Autopsies."
+*   **⚙️ Eragon - Build What Actually Runs Monday:** A sovereign R&D participant built on **OpenClaw** that solves a concrete internal pipeline issue.
+*   **🐳 Dedalus - Best Agent Swarm ($500):** High-concurrency swarm orchestrated via Go and hosted on Dedalus Containers.
+*   **💬 Photon - Agents in iMessage ($700):** **The High Priest** pushes the "Resurrection Blueprint" directly to executive iMessage via Spectrum.
+*   **🛒 KnotAPI:** Proactive Bio-Filtering based on transaction surrogate markers.
+*   **🛡️ Sonar:** Beautifully Engineered (Disaster) — maintain high code quality on a complex Go/Neo4j stack.
 
 ---
 

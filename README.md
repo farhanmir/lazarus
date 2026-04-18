@@ -17,12 +17,16 @@ Lazarus is an autonomous R&D engine designed for HackPrinceton Spring 2026. It m
 - **Data:** ClinicalTrials.gov API, Knot API, NHANES
 - **Deployment:** Dedalus Containers
 
-### Target Tracks
-- 🏆 **Best Overall Hack** & **Best Healthcare Hack**
-- ✨ **Best Use of Gemini API** (Powered by The Defibrillator agent)
-- 🧠 **Best Use of K2 Think V2** (Powered by The Coroner agent)
-- 🧪 **Regeneron:** AI & Tech for Clinical Trials
-- 💬 **Photon:** Agents in iMessage
+### Target Tracks & Bounties
+- 🏆 **Best Healthcare / Overall Hack:** Solving the clinical "Valley of Death."
+- 🧬 **Regeneron ($1,000):** AI & Tech for Clinical Trials asset recovery.
+- ✨ **Best Use of Gemini API (MLH):** Powered by **The Defibrillator** (Advocate).
+- 🧠 **MBZUAI - K2 Think V2:** Powered by **The Coroner** (Skeptic).
+- ⚙️ **Eragon:** Sovereign R&D participant built on **OpenClaw**.
+- 🐳 **Dedalus ($500):** High-concurrency agent swarms on containers.
+- 💬 **Photon ($700):** iMessage blueprints via **The High Priest**.
+- 🛒 **KnotAPI:** Proactive Bio-Filtering of transaction data.
+- 🛡️ **Sonar:** High-quality Go/Neo4j engineering.
 
 ---
 *Developed for HackPrinceton Spring 2026.*
