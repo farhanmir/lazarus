@@ -9,7 +9,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from backend.app import crud, schemas
-from backend.app.models import AgentStep, Hypothesis
+from backend.app.models import AgentStep
 
 
 def _safe_load_json(value: str | None) -> dict | list | None:

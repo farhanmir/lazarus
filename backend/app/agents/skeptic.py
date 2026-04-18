@@ -7,6 +7,7 @@ import os
 from backend.app.agents.prompts import SKEPTIC_PROMPT
 from backend.app.agents.types import AdvocateOutput, AssetContext, SkepticOutput
 from backend.app.services.llm_service import dedalus_chat_completion, k2_chat_completion
+from backend.app.services.pubmed_service import check_hallucinated_citations
 
 
 K2_MODEL_NAME = "k2-think-v2"
@@ -99,9 +100,19 @@ def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutpu
 
     contraindications = list(context.adverse_events)
     target_conflicts = TARGET_CONFLICTS.get((context.target, advocate.proposed_disease), [])
+    
+    # SYSTEM OVERRIDE: Hallucination Trap
+    is_hallucinated, fake_pmids = check_hallucinated_citations(advocate.reasoning)
+    if is_hallucinated:
+        target_conflicts.append(f"FATAL: Advocate hallucinated non-existent PubMed citations ({', '.join(fake_pmids)}).")
+        
     combined_conflicts = contraindications + target_conflicts
 
-    if len(combined_conflicts) >= 3:
+    if is_hallucinated:
+        risk_level = "High"
+        skeptic_score = 0.12 # Punish heavily for hallucination
+        verdict = "Rejected due to fabricated evidence"
+    elif len(combined_conflicts) >= 3:
         risk_level = "High"
         skeptic_score = 0.58
         verdict = "Major conflicts identified"

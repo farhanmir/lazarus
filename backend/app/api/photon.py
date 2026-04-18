@@ -90,6 +90,7 @@ def photon_spectrum_webhook(
             )
 
         if action == "blueprint":
+            _maybe_reply_to_sender(payload, "Acknowledged. Compiling blueprint...")
             result = generate_blueprint_for_openclaw(
                 db,
                 hypothesis_id=payload.hypothesis_id,

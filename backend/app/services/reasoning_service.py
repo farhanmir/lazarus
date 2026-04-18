@@ -257,14 +257,19 @@ def _execute_reasoning_pipeline(
             },
         )
 
-        if assessment.should_iterate:
+        turn_count = 0
+        max_turns = 3
+
+        while assessment.should_iterate and turn_count < max_turns:
+            turn_count += 1
+            
             advocate = revise_advocate_output(context, advocate, assessment, parallel_evidence)
             _log_agent_step(
                 db,
                 run_id=run.id,
                 agent_name="advocate_iteration",
                 step_order=6,
-                input_summary="Revise Advocate output using disagreement and parallel branch feedback.",
+                input_summary=f"[Turn {turn_count}] Revise Advocate output using disagreement and parallel branch feedback.",
                 output_summary=advocate.model_dump_json(),
                 score=advocate.confidence,
                 citations_json={"iteration_reason": assessment.rationale},
@@ -276,7 +281,7 @@ def _execute_reasoning_pipeline(
                 run_id=run.id,
                 agent_name="skeptic_iteration",
                 step_order=7,
-                input_summary=f"Re-test revised Advocate proposal {advocate.proposed_disease}.",
+                input_summary=f"[Turn {turn_count}] Re-test revised Advocate proposal {advocate.proposed_disease}.",
                 output_summary=skeptic.model_dump_json(),
                 score=skeptic.skeptic_score,
                 citations_json={"mode": skeptic.mode, "contraindications": skeptic.contraindications},
@@ -288,7 +293,7 @@ def _execute_reasoning_pipeline(
                 run_id=run.id,
                 agent_name="evidence_iteration",
                 step_order=8,
-                input_summary="Refresh evidence package after the iterative Advocate/Skeptic loop.",
+                input_summary=f"[Turn {turn_count}] Refresh evidence package after the iterative Advocate/Skeptic loop.",
                 output_summary=evidence.model_dump_json(),
                 score=evidence.evidence_score,
                 citations_json=[item.model_dump() for item in evidence.evidence],
@@ -300,7 +305,7 @@ def _execute_reasoning_pipeline(
                 run_id=run.id,
                 agent_name="assessment_iteration",
                 step_order=9,
-                input_summary="Recompute disagreement and coverage after the iterative pass.",
+                input_summary=f"[Turn {turn_count}] Recompute disagreement and coverage after the iterative pass.",
                 output_summary=assessment.model_dump_json(),
                 score=assessment.evidence_coverage_score,
                 citations_json={
@@ -308,6 +313,22 @@ def _execute_reasoning_pipeline(
                     "requires_hitl": assessment.requires_hitl,
                 },
             )
+
+            if assessment.should_iterate and turn_count >= max_turns:
+                skeptic.risk_level = "High"
+                assessment.should_iterate = False
+                assessment.rationale += f" [SYSTEM OVERRIDE: Infinite Argument Deadlock reached after {max_turns} turns. Forcing termination and auto-flagging as High Risk.]"
+                _log_agent_step(
+                    db,
+                    run_id=run.id,
+                    agent_name="circuit_breaker",
+                    step_order=9,
+                    input_summary="Infinite Argument Deadlock Detected.",
+                    output_summary='{"action": "TERMINATE_LOOP", "risk_override": "High"}',
+                    score=0.0,
+                    citations_json={"reason": "max_turns exceeded"},
+                )
+                break
 
         judge = run_judge(context, advocate, skeptic, evidence)
         _log_agent_step(
