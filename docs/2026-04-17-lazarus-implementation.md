@@ -380,7 +380,7 @@ The Go service exposes an HTTP server on port `8080`. OpenClaw agents call into 
 
 - [ ] Create `internal/tools/trigger.go`: a `POST /trigger` handler (and a `GET /trigger` for browser convenience during demo). When called:
   1. Broadcasts a `SYSTEM` log event to all WebSocket clients: `"Trigger received. Initializing swarm iteration #083..."`
-  2. Makes an HTTP POST to the OpenClaw Gateway's OpenAI-compatible API endpoint (`http://openclaw:18789/v1/chat/completions`) with the `mortician` agent ID and the start command: `"Begin new scan. Query CTG for TERMINATED/WITHDRAWN assets. Publish any found candidates to the team."`
+  2. Makes an HTTP POST to the OpenClaw Gateway's OpenAI-compatible API endpoint (`http://openclaw:18789/v1/chat/completions`) with model `"openclaw/mortician"` (the `openclaw/<id>` prefix is required by the gateway's model routing) and the start command: `"Begin new scan. Query CTG for TERMINATED/WITHDRAWN assets. Publish any found candidates to the team."`
   3. Returns `{"status": "triggered", "iteration": 83}` immediately — the rest is async
 
 - [ ] Test: run the trigger, verify the Mortician agent in OpenClaw receives the message (check OpenClaw logs)
@@ -429,8 +429,8 @@ The Go service exposes an HTTP server on port `8080`. OpenClaw agents call into 
 **Files:**
 - Create: `openclaw/config.json`
 
-- [ ] Create `openclaw/config.json` with these sections:
-  - **`gateway`**: host `0.0.0.0`, port `18789`
+- [ ] Create `openclaw/config.json` with these sections (follow the openclaw-ddls repo at https://github.com/annyzhou/openclaw-ddls for the canonical config format):
+  - **`gateway`**: `mode: "local"`, `bind: "0.0.0.0"`, `port: 18789`, and `http.endpoints.chatCompletions.enabled: true` — the last field is required to enable the `/v1/chat/completions` HTTP endpoint that the Go trigger calls
   - **`models.providers`**: configure **two providers, both routed through the Dedalus Unified API**:
     - `gemini-via-dedalus`: base URL `https://api.dedaluslabs.ai/v1`, API key from `DEDALUS_API_KEY`, with extra headers `X-Provider: google`, `X-Provider-Key: $GEMINI_API_KEY`, `X-Provider-Model: gemini-2.0-flash`. This routes Gemini calls through Dedalus's infrastructure — satisfying the Dedalus prize track with a real API dependency.
     - `k2-via-dedalus`: base URL `https://api.dedaluslabs.ai/v1`, API key from `DEDALUS_API_KEY`, with extra headers `X-Provider: mbzuai` (confirm provider name from Dedalus docs), `X-Provider-Key: $K2_API_KEY`, `X-Provider-Model: $K2_PROVIDER_MODEL`.
@@ -445,7 +445,17 @@ The Go service exposes an HTTP server on port `8080`. OpenClaw agents call into 
 
 - [ ] Verify the Dedalus Unified API accepts BYOK headers for both Gemini and K2 by making a test chat completion call via `curl` to `https://api.dedaluslabs.ai/v1/chat/completions` with the appropriate headers before configuring OpenClaw
 
+- [ ] Set required env vars before running the gateway locally:
+  ```bash
+  export OPENCLAW_STATE_DIR=$(pwd)/openclaw/.openclaw
+  export NODE_COMPILE_CACHE=/tmp/.compile-cache
+  export OPENCLAW_NO_RESPAWN=1
+  export OPENCLAW_HOME=$(pwd)/openclaw
+  ```
+
 - [ ] Run `openclaw gateway` (locally, not in Docker) and verify it starts without errors and all four agents are registered
+
+- [ ] Verify the HTTP endpoint is live: `curl -o /dev/null -w '%{http_code}' http://127.0.0.1:18789/` should return `200`. Also run `openclaw gateway call health` to confirm gateway RPC is responsive.
 
 - [ ] Commit: `feat: openclaw gateway config with dedalus unified api routing`
 
@@ -718,6 +728,8 @@ This phase replaces Docker Compose with Dedalus DCS machines for the actual demo
 - Create: `internal/dedalus/client.go`
 - Create: `internal/dedalus/machines.go`
 
+**Reference:** Use `openclaw.ts` from https://github.com/annyzhou/openclaw-ddls as the canonical pattern for provisioning OpenClaw on Dedalus machines. That script covers the full end-to-end flow: create machine → poll until running → install Node.js → install openclaw → configure → start gateway → verify.
+
 - [ ] Install the Dedalus CLI locally: `brew install dedalus-labs/tap/dedalus` (or `go install github.com/dedalus-labs/dedalus-cli@latest`). Verify with `dedalus --version`.
 - [ ] Authenticate: `dedalus login` or set `DEDALUS_API_KEY` in your shell. Verify with `dedalus machines list`.
 - [ ] Create `internal/dedalus/client.go`: initializes a Dedalus SDK client using `dedalus.NewClient(apiKey)` with the `DEDALUS_API_KEY`.
@@ -729,12 +741,25 @@ This phase replaces Docker Compose with Dedalus DCS machines for the actual demo
   - Returns the machine ID and public IP.
 
   **`ProvisionAdvocateNode(ctx, client, gatewayIP)`** — provisions Machine 2:
-  - `vcpu: 2`, `memoryMiB: 4096`
-  - Installs Node.js/Docker and starts ONLY the `defibrillator` OpenClaw worker agent, configured to connect back to the `gatewayIP`.
+  - `vcpu: 2`, `memoryMiB: 4096`, `storageGiB: 10`
+  - Installs **Node.js 22 via NodeSource, redirected to `/home/machine`** (not system-level — root FS is full):
+    ```bash
+    export HOME=/home/machine
+    export NPM_CONFIG_PREFIX=/home/machine/.npm-global
+    export NPM_CONFIG_CACHE=/home/machine/.npm-cache
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    apt-get install -y nodejs
+    ```
+  - Sets env vars: `OPENCLAW_STATE_DIR`, `NODE_COMPILE_CACHE`, `OPENCLAW_NO_RESPAWN=1`, `PATH` including `/home/machine/.npm-global/bin`
+  - Installs openclaw: `npm install -g openclaw@latest`
+  - Writes openclaw config to `/home/machine/.openclaw/openclaw.json` with ONLY the `defibrillator` agent and the gateway connecting back to `gatewayIP`
+  - Starts gateway with `setsid openclaw gateway &> /home/machine/.openclaw/gateway.log &`
+  - Writes `/home/machine/start-gateway.sh` for persistence (re-run after wakes)
+  - Verifies: polls `ss -tlnp | grep 18789` and `curl http://127.0.0.1:18789/` until healthy
 
   **`ProvisionSkepticNode(ctx, client, gatewayIP)`** — provisions Machine 3:
-  - `vcpu: 2`, `memoryMiB: 4096`
-  - Starts ONLY the `coroner` OpenClaw worker agent.
+  - Same Node.js install pattern, `vcpu: 2`, `memoryMiB: 4096`, `storageGiB: 10`
+  - Starts ONLY the `coroner` agent, pointing back to `gatewayIP`
 
 - [ ] Add a `cmd/lazarus/deploy.go` subcommand: `go run ./cmd/lazarus deploy` that calls the Control Plane provisioning, waits for completion, retrieves the IP, then provisions the Advocate and Skeptic nodes in parallel.
 - [ ] Test: run `go run ./cmd/lazarus deploy` and verify all 3 machines come online in the Dedalus dashboard.
@@ -748,15 +773,18 @@ This phase replaces Docker Compose with Dedalus DCS machines for the actual demo
 - Modify: `internal/dedalus/machines.go`
 - Modify: `scripts/demo.sh`
 
-- [ ] Add `WakeMachines(ctx, appMachineId, dataMachineId)` to `machines.go`: calls `client.Machines.Update(ctx, id, desired_state: "running")` on both machines. Logs wake time. DCS wake is sub-second from sleeping state — data persists because `/home/machine` is S3-backed.
+- [ ] Add `WakeMachines(ctx, machineIds...)` to `machines.go`:
+  - Calls `client.Machines.Update(ctx, id, desired_state: "running")` to wake each machine
+  - **Critical:** root filesystem resets on every wake — Node.js is gone. After waking, `WakeMachines` must SSH into the machine and re-run the Node.js install + gateway start steps (same as `ProvisionAdvocateNode`/`ProvisionSkepticNode` but skipping machine creation). Only `/home/machine` persists across sleeps.
+  - Log wake time. Poll gateway health (`curl http://<machine-ip>:18789/`) before returning.
 
-- [ ] Add `SleepMachines(ctx, ...)`: puts both machines to sleep after the demo to stop compute billing. Storage costs continue (cheap).
+- [ ] Add `SleepMachines(ctx, ...)`: puts all machines to sleep after the demo to stop compute billing. Storage (including `/home/machine` config) persists.
 
 - [ ] Update `scripts/demo.sh` to detect `DEPLOY_TARGET=dedalus`: instead of `docker-compose up`, it calls `go run ./cmd/lazarus wake` (a thin wrapper around `WakeMachines`), waits for the Go service health endpoint to respond, then opens the dashboard URL.
 
 - [ ] Add a `MACHINE_IDS` file (gitignored) that `deploy.go` writes machine IDs to after provisioning. `wake` and `sleep` commands read from this file so you don't provision fresh machines every time.
 
-- [ ] **Pre-demo checklist**: provision machines Friday night, seed the data machine, run one full test cycle, then sleep both machines. Saturday morning: wake machines in ~1 second, demo runs on fully provisioned Dedalus infrastructure.
+- [ ] **Pre-demo checklist**: provision machines Friday night, seed the data machine, run one full test cycle, then sleep all machines. Sunday morning: `./scripts/demo.sh` wakes them, reinstalls Node.js on agent machines, restarts OpenClaw gateway — all automated. Budget ~60-90 seconds for the full wake sequence.
 
 - [ ] Commit: `feat: dedalus machine sleep/wake for demo lifecycle`
 
@@ -868,6 +896,8 @@ This phase replaces Docker Compose with Dedalus DCS machines for the actual demo
 | Dedalus Unified API rejects BYOK headers for K2 | Medium | High | Confirm K2 provider name from Dedalus docs Friday; have direct K2 endpoint as backup |
 | Dedalus DCS machine provisioning slow/fails | Low | Medium | Pre-provision Friday night; machines wake in <1s from sleep |
 | DCS machine public URL changes after wake | Low | Medium | Use Dedalus preview URL feature; update env var in `MACHINE_IDS` file |
+| Node.js missing after machine wake (root FS resets) | High | High | `WakeMachines()` must re-run Node.js install + gateway start — this is automated in the wake script; test the full wake sequence Saturday |
+| openclaw gateway unreachable (wrong bind/endpoint config) | Medium | High | Ensure `gateway.bind: "0.0.0.0"` and `http.endpoints.chatCompletions.enabled: true` in config; verify with `curl http://<ip>:18789/` after each wake |
 | Gemini API rate limit during demo | Medium | High | Fallback mode; pre-cache response |
 | K2 API unreachable | Medium | Medium | Fallback mode; Coroner replays mock verdict |
 | Photon gRPC connection drops mid-demo | Low | High | SDK `retry: true` auto-reconnects; subscribe loop restarts on `ConnectionError` |
