@@ -70,7 +70,7 @@ You are **REQUIRED** to enroll in one of these five tracks. Each winning team me
 | Track | Prize |
 | :--- | :--- |
 | **Best Overall Hack** | PlayStation 5 |
-| **Best Healthcare Hack** | Apple Watch Series 11 |
+| **Best Business and Enterprise Hack** | Apple Watch Series 11 |
 | **Best Sustainability Hack** | DJI Mini 4K (Drone) |
 | **Best Education Hack** | Meta Glasses |
 | **Best Entertainment & Media Hack** | JBL Partybox Encore Essential |

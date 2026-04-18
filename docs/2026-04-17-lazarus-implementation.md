@@ -25,7 +25,7 @@
 
 | Track | Component that satisfies it |
 |---|---|
-| Best Healthcare / Overall | Full system |
+| Best Business and Enterprise / Overall | Full system |
 | Regeneron ($1,000) | Mortician (CTG API) + full pipeline |
 | Best Use of Gemini API (MLH) | The Defibrillator agent via OpenClaw |
 | Best Use of K2 Think V2 (MBZUAI) | The Coroner agent via OpenClaw |
@@ -808,7 +808,7 @@ This phase replaces Docker Compose with Dedalus DCS machines for the actual demo
 - [ ] Prepare Devpost submission:
   - GitHub repo public and created after April 17, 2026
   - Video demo (optional but recommended): screen-record the full trigger → PDF flow
-  - Selected main track: **Best Healthcare Hack**
+  - Selected main track: **Best Business and Enterprise Hack**
   - Special tracks listed: Regeneron, Gemini, K2, Eragon, Dedalus, Photon
 
 - [ ] Submission deadline: **April 19, 2026 at 8:00 AM**

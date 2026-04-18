@@ -12,7 +12,7 @@ Lazarus is an **Internal Clinical R&D Participant** orchestrated as an autonomou
 ## 2. Target Tracks & Bounties
 Lazarus is engineered to aggressively capture the following prize pools:
 
-*   **🏆 Best Healthcare / Overall Hack:** Graduating from a "feature-parity research tool" to a "Sovereign R&D Participant" that proves its work with deterministic math.
+*   **🏆 Best Business and Enterprise / Overall Hack:** Graduating from a "feature-parity research tool" to a "Sovereign R&D Participant" that proves its work with deterministic math.
 *   **🧬 Regeneron ($1,000):** Strict biological rigor. Graph nodes must cite real PubMed IDs (PMIDs) avoiding "AI Fluff."
 *   **✨ Best Use of Gemini API (MLH):** **The Defibrillator** agent uses Gemini's 2M+ context window to ingest a 500-page FDA clinical briefing in seconds.
 *   **🧠 MBZUAI - K2 Think V2:** **The Coroner** executes a strict 10-step biological autopsy (protein-ligand interaction) producing a verifiable "Thinking Trace".

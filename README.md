@@ -22,7 +22,7 @@ Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resu
 
 ## HackPrinceton Prize Tracks
 
-- 🏆 **Best Healthcare / Overall Hack:** Deterministic, category-defining **Sovereign R&D Participant**.
+- 🏆 **Best Business and Enterprise / Overall Hack:** Deterministic, category-defining **Sovereign R&D Participant**.
 - 🧪 **Regeneron ($1,000):** Strict biological rigor. Graph nodes must cite real PubMed IDs (PMIDs).
 - ✨ **Best Use of Gemini API (MLH):** **The Defibrillator** ingests 500-page FDA briefings into the 2M window.
 - 🧠 **Best Use of K2 Think V2:** **The Coroner** exposes a precise 10-step biological "Thinking Trace".

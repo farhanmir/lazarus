@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
-import scipy.stats as stats
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.app import crud, schemas
 from backend.app.db import get_db
+from backend.app.services.clinicaltrials_service import fetch_patient_snapshot
 
 router = APIRouter(tags=["assets"])
 
@@ -41,24 +41,29 @@ def get_patient_data(asset_id: UUID, db: Session = Depends(get_db)):
     if asset is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found.")
 
-    # Synthetic Subgroup: 65+ Female / CRP > 3.0
-    # Treatment: 42 successes, 8 failures (84% efficacy)
-    # Control: 10 successes, 40 failures (20% efficacy)
-    treatment_success, treatment_fail = 42, 8
-    control_success, control_fail = 10, 40
-    
-    # Calculate synthetic deterministic P-Value via SciPy Fisher's Exact Test
-    table = [[treatment_success, treatment_fail], [control_success, control_fail]]
-    res = stats.fisher_exact(table, alternative='greater')
-    p_value = float(res.pvalue)
+    snapshot = fetch_patient_snapshot(
+        drug_name=asset.internal_name,
+        disease=asset.original_indication,
+    )
+
+    # Fail open with explicit unknown values if upstream API is unavailable.
+    if snapshot is None:
+        snapshot = {
+            "asset_query": f"{asset.internal_name} {asset.original_indication}",
+            "trial_count": 0,
+            "cohort_size": None,
+            "target_subgroup": asset.original_indication,
+            "treatment_efficacy": None,
+            "control_efficacy": None,
+            "p_value": None,
+            "is_significant": None,
+            "completed_trials": 0,
+            "method": "ClinicalTrials.gov unavailable",
+            "source": "clinicaltrials.gov",
+            "studies": [],
+        }
 
     return {
         "asset_code": asset.asset_code,
-        "cohort_size": 100,
-        "target_subgroup": "65+ Female / CRP > 3.0",
-        "treatment_efficacy": 0.84,
-        "control_efficacy": 0.20,
-        "p_value": p_value,
-        "is_significant": p_value < 0.001,
-        "method": "Fisher's Exact Test (scipy.stats)"
+        **snapshot,
     }
