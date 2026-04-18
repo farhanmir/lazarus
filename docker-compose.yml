@@ -1,26 +1,104 @@
-version: '3.8'
-
 services:
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: on-failure
 
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: lazarus
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: lazarus
+      POSTGRES_PASSWORD: lazarus
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lazarus"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
   neo4j:
     image: neo4j:5
     environment:
-      NEO4J_AUTH: neo4j/password
+      NEO4J_AUTH: neo4j/lazarus
     ports:
       - "7474:7474"
       - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
-  # Other services (go-service, openclaw, photon-service) will be added in further phases
+  go-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - blueprints:/tmp/blueprints
+
+  openclaw:
+    image: node:24-alpine
+    working_dir: /workspace
+    command: sh -c "npm install -g openclaw && openclaw gateway"
+    ports:
+      - "18789:18789"
+    env_file: .env
+    environment:
+      OPENCLAW_HOME: /workspace/openclaw
+    volumes:
+      - ./openclaw:/workspace/openclaw
+    depends_on:
+      - go-service
+    restart: on-failure
+
+  photon-service:
+    build:
+      context: ./photon-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    env_file: .env
+    restart: on-failure
+    volumes:
+      - blueprints:/tmp/blueprints
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["/app/lazarus", "seed"]
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  redis_data:
+  postgres_data:
+  neo4j_data:
+  blueprints:

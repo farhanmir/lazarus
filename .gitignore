@@ -3,3 +3,11 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Build artifacts
+photon-service/dist/
+lazarus
+*.exe
+
+# Dedalus machine persistence (machine IDs are per-user)
+MACHINE_IDS.json
