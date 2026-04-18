@@ -25,7 +25,7 @@ Lazarus is engineered to sweep the following high-value tracks:
 ## 3. System Architecture: The Sovereign Backend
 Lazarus utilizes a high-concurrency microservices architecture to ensure continuous execution without state drift.
 
-* **Swarm Orchestrator (Go):** Leverages goroutines for intense parallelization, managing 9+ agents simultaneously without blocking.
+* **Swarm Orchestrator (Go):** Leverages goroutines for intense parallelization, managing 4-5 agents simultaneously without blocking.
 * **Context Persistence (Redis + PostgreSQL):**
     * **Redis:** Real-time "Blackboard" for agent broadcasting via pub/sub.
     * **PostgreSQL:** "Truth Ledger" maintaining a durable event log and strict citation chains.
