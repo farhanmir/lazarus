@@ -33,16 +33,24 @@ def get_asset(db: Session, asset_id: UUID) -> models.CompanyAsset | None:
 
 
 def get_asset_by_code(db: Session, asset_code: str) -> models.CompanyAsset | None:
-    stmt = select(models.CompanyAsset).where(models.CompanyAsset.asset_code == asset_code)
+    stmt = select(models.CompanyAsset).where(
+        models.CompanyAsset.asset_code == asset_code
+    )
     return db.scalar(stmt)
 
 
-def get_asset_by_internal_name(db: Session, internal_name: str) -> models.CompanyAsset | None:
-    stmt = select(models.CompanyAsset).where(models.CompanyAsset.internal_name == internal_name)
+def get_asset_by_internal_name(
+    db: Session, internal_name: str
+) -> models.CompanyAsset | None:
+    stmt = select(models.CompanyAsset).where(
+        models.CompanyAsset.internal_name == internal_name
+    )
     return db.scalar(stmt)
 
 
-def create_run(db: Session, asset_id: UUID, run_type: str, status: str) -> models.AgentRun:
+def create_run(
+    db: Session, asset_id: UUID, run_type: str, status: str
+) -> models.AgentRun:
     run = models.AgentRun(
         asset_id=asset_id,
         run_type=run_type,
@@ -142,7 +150,9 @@ def list_steps_by_run(db: Session, run_id: UUID) -> list[models.AgentStep]:
     return list(db.scalars(stmt).all())
 
 
-def create_hypothesis(db: Session, payload: schemas.HypothesisCreate) -> models.Hypothesis:
+def create_hypothesis(
+    db: Session, payload: schemas.HypothesisCreate
+) -> models.Hypothesis:
     hypothesis = models.Hypothesis(**payload.model_dump())
     db.add(hypothesis)
     db.commit()
@@ -279,7 +289,11 @@ def create_run_memory(
 
 
 def list_run_memories(db: Session, run_id: UUID) -> list[models.RunMemory]:
-    stmt = select(models.RunMemory).where(models.RunMemory.run_id == run_id).order_by(models.RunMemory.created_at.asc())
+    stmt = (
+        select(models.RunMemory)
+        .where(models.RunMemory.run_id == run_id)
+        .order_by(models.RunMemory.created_at.asc())
+    )
     return list(db.scalars(stmt).all())
 
 
@@ -303,7 +317,9 @@ def create_asset_memory(
     return memory
 
 
-def list_asset_memories(db: Session, asset_id: UUID, *, limit: int = 5) -> list[models.AssetMemory]:
+def list_asset_memories(
+    db: Session, asset_id: UUID, *, limit: int = 5
+) -> list[models.AssetMemory]:
     stmt = (
         select(models.AssetMemory)
         .where(models.AssetMemory.asset_id == asset_id)
@@ -335,7 +351,9 @@ def create_human_review(
     return review
 
 
-def list_human_reviews(db: Session, *, status: str | None = None) -> list[models.HumanReview]:
+def list_human_reviews(
+    db: Session, *, status: str | None = None
+) -> list[models.HumanReview]:
     stmt = select(models.HumanReview).order_by(models.HumanReview.created_at.desc())
     if status:
         stmt = stmt.where(models.HumanReview.status == status)
@@ -388,13 +406,19 @@ def create_effort_analysis(
     return record
 
 
-def get_effort_analysis_by_run(db: Session, run_id: UUID) -> models.EffortAnalysis | None:
+def get_effort_analysis_by_run(
+    db: Session, run_id: UUID
+) -> models.EffortAnalysis | None:
     stmt = select(models.EffortAnalysis).where(models.EffortAnalysis.run_id == run_id)
     return db.scalar(stmt)
 
 
-def get_effort_analysis_by_hypothesis(db: Session, hypothesis_id: UUID) -> models.EffortAnalysis | None:
-    stmt = select(models.EffortAnalysis).where(models.EffortAnalysis.hypothesis_id == hypothesis_id)
+def get_effort_analysis_by_hypothesis(
+    db: Session, hypothesis_id: UUID
+) -> models.EffortAnalysis | None:
+    stmt = select(models.EffortAnalysis).where(
+        models.EffortAnalysis.hypothesis_id == hypothesis_id
+    )
     return db.scalar(stmt)
 
 
@@ -425,13 +449,19 @@ def create_impact_analysis(
     return record
 
 
-def get_impact_analysis_by_run(db: Session, run_id: UUID) -> models.ImpactAnalysis | None:
+def get_impact_analysis_by_run(
+    db: Session, run_id: UUID
+) -> models.ImpactAnalysis | None:
     stmt = select(models.ImpactAnalysis).where(models.ImpactAnalysis.run_id == run_id)
     return db.scalar(stmt)
 
 
-def get_impact_analysis_by_hypothesis(db: Session, hypothesis_id: UUID) -> models.ImpactAnalysis | None:
-    stmt = select(models.ImpactAnalysis).where(models.ImpactAnalysis.hypothesis_id == hypothesis_id)
+def get_impact_analysis_by_hypothesis(
+    db: Session, hypothesis_id: UUID
+) -> models.ImpactAnalysis | None:
+    stmt = select(models.ImpactAnalysis).where(
+        models.ImpactAnalysis.hypothesis_id == hypothesis_id
+    )
     return db.scalar(stmt)
 
 

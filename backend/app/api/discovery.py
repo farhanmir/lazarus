@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session
 from backend.app import crud, schemas
 from backend.app.db import get_db
 from backend.app.services.candidate_service import search_candidates
-from backend.app.services.reasoning_service import create_analysis_run, start_analysis_run
+from backend.app.services.reasoning_service import (
+    create_analysis_run,
+    start_analysis_run,
+)
 
 router = APIRouter(prefix="/api", tags=["discovery"])
 
@@ -22,18 +25,24 @@ def get_candidates(
     return search_candidates(db, disease, limit=limit)
 
 
-@router.post("/evaluate", response_model=schemas.EvaluateResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/evaluate",
+    response_model=schemas.EvaluateResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 def evaluate_candidate(payload: schemas.EvaluateRequest, db: Session = Depends(get_db)):
     asset = None
 
     if payload.asset_code:
-      asset = crud.get_asset_by_code(db, payload.asset_code)
+        asset = crud.get_asset_by_code(db, payload.asset_code)
 
     if asset is None:
-      asset = crud.get_asset_by_internal_name(db, payload.drug)
+        asset = crud.get_asset_by_internal_name(db, payload.drug)
 
     if asset is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Drug candidate not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Drug candidate not found."
+        )
 
     run = create_analysis_run(db, asset.id, run_type="zillow_evaluate")
     start_analysis_run(run.id)

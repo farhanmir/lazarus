@@ -40,12 +40,21 @@ def _mortician_scan(context, disease_query: str) -> tuple[float, str]:
         return 0.91, f"Linked-disease map includes {disease_query}."
 
     source_overlap = _overlap_score(context.source_disease, disease_query)
-    linked_overlap = max((_overlap_score(item, disease_query) for item in context.linked_diseases), default=0.0)
+    linked_overlap = max(
+        (_overlap_score(item, disease_query) for item in context.linked_diseases),
+        default=0.0,
+    )
     score = max(source_overlap * 0.8, linked_overlap * 0.9)
 
     if score >= 0.55:
-        return min(0.88, 0.58 + score * 0.34), "Mechanistic keyword overlap from trial scanner."
-    return min(0.49, 0.20 + score * 0.45), "Weak lexical overlap; candidate is long-shot."
+        return (
+            min(0.88, 0.58 + score * 0.34),
+            "Mechanistic keyword overlap from trial scanner.",
+        )
+    return (
+        min(0.49, 0.20 + score * 0.45),
+        "Weak lexical overlap; candidate is long-shot.",
+    )
 
 
 def _build_candidate(asset, disease_query: str) -> schemas.CandidateResponse:
@@ -55,7 +64,11 @@ def _build_candidate(asset, disease_query: str) -> schemas.CandidateResponse:
     advocate = run_advocate(context)
     advocate_alignment = max(
         _overlap_score(advocate.proposed_disease, disease_query),
-        1.0 if _normalize(advocate.proposed_disease) == _normalize(disease_query) else 0.0,
+        (
+            1.0
+            if _normalize(advocate.proposed_disease) == _normalize(disease_query)
+            else 0.0
+        ),
     )
 
     scientific_confidence = round(
@@ -63,7 +76,9 @@ def _build_candidate(asset, disease_query: str) -> schemas.CandidateResponse:
             0.05,
             min(
                 0.99,
-                (mortician_score * 0.6) + (advocate.confidence * 0.2) + (advocate_alignment * 0.2),
+                (mortician_score * 0.6)
+                + (advocate.confidence * 0.2)
+                + (advocate_alignment * 0.2),
             ),
         ),
         3,
@@ -83,7 +98,9 @@ def _build_candidate(asset, disease_query: str) -> schemas.CandidateResponse:
     )
 
 
-def search_candidates(db: Session, disease_query: str, *, limit: int = 5) -> schemas.CandidateSearchResponse:
+def search_candidates(
+    db: Session, disease_query: str, *, limit: int = 5
+) -> schemas.CandidateSearchResponse:
     assets = crud.list_assets(db)
     if not assets:
         return schemas.CandidateSearchResponse(disease=disease_query, candidates=[])
