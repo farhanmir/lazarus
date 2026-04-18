@@ -26,9 +26,10 @@ Lazarus is engineered to sweep the following high-value tracks:
 Lazarus utilizes a high-concurrency microservices architecture to ensure continuous execution without state drift.
 
 * **Swarm Orchestrator (Go):** Leverages goroutines for intense parallelization, managing 4-5 agents simultaneously without blocking.
-* **Context Persistence (Redis + PostgreSQL):**
+* **Context Persistence (Redis + PostgreSQL + Neo4j):**
     * **Redis:** Real-time "Blackboard" for agent broadcasting via pub/sub.
-    * **PostgreSQL:** "Truth Ledger" maintaining a durable event log and strict citation chains.
+    * **PostgreSQL:** "Truth Ledger" maintaining a durable event log, patient data, and transaction links.
+    * **Neo4j:** "Biological Knowledge Graph" managing complex relationships between Drugs, Targets, Diseases, and Evidence.
 * **Execution Environment:** Hosted on **Dedalus Containers** for enterprise-grade uptime.
 * **The Reasoning Engine:** **Gemma 4** (Massive context extraction & Advocate) + **IFM K2 Think V2** (Targeted skeptical logic/verification).
 

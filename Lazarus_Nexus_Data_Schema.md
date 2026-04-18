@@ -1,8 +1,47 @@
 # Lazarus Bio-Nexus Data Schema
 
-This document defines the data structures used for the "Smoke and Mirrors" MVP demo, ensuring authenticity and reliability as we rescue assets from the **VALLEY OF DEATH**.
+This document defines the data structures used for the Lazarus project, ensuring authenticity and reliability as we rescue assets from the **VALLEY OF DEATH**.
 
-## 1. NHANES Laboratory Data (`patients_mock.json`)
+## 1. Neo4j Knowledge Graph (Biological Truth)
+Lazarus utilizes Neo4j to manage the complex relationships between drugs, diseases, targets, and evidence.
+
+### Node Labels & Properties
+| Label | Required Properties |
+| :--- | :--- |
+| **Drug** | `drug_id`, `name`, `mechanism_of_action`, `modality`, `development_stage`, `status`, `failure_reason`, `company` |
+| **Disease** | `disease_id`, `name`, `category`, `icd_code`, `description` |
+| **Target** | `target_id`, `name`, `symbol`, `target_type`, `organism` |
+| **ClinicalTrial** | `trial_id`, `title`, `phase`, `status`, `enrollment`, `start_date`, `end_date`, `failure_reason`, `sponsor` |
+| **Evidence** | `evidence_id`, `title`, `source`, `source_ref`, `snippet`, `confidence_score`, `url`, `published_date` |
+| **RepurposingHypothesis** | `hypothesis_id`, `title`, `summary`, `status`, `advocate_score`, `skeptic_score`, `judge_score`, `final_confidence`, `created_at` |
+
+### Relationships
+*   `(:Drug)-[:FAILED_FOR]->(:Disease)`
+*   `(:Drug)-[:ORIGINALLY_INDICATED_FOR]->(:Disease)`
+*   `(:Drug)-[:TARGETS]->(:Target)`
+*   `(:Drug)-[:TESTED_IN]->(:ClinicalTrial)`
+*   `(:ClinicalTrial)-[:FOR_DISEASE]->(:Disease)`
+*   `(:Drug)-[:SUPPORTED_BY]->(:Evidence)`
+*   `(:Disease)-[:SUPPORTED_BY]->(:Evidence)`
+*   `(:Target)-[:SUPPORTED_BY]->(:Evidence)`
+*   `(:ClinicalTrial)-[:SUPPORTED_BY]->(:Evidence)`
+*   `(:RepurposingHypothesis)-[:PROPOSES_REPURPOSING_OF]->(:Drug)`
+*   `(:RepurposingHypothesis)-[:FROM_DISEASE]->(:Disease)`
+*   `(:RepurposingHypothesis)-[:TO_DISEASE]->(:Disease)`
+*   `(:RepurposingHypothesis)-[:BASED_ON_TARGET]->(:Target)`
+*   `(:RepurposingHypothesis)-[:SUPPORTED_BY]->(:Evidence)`
+
+### Uniqueness Constraints
+*   `Drug.drug_id`
+*   `Disease.disease_id`
+*   `Target.target_id`
+*   `ClinicalTrial.trial_id`
+*   `Evidence.evidence_id`
+*   `RepurposingHypothesis.hypothesis_id`
+
+---
+
+## 2. NHANES Laboratory Data (`patients_mock.json`)
 We use official NHANES variable prefixes to provide immediate scientific credibility to the datasets viewed by judges.
 
 | Variable | Description | Value Type | Demo Role |
