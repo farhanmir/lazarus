@@ -4,9 +4,9 @@
 
 **Goal:** Build a live AI swarm that mines failed clinical trials, runs an adversarial Gemini vs. K2 reasoning loop over real/mock patient data, streams results to the Bio-Nexus dashboard in real-time, and delivers a signed R&D blueprint to an executive via Photon iMessage.
 
-**Architecture:** OpenClaw Gateway (Node.js) hosts the four named agents. All LLM calls route through the **Dedalus Unified API** (`api.dedaluslabs.ai`) using BYOK headers. A **Python FastAPI orchestrator** serves as the sovereign backend: it exposes HTTP tool endpoints for the agents, owns the PDF generator, and streams data to the React dashboard. A separate **Go deployment CLI** (`cmd/lazarus/deploy.go`) uses the **Dedalus Go SDK** to provision DCS machines for the agent swarms. The Python backend communicates with the Photon API to send iMessages and file attachments. Redis, PostgreSQL, and Neo4j form the data layer — running on Dedalus DCS machines during the demo.
+**Architecture:** OpenClaw Gateway (Node.js) hosts the four named agents. All LLM calls route through the **Dedalus Unified API** (`api.dedaluslabs.ai`) using BYOK headers. A Go orchestrator serves as the sovereign backend: it exposes HTTP tool endpoints that agents call for data access, uses the **Dedalus Go SDK** to provision DCS machines, runs a WebSocket hub, and owns the PDF generator. A separate **Photon Service** (TypeScript/Node.js) owns the `@photon-ai/advanced-imessage` gRPC SDK — it issues tokens, sends iMessages and file attachments, and runs a persistent `im.messages.subscribe()` event loop that forwards "DRAFT" replies to the Go service. The Go service calls the Photon Service over HTTP; neither Go nor OpenClaw touch Photon directly. Redis, PostgreSQL, and Neo4j form the data layer — running on Dedalus DCS machines during the demo.
 
-**Tech Stack:** OpenClaw (Node.js), Python 3.10+ (FastAPI), React (Frontend), Go 1.22+ (Deployment CLI), Docker Compose, Dedalus DCS, Dedalus Go SDK, Dedalus Unified API, Redis 7, PostgreSQL 16, Neo4j 5, Gemini 4, K2 Think V2, Photon SDK.
+**Tech Stack:** OpenClaw (Node.js 24), Go 1.22+, Docker Compose (local dev), Dedalus DCS (demo deployment), Dedalus Go SDK (`dedalus-labs/dedalus-sdk-go`), Dedalus Unified API (BYOK model routing), Redis 7, PostgreSQL 16, Neo4j 5, Gemini 4 (via Dedalus BYOK), K2 Think V2 (via Dedalus BYOK), Photon `@photon-ai/advanced-imessage` (TypeScript/gRPC, Node.js 18+), `spectrum-ts`, Three.js (existing in `index.html`).
 
 **Approach:** Option B — Hybrid. Infrastructure is all real. The Mortician makes a live CTG API v2 call. Gemini and K2 process a curated, pre-seeded dataset. The RX-782/Zeloprin demo scenario is deterministic (seeded into DB) but runs through real LLM calls. If any external API is unreachable, the affected agent auto-switches to replay mode from mock JSON — judges see zero difference.
 
@@ -34,19 +34,20 @@
 LOCAL DEV: Docker Compose          DEMO: Dedalus Distributed Swarm
 ───────────────────────────────    ─────────────────────────────────────────────
                                     ┌─ DCS Machine 1: Control Plane ────┐
-┌──────────────┐                    │  ┌────────────────────────┐       │
-│  OpenClaw    │◄───────────────────┤  │  FastAPI Backend :8000 │       │
-│  Gateway     │  agent msg         │  │  Redis, Postgres, Neo4j│       │
-│  :18789      │───────────────────►│  └────────────────────────┘       │
-│              │                    │                                   │
-└──────┬───────┘                    │  ┌────────────────────────┐       │
-       │                            │  │  React Frontend :5173  │       │
-       ▼                            │  └────────────────────────┘       │
-┌─────────────────────┐             └───────────────────────────────────┘
-│  DEDALUS UNIFIED    │                         
-│  API                │             ┌─ DCS Machine 2: The Advocate ─────┐
-│  api.dedaluslabs.ai │──► Gemini   │  Runs: OpenClaw Agent Worker      │
-│  X-Provider: google │──► K2       │  Role: The Defibrillator (Gemma)  │
+┌──────────────┐                    │  ┌──────────────────┐             │
+│  OpenClaw    │◄───────────────────┤  │  Go Orch. :8080  │             │
+│  Gateway     │  agent msg         │  │  Redis, Postgres, Neo4j    │   │
+│  :18789      │───────────────────►│  └────────┬─────────┘             │
+│              │                    │           │                       │
+└──────┬───────┘                    │           ▼                       │
+       │                            │  ┌─────────────────────┐          │
+       ▼                            │  │  Photon Service     │          │
+┌─────────────────────┐             │  └─────────────────────┘          │
+│  DEDALUS UNIFIED    │             └───────────▲───────────────────────┘
+│  API                │                         │
+│  api.dedaluslabs.ai │             ┌─ DCS Machine 2: The Advocate ─────┐
+│  X-Provider: google │──► Gemini   │  Runs: OpenClaw Agent Worker      │
+│  X-Provider: mbzuai │──► K2       │  Role: The Defibrillator (Gemma 4)│
 └─────────────────────┘             └───────────────────────────────────┘
 
                                     ┌─ DCS Machine 3: The Skeptic ──────┐
@@ -56,10 +57,11 @@ LOCAL DEV: Docker Compose          DEMO: Dedalus Distributed Swarm
 
                                                   │
                                                   ▼
-                                         exec's iMessage        React UI
+                                         exec's iMessage        Browser
+                                         (direct gRPC)          WebSocket :8080/ws
 ```
 
-**Two environments:** Docker Compose for local development, Dedalus DCS for the demo. **Key distinction:** The FastAPI Backend natively orchestrates the reasoning agents and handles the WebSocket logs pushing to React, while `cmd/lazarus/deploy.go` handles spinning up the Dedalus VMs.
+**Two environments:** Docker Compose for local development, Dedalus DCS for the demo. **Key distinction:** The Photon Service is TypeScript, owns the gRPC connection to Photon's infrastructure, and subscribes to incoming events — there are no webhooks. It exposes a plain HTTP API on `:3001` so the Go service can trigger sends without knowing anything about gRPC.
 
 ---
 
@@ -67,22 +69,83 @@ LOCAL DEV: Docker Compose          DEMO: Dedalus Distributed Swarm
 
 ```
 lazarus/
-├── backend/                            # NEW: FastAPI Sovereign Orchestrator
-├── frontend/                           # NEW: React UI Terminal of Truth
-├── docker-compose.yml                  # UPDATE: local dev services
-├── .env.example                        
+├── index.html                          # (existing) — modify WS connection only
+├── db/
+│   └── setup_neo4j.cypher              # (existing)
 │
-├── openclaw/                           # OpenClaw workspace
-│   ├── config.json                     # OpenClaw dedalus-gateway config
+├── docker-compose.yml                  # CREATE: local dev services
+├── .env.example                        # CREATE: API key template
+├── .env                                # CREATE (gitignored): real API keys
+│
+├── openclaw/                           # CREATE: OpenClaw workspace root
+│   ├── config.json                     # OpenClaw gateway config (models, channels, agents)
 │   ├── agents/
-│       ├── _python_mapped/             # Instructing `agents/advocate.py`
+│   │   ├── mortician/
+│   │   │   ├── AGENTS.md               # Mortician identity + instructions
+│   │   │   └── TOOLS.md                # Tools the Mortician can call
+│   │   ├── defibrillator/
+│   │   │   ├── AGENTS.md               # Gemini Advocate identity + instructions
+│   │   │   ├── SOUL.md                 # Personality — the Resurrector
+│   │   │   └── TOOLS.md
+│   │   ├── coroner/
+│   │   │   ├── AGENTS.md               # K2 Skeptic identity + instructions
+│   │   │   ├── SOUL.md                 # Personality — the Falsifier
+│   │   │   └── TOOLS.md
+│   │   └── highpriest/
+│   │       ├── AGENTS.md               # Judge identity + instructions
+│   │       ├── SOUL.md
+│   │       └── TOOLS.md
 │
 ├── cmd/
 │   └── lazarus/
-│       └── deploy.go                   # Go CLI specifically for Dedalus VM spinups
+│       └── main.go                     # CREATE: Go entry point
+│
+├── internal/
+│   ├── config/
+│   │   └── config.go                   # CREATE: env var loading
+│   ├── db/
+│   │   ├── postgres.go                 # CREATE: Postgres client + migrations
+│   │   ├── redis.go                    # CREATE: Redis client
+│   │   └── neo4j.go                    # CREATE: Neo4j client
+│   ├── seed/
+│   │   ├── seed_postgres.go            # CREATE: load mock patient data into PG
+│   │   └── seed_neo4j.go               # CREATE: seed knowledge graph
+│   ├── tools/
+│   │   ├── server.go                   # CREATE: HTTP tool server (agent callbacks)
+│   │   ├── ctg.go                      # CREATE: /tools/ctg-fetch endpoint
+│   │   ├── patients.go                 # CREATE: /tools/patient-data endpoint
+│   │   ├── graph.go                    # CREATE: /tools/neo4j-query endpoint
+│   │   ├── hypothesis.go               # CREATE: /tools/save-hypothesis endpoint
+│   │   └── trigger.go                  # CREATE: /trigger endpoint (demo kick-off)
+│   ├── websocket/
+│   │   ├── hub.go                      # CREATE: broadcast hub
+│   │   └── handler.go                  # CREATE: WS upgrade + client management
+│   ├── pdf/
+│   │   └── generator.go                # CREATE: blueprint PDF renderer
+│   ├── photon/
+│   │   └── client.go                   # CREATE: HTTP client that calls photon-service :3001
+│   └── dedalus/
+│       ├── client.go                   # CREATE: Dedalus Go SDK wrapper
+│       └── machines.go                 # CREATE: DCS machine provisioning + lifecycle
+│
+├── data/
+│   ├── patients_mock.json              # CREATE: NHANES-structured mock patients
+│   ├── swarm_logs.json                 # CREATE: fallback scripted log sequence
+│   └── blueprint_rescue.json          # CREATE: RX-782 blueprint metadata
+│
+├── photon-service/                     # CREATE: standalone TypeScript Photon service
+│   ├── package.json                    # @photon-ai/advanced-imessage, spectrum-ts, express
+│   ├── tsconfig.json
+│   ├── src/
+│   │   ├── index.ts                    # Entry point: start HTTP server + subscribe loop
+│   │   ├── client.ts                   # Photon iMessage client init (token issuance + gRPC)
+│   │   ├── send.ts                     # POST /send-alert and POST /send-file handlers
+│   │   └── subscribe.ts                # im.messages.subscribe() loop → POST to Go /inbound
+│   └── Dockerfile                      # node:18-slim, builds TS, runs dist/index.js
 │
 └── scripts/
-    └── demo.sh                         # script: wake machines
+    ├── seed.sh                         # CREATE: run DB seeds
+    └── demo.sh                         # CREATE: one-command demo start
 ```
 
 ---
