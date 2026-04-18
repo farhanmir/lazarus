@@ -8,12 +8,12 @@ This file is the single source of truth for every interface between the four par
 
 | Member | Owns | Directories / Files |
 |---|---|---|
-| **Member 1** | Go data layer + tool server + PDF + Photon client | `cmd/`, `internal/`, `data/`, `go.mod`, `go.sum` |
-| **Member 2** | WebSocket hub + frontend live connection | `internal/websocket/`, `index.html` |
+| **Member 1** | Python/FastAPI data layer + tool server + PDF + Photon bridging | `backend/` |
+| **Member 2** | React frontend + live connection | `frontend/` |
 | **Member 3** | OpenClaw agent definitions | `openclaw/` |
-| **Member 4** | Infrastructure + Photon TypeScript service + deployment | `docker-compose.yml`, `Dockerfile`, `photon-service/`, `scripts/`, `.env.example` |
+| **Member 4** | Infrastructure + Dedalus VM deployment CLI | `docker-compose.yml`, `docs/`, `scripts/`, `cmd/lazarus/deploy.go`, `.env.example` |
 
-**One rule:** never edit a file owned by another member without asking first. The only shared file is `cmd/lazarus/main.go` — the handoff protocol is defined in Contract 6.
+**One rule:** never edit a file owned by another member without asking first.
 
 ---
 
@@ -50,7 +50,7 @@ All members depend on these. Member 4 creates `.env.example`. Everyone creates t
 
 ## Contract 1: LogEvent — WebSocket Message Shape
 
-The LogEvent is the universal event object broadcast from Go to all connected WebSocket clients and replayed from the database on connect. It must be structurally identical in every system that produces or consumes it: the Go tool handlers (Member 1), the WebSocket hub (Member 2), and the fallback replay endpoint (Member 4). There is exactly one definition — Member 2 defines the Go type in `internal/websocket/hub.go` and Member 1 imports it.
+The LogEvent is the universal event object broadcast from the Python backend to all connected WebSocket clients and replayed from the database. It must be structurally identical in every system that produces or consumes it.
 
 ### Fields
 
@@ -90,13 +90,13 @@ Use exactly these strings:
 
 ---
 
-## Contract 2: Go HTTP Tool Endpoints
+## Contract 2: FastAPI HTTP Tool Endpoints
 
-Member 1 implements all of these. Member 3's OpenClaw TOOLS.md files call them. Member 4's Photon service calls `/inbound`. Do not rename or restructure these URLs.
+Member 1 implements all of these in `backend/app/main.py`. Member 3's OpenClaw TOOLS.md files call them. Do not rename or restructure these URLs.
 
-All endpoints accept and return `application/json`. On failure, they return an object with a single `error` string field and an appropriate 4xx or 5xx status. All listen on port `8080`.
+All endpoints accept and return `application/json`. On failure, they return an object with a single `error` string field and an appropriate 4xx or 5xx status. All listen on port `8000`.
 
-When `FALLBACK_MODE=true`, every handler must return pre-scripted mock data and skip all external API calls and database queries. This check must happen at the top of each handler before any other logic.
+When `FALLBACK_MODE=true`, every handler must return pre-scripted mock data and skip all external API calls and database queries.
 
 ---
 
@@ -127,7 +127,7 @@ When `FALLBACK_MODE=true`, every handler must return pre-scripted mock data and 
 - `nct_id` — string, required — the trial to analyze
 - `subgroup_filter` — object or null — when null, all subgroup breakdowns are returned
 
-**CRITICAL RIGOR CONTRACT:** The Go backend must calculate the `p_value` for each subgroup using a deterministic Fisher's Exact Test algorithm applied to the target cohort vs. the control cohort. The LLM must not generate or infer this value. The mock dataset must be constructed so the calculation natively produces `p < 0.001` for the target cluster (Female, age 65+, LBXCRP > 3.0).
+**CRITICAL RIGOR CONTRACT:** The FastAPI backend must calculate the `p_value` for each subgroup using a deterministic Fisher's Exact Test algorithm (e.g., `scipy.stats`) applied to the target cohort vs. the control cohort. The LLM must not generate or infer this value. The mock dataset must be constructed so the calculation natively produces `p < 0.001` for the target cluster (Female, age 65+, LBXCRP > 3.0).
 
 **Response fields:**
 - `total_patients` — integer count of all patients in the dataset
@@ -338,41 +338,39 @@ Member 4 implements this TypeScript service. Member 1 calls it from `internal/ph
 
 ## Contract 4: OpenClaw Tool URL Format
 
-Member 3 writes tool URLs in each agent's `TOOLS.md` file. The Go service host inside Docker Compose is `go-service`. The base URL inside the Docker network is always `http://go-service:8080`.
+Member 3 writes tool URLs in each agent's `TOOLS.md` file. The FastAPI service host inside Docker Compose is `fastapi-service`. The base URL inside the Docker network is always `http://fastapi-service:8000`.
 
 **Tool URL reference (for TOOLS.md files):**
 
 | Tool name | Method | URL |
 |---|---|---|
-| `ctg-fetch` | POST | `http://go-service:8080/tools/ctg-fetch` |
-| `patient-data` | POST | `http://go-service:8080/tools/patient-data` |
-| `neo4j-query` | POST | `http://go-service:8080/tools/neo4j-query` |
-| `save-hypothesis` | POST | `http://go-service:8080/tools/save-hypothesis` |
-| `update-hypothesis` | PATCH | `http://go-service:8080/tools/update-hypothesis` |
-| `generate-pdf` | POST | `http://go-service:8080/tools/generate-pdf` |
-| `photon-send` | POST | `http://go-service:8080/tools/photon-send` |
+| `ctg-fetch` | POST | `http://fastapi-service:8000/tools/ctg-fetch` |
+| `patient-data` | POST | `http://fastapi-service:8000/tools/patient-data` |
+| `neo4j-query` | POST | `http://fastapi-service:8000/tools/neo4j-query` |
+| `save-hypothesis` | POST | `http://fastapi-service:8000/tools/save-hypothesis` |
+| `update-hypothesis` | PATCH | `http://fastapi-service:8000/tools/update-hypothesis` |
+| `generate-pdf` | POST | `http://fastapi-service:8000/tools/generate-pdf` |
+| `photon-send` | POST | `http://fastapi-service:8000/tools/photon-send` |
 
-**Distributed topology note:** For local Docker Compose testing, `go-service:8080` is correct. For the Dedalus multi-VM deployment where agents run on separate DCS machines, Member 4's provisioning script injects the Control Plane's public IP into each agent machine's OpenClaw environment config in place of `go-service`.
+**Distributed topology note:** For local Docker Compose testing, `fastapi-service:8000` is correct. For the Dedalus multi-VM deployment where agents run on separate DCS machines, Member 4's provisioning script injects the Control Plane's public IP into each agent machine's OpenClaw environment config in place of `fastapi-service`.
 
 ---
 
 ## Contract 5: Shared Volume for PDF Files
 
-Both `go-service` and `photon-service` must be able to read and write from the same path for PDF handoff. Member 4 defines a named Docker volume called `blueprints` and mounts it at `/tmp/blueprints` on both services. Member 1 writes all generated PDFs to `/tmp/blueprints/blueprint-{hypothesis_id}.pdf`. Member 4's `/send-file` endpoint reads from the same path using the same volume mount. No other sharing mechanism is used.
+Both `fastapi-service` and `photon-service` must be able to read and write from the same path for PDF handoff. Member 4 defines a named Docker volume called `blueprints` and mounts it at `/tmp/blueprints` on both services. Member 1 writes all generated PDFs to `/tmp/blueprints/blueprint-{hypothesis_id}.pdf`. Member 4's `/send-file` endpoint reads from the same path using the same volume mount. No other sharing mechanism is used.
 
 ---
 
-## Contract 6: `cmd/lazarus/main.go` Handoff
+## Contract 6: Frontend to Backend Handoff
 
-Member 1 owns `main.go` but Member 2 needs to wire in the WebSocket hub. To avoid blocking either member:
+Member 1 owns the backend (`backend/app/main.py`) but Member 2 needs to wire in the frontend WebSocket hub visualization.
 
-**Member 1** writes `main.go` with a clearly marked stub comment block in the exact location where the hub wires in. The stub is three commented-out lines showing the intended wiring pattern, preceded by a `TODO(member2)` marker. Member 1 defines a `Deps` struct that includes a `Hub` field typed as the `HubBroadcaster` interface (defined by Member 2). Every call to `deps.Hub.Broadcast()` throughout the codebase is guarded by a nil check so the service compiles and runs before Member 2's code is merged.
+**Member 1** writes the FastAPI backend to expose the `GET /ws` endpoint. The endpoint must correctly stream the `LogEvent` payload as defined in Contract 1.
 
-**Member 2** submits a single targeted PR that replaces only the stub comment block with the real hub initialization and wiring. Member 2 does not touch anything else in `main.go`.
+**Member 2** develops the React application (`frontend/src/`) and subscribes to `ws://localhost:8000/ws`.
 
-**The `Deps` struct** (defined by Member 1) contains: a Postgres connection, a Redis client, a Neo4j driver, the loaded Config, and a `Hub` field of type `HubBroadcaster`.
-
-**The `HubBroadcaster` interface** (defined by Member 2 in `internal/websocket/hub.go`) exposes a single `Broadcast` method that accepts a LogEvent. Member 1 imports this interface type. This allows Member 1 to compile without Member 2's concrete implementation.
+The system must run successfully even if the frontend isn't fully rendering, since the agent loop lives locally in the Python layer.
 
 ---
 
@@ -444,7 +442,7 @@ Member 4 defines these service names. All other members reference them by name i
 | `redis` | `redis:6379` | In-memory pub/sub and caching |
 | `postgres` | `postgres:5432` | Primary relational database |
 | `neo4j` | `neo4j:7687` (bolt), `neo4j:7474` (browser) | Knowledge graph |
-| `go-service` | `go-service:8080` | Go orchestrator — HTTP tool server + WebSocket hub |
+| `fastapi-service` | `fastapi-service:8000` | Python orchestrator — HTTP tool server + WebSocket hub |
 | `openclaw` | `openclaw:18789` | OpenClaw gateway — hosts all four agents |
 | `photon-service` | `photon-service:3001` | Photon TypeScript sidecar — handles all iMessage gRPC |
 | `seed` | one-shot, exits after seeding | Runs DB seed on startup; `restart: no` |
@@ -484,33 +482,13 @@ This contract governs how Member 4 provisions and manages OpenClaw on DCS machin
 
 ## Member 1 — Full Briefing
 
-You are building the Go backend. This is the most critical workstream — everything else depends on your HTTP endpoints being up.
+You are building the FastAPI backend. This is the most critical workstream — everything else depends on your HTTP endpoints being up.
 
 ### Your files
 
-- `cmd/lazarus/main.go` — entry point, wiring only
-- `cmd/lazarus/deploy.go` — `deploy`, `wake`, `sleep` subcommands
-- `go.mod` / `go.sum`
-- `internal/config/config.go` — env var loading, Config struct
-- `internal/db/postgres.go` — Postgres client + inline schema migrations
-- `internal/db/redis.go` — Redis client + channel name constants
-- `internal/db/neo4j.go` — Neo4j client + health check
-- `internal/seed/seed_postgres.go` — bulk insert from `patients_mock.json`
-- `internal/seed/seed_neo4j.go` — Cypher seed for knowledge graph
-- `internal/tools/server.go` — HTTP server setup, route registration
-- `internal/tools/ctg.go` — `/tools/ctg-fetch` handler
-- `internal/tools/patients.go` — `/tools/patient-data` handler with Fisher's Exact Test
-- `internal/tools/graph.go` — `/tools/neo4j-query` handler
-- `internal/tools/hypothesis.go` — `/tools/save-hypothesis` and `/tools/update-hypothesis` handlers
-- `internal/tools/trigger.go` — `/trigger` handler
-- `internal/tools/replay.go` — `/tools/replay` fallback handler (coordinated with Member 4)
-- `internal/pdf/generator.go` — blueprint PDF renderer
-- `internal/photon/client.go` — thin HTTP client to photon-service
-- `internal/dedalus/client.go` — Dedalus SDK wrapper (coordinated with Member 4)
-- `internal/dedalus/machines.go` — DCS provisioning functions (coordinated with Member 4)
-- `data/patients_mock.json` — 500+ mock NHANES patient records
-- `data/swarm_logs.json` — scripted fallback log sequence
-- `data/blueprint_rescue.json` — RX-782 blueprint metadata template
+- `backend/app/main.py` — entry point, wiring only
+- `backend/app/api/tools/` — holds all endpoints
+- `backend/app/db/` — database connection clients
 
 ### Do not touch
 
