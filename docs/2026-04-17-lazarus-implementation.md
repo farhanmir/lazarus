@@ -352,8 +352,9 @@ The Go service exposes an HTTP server on port `8080`. OpenClaw agents call into 
 - [ ] Create `internal/tools/patients.go`: a `POST /tools/patient-data` handler. Accepts a JSON body with optional filter params (`nct_id`, `subgroup_filter`). Returns aggregated patient stats from Postgres:
   - Overall cohort summary
   - Per-subgroup breakdown (by gender × age group × CRP threshold)
-  - For each subgroup: `n`, mean `LBXGH`, mean `LBXCRP`, mean `EFFICACY_DELTA`, calculated p-value (use a simple t-statistic approximation — no external stats library needed)
-  - The 65+ female / CRP > 3.0 cluster must surface with `efficacy_delta ≈ 84%` and `p < 0.001`
+  - For each subgroup: `n`, mean `LBXGH`, mean `LBXCRP`, mean `EFFICACY_DELTA`.
+  - **Deterministic Math:** The Go backend MUST calculate a synthetic P-Value using a rigorous Fisher's Exact Test algorithm for the subgroup versus the control. This proves to judges that the AI isn't simply hallucinating significance.
+  - The 65+ female / CRP > 3.0 cluster must surface with `efficacy_delta ≈ 84%` and a calculated `p < 0.001` from the deterministic engine.
 
 - [ ] Test: call the endpoint and verify the target subgroup appears with correct stats
 
@@ -493,9 +494,10 @@ The Go service exposes an HTTP server on port `8080`. OpenClaw agents call into 
   - Identity: The Defibrillator. Primary advocate. Powered by Gemini's massive context window.
   - Model: `gemini` (from config)
   - When receiving a candidate from the Mortician:
-    1. Call `patient-data` tool with the `nct_id` to retrieve the subgroup analysis
-    2. Call `neo4j-query` to get the drug's mechanism of action and related targets from the knowledge graph
-    3. Analyze: look for any patient subgroup where the drug's mechanism could plausibly show efficacy given the biomarker profile. Specifically examine inflammatory markers (LBXCRP) as potential effect modifiers.
+    1. Read the provided mock 500-page FDA Clinical Review document (proving Gemini's 2M+ context window can mine dense history in seconds).
+    2. Call `patient-data` tool with the `nct_id` to retrieve the subgroup analysis. The Go backend's Fisher's Exact Test will provide the verified P-Value.
+    3. Call `neo4j-query` to get the drug's mechanism of action and related targets from the knowledge graph.
+    4. Analyze: look for any patient subgroup where the drug's mechanism could plausibly show efficacy given the biomarker profile. Specifically examine inflammatory markers (LBXCRP) as potential effect modifiers.
     4. Formulate a repurposing hypothesis. Include: subgroup definition, mechanistic rationale, key stats.
     5. Call `save-hypothesis` to persist the hypothesis. Note the returned `hypothesis_id`.
     6. Message the Coroner with the full hypothesis including `hypothesis_id`, subgroup definition, mechanistic argument, and supporting stats.
@@ -674,13 +676,12 @@ The Go service exposes an HTTP server on port `8080`. OpenClaw agents call into 
 **Files:**
 - Modify: `index.html`
 
-This is a targeted, minimal change. The existing visual design, Three.js scene, and layout are **untouched**. Only the log-feeding mechanism changes.
+This is a targeted, high-impact update. The existing visual design is augmented to create the "Terminal of Truth."
 
-- [ ] In `index.html`, locate the `LOGS` array (line ~869) and the `setInterval(addLog, 2400)` call (line ~949).
-
-- [ ] Replace that block with a WebSocket connection to `ws://localhost:8080/ws` (or the Docker service host). The `onmessage` handler parses the incoming JSON event and calls the existing `addLog`-equivalent logic — mapping `agent_id` to the existing CSS classes (`advocate`, `skeptic`, `judge`, `system`, `alert`).
-
-- [ ] Keep the existing `LOGS` array and `setInterval` as a **fallback** — if WebSocket connection fails or is closed, fall back to the static mock loop automatically. This ensures the demo never shows a blank log panel.
+- [ ] In `index.html`, replace the static `LOGS` loop with a WebSocket connection to `ws://localhost:8080/ws`. Map `agent_id` to the CSS classes.
+- [ ] **Heart Rate Monitor:** Add a simple SVG or Canvas "EKG Flatline" visualization that monitors the drug asset. When a log mentions a `P-Value < 0.05`, the line immediately spikes into a healthy heartbeat.
+- [ ] **Live Graph Expansion:** Add a lightweight dynamic network visualization (e.g., using D3.js or Force Graph) that expands target/disease nodes in real-time when the Coroner makes `neo4j-query` calls.
+- [ ] Keep the existing `LOGS` array and `setInterval` as a **fallback**.
 
 - [ ] Verify the `agent_id` values from the Go service (`THE_DEFIBRILLATOR`, `K2_SKEPTIC`, `THE_JUDGE`, `SYSTEM`, `PHOTON`) map correctly to the existing CSS classes in `index.html`.
 

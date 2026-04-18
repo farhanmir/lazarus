@@ -166,6 +166,8 @@ Request body:
 ```
 `subgroup_filter` is optional. When null, returns all subgroup breakdowns.
 
+**CRITICAL RIGOR CONTRACT:** The Go backend MUST calculate the `p_value` directly using Fisher's Exact Test algorithm for the target cohort compared to the control cohort. The LLM must not hallucinate this value.
+
 Response:
 ```json
 {
@@ -634,6 +636,8 @@ data/blueprint_rescue.json
 
 **patients_mock.json critical constraint:** The subset where `RIAGENDR=2` AND `RIDAGEYR>=65` AND `LBXCRP>3.0` AND `DRUG_EXPOSURE>0` must have average `EFFICACY_DELTA` ≈ 0.84 (84%). All other subgroups must show average `EFFICACY_DELTA` near 0 or negative. Generate at least 500 patient records total.
 
+**Deterministic Math Requirement:** In `/tools/patient-data`, the Go backend must calculate the `p_value` representing statistical significance of the subgroup delta using Fisher's Exact Test (or similar deterministic biostatistics equation). DO NOT rely on the LLM to verify significance. Validate the mock dataset so the calculation natively passes `p < 0.001` for the target cluster.
+
 **Go module:** Run `go mod init github.com/lazarus` first. All imports use `github.com/lazarus/internal/...`.
 
 **Required Go dependencies:**
@@ -710,7 +714,8 @@ The existing `index.html` has a `LOGS` array (around line 869) and a `setInterva
 2. Add a WebSocket connection to `ws://localhost:8080/ws` (configurable via a `const WS_URL` at the top of the script block).
 3. On `ws.onmessage`: parse the JSON frame as a `LogEvent`, map `agent_id` to CSS class using this table (from Contract 1), and call the existing log-rendering function with the mapped data.
 4. On `ws.onclose` or `ws.onerror`: fall back to the existing `setInterval(addLog, 2400)` loop.
-5. Do not change any HTML structure, CSS, Three.js scene, or any visual code.
+5. **Heart Rate Monitor:** Add a visual HTML/Canvas EKG element that flatlines until a message with a significant `P-Value` is received, at which point it spikes to a heartbeat.
+6. **Live Graph:** Add a real-time expanding Neo4j-style node visualization (e.g., using Force Graph) connected to the `neo4j-query` logs.
 
 AgentID → CSS class mapping for the frontend:
 ```javascript
