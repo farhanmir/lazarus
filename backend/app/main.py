@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.assets import router as assets_router
 from backend.app.api.blueprints import router as blueprints_router
+from backend.app.api.discovery import router as discovery_router
 from backend.app.api.graph import router as graph_router
 from backend.app.api.hypotheses import router as hypotheses_router
 from backend.app.api.memories import router as memories_router
@@ -53,6 +54,7 @@ app.add_middleware(
 )
 
 app.include_router(assets_router)
+app.include_router(discovery_router)
 app.include_router(runs_router)
 app.include_router(hypotheses_router)
 app.include_router(blueprints_router)

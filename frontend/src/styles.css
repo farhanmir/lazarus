@@ -326,6 +326,35 @@ body::after {
   opacity: 0.7;
 }
 
+.system-status-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+
+.header-search-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 5px 8px;
+  outline: none;
+  border-radius: 2px;
+  width: 130px;
+}
+
+.header-search-input::placeholder {
+  color: var(--text-dim);
+}
+
+.header-search-input:focus {
+  border-color: rgba(20,23,26,0.3);
+}
+
 /* ─── Terminal Inputs ─── */
 .term-select {
   background: var(--bg);
@@ -349,6 +378,23 @@ body::after {
 .term-select option {
   background: var(--panel);
   color: var(--text-bright);
+}
+
+.message-input {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text-bright);
+  font-family: var(--font-body);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.message-input::placeholder {
+  color: var(--text-dim);
+}
+
+.message-input:focus {
+  border-color: rgba(46, 90, 110, 0.55);
+  box-shadow: 0 0 0 2px rgba(46, 90, 110, 0.12);
 }
 
 /* ─── Terminal Buttons ─── */
@@ -419,6 +465,11 @@ body::after {
   letter-spacing: 0.06em;
   color: var(--text-dim);
   border-radius: 2px;
+}
+
+.run-id-dot {
+  color: var(--accent);
+  font-size: 8px;
 }
 
 /* ─── Horizontal Tab Nav ─── */
@@ -532,6 +583,10 @@ body::after {
   letter-spacing: 0.08em;
 }
 
+.status-separator {
+  color: var(--text-dim);
+}
+
 .status-desc {
   color: var(--text-dim);
   letter-spacing: 0.04em;
@@ -580,6 +635,58 @@ body::after {
 
 .term-panel-body {
   padding: var(--space-3);
+}
+
+.panel-meta-label {
+  font-size: 7.5px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+}
+
+.dashboard-progress-panel {
+  margin-top: var(--space-4);
+}
+
+.pipeline-track-row {
+  padding: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.pipeline-track-segment {
+  height: 3px;
+  flex: 1;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.decision-tags-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.graph-grid-layout {
+  display: grid;
+  grid-template-columns: minmax(0,1.4fr) minmax(280px,0.6fr);
+  gap: var(--space-4);
+}
+
+.blueprint-column-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.reset-confirm-btn {
+  border-color: rgba(155,61,61,0.5);
+  color: var(--red);
+}
+
+.nexus-glass-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 2px;
 }
 
 /* ─── Metrics Grid ─── */

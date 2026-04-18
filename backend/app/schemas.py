@@ -37,6 +37,40 @@ class AssetResponse(ORMModel):
     updated_at: datetime
 
 
+class CandidateResponse(BaseModel):
+    asset_id: UUID
+    asset_code: str
+    drug_name: str
+    disease_query: str
+    original_indication: str
+    proposed_disease: str
+    abandonment_reason: str | None = None
+    scientific_confidence_score: float
+    mortician_score: float
+    match_reason: str
+
+
+class CandidateSearchResponse(BaseModel):
+    disease: str
+    candidates: list[CandidateResponse]
+
+
+class EvaluateRequest(BaseModel):
+    drug: str
+    disease: str
+    asset_code: str | None = None
+
+
+class EvaluateResponse(BaseModel):
+    run: RunResponse
+    asset_id: UUID
+    asset_code: str
+    drug_name: str
+    disease: str
+    status_url: str
+    trace_url: str
+
+
 class RunCreate(BaseModel):
     asset_id: UUID
     run_type: str = "manual"

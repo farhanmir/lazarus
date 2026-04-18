@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import PropTypes from 'prop-types'
 import * as d3 from 'd3'
 import { motion } from 'framer-motion'
 import { TrendingUp, DollarSign, Clock, Users, Zap } from 'lucide-react'
@@ -173,8 +174,9 @@ function EffortImpactChart({ runId }) {
   if (!data) return null
 
   const readiness = data.investment_readiness_score
-  const readinessColor =
-    readiness >= 0.6 ? 'text-emerald-400' : readiness >= 0.3 ? 'text-amber-400' : 'text-red-400'
+  let readinessColor = 'text-red-400'
+  if (readiness >= 0.6) readinessColor = 'text-emerald-400'
+  else if (readiness >= 0.3) readinessColor = 'text-amber-400'
 
   return (
     <motion.div
@@ -188,7 +190,7 @@ function EffortImpactChart({ runId }) {
           <DollarSign className="h-5 w-5 text-emerald-400" />
           <div>
             <div className="text-xs text-slate-400">Est. Cost</div>
-            <div className="text-sm font-semibold text-white">
+            <div className="text-sm font-semibold text-slate-800">
               ${(data.effort.estimated_cost_usd / 1_000_000).toFixed(1)}M
             </div>
           </div>
@@ -197,14 +199,14 @@ function EffortImpactChart({ runId }) {
           <Clock className="h-5 w-5 text-blue-400" />
           <div>
             <div className="text-xs text-slate-400">Timeline</div>
-            <div className="text-sm font-semibold text-white">{data.effort.estimated_time_months} months</div>
+            <div className="text-sm font-semibold text-slate-800">{data.effort.estimated_time_months} months</div>
           </div>
         </div>
         <div className="nexus-glass-card flex items-center gap-3 p-4">
           <Users className="h-5 w-5 text-purple-400" />
           <div>
             <div className="text-xs text-slate-400">Patient Pop.</div>
-            <div className="text-sm font-semibold text-white">
+            <div className="text-sm font-semibold text-slate-800">
               {(data.impact.patient_population_size / 1_000_000).toFixed(1)}M
             </div>
           </div>
@@ -222,7 +224,7 @@ function EffortImpactChart({ runId }) {
 
       {/* Chart */}
       <div className="nexus-glass-card p-4" ref={containerRef}>
-        <h3 className="mb-3 text-sm font-semibold text-slate-300">Effort vs Impact</h3>
+        <h3 className="mb-3 text-sm font-semibold text-slate-700">Effort vs Impact</h3>
         <svg ref={svgRef} className="w-full" />
       </div>
 
@@ -230,33 +232,37 @@ function EffortImpactChart({ runId }) {
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="nexus-glass-card p-4">
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Effort Details</h4>
-          <div className="space-y-1 text-sm text-slate-300">
+          <div className="space-y-1 text-sm text-slate-600">
             <div className="flex justify-between">
               <span>Trial Complexity</span>
-              <span className="font-medium text-white">{data.effort.trial_complexity}</span>
+              <span className="font-medium text-slate-800">{data.effort.trial_complexity}</span>
             </div>
             <div className="flex justify-between">
               <span>Effort Score</span>
-              <span className="font-medium text-white">{data.effort.effort_score}</span>
+              <span className="font-medium text-slate-800">{data.effort.effort_score}</span>
             </div>
           </div>
         </div>
         <div className="nexus-glass-card p-4">
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Impact Details</h4>
-          <div className="space-y-1 text-sm text-slate-300">
+          <div className="space-y-1 text-sm text-slate-600">
             <div className="flex justify-between">
               <span>Breakthrough</span>
-              <span className="font-medium text-white">{data.impact.expected_breakthrough_score}</span>
+              <span className="font-medium text-slate-800">{data.impact.expected_breakthrough_score}</span>
             </div>
             <div className="flex justify-between">
               <span>Commercial Value</span>
-              <span className="font-medium text-white">{data.impact.commercial_value_estimate}</span>
+              <span className="font-medium text-slate-800">{data.impact.commercial_value_estimate}</span>
             </div>
           </div>
         </div>
       </div>
     </motion.div>
   )
+}
+
+EffortImpactChart.propTypes = {
+  runId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 }
 
 export default EffortImpactChart

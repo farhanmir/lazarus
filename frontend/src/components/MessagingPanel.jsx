@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import PropTypes from 'prop-types'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, MessageCircle, Bot, User } from 'lucide-react'
 import { fetchConversation, sendMessage } from '../services/api'
+
+const FALLBACK_ERROR_REPLY = 'Sorry, I could not process your question. Please try again.'
 
 function MessagingPanel({ runId }) {
   const [messages, setMessages] = useState([])
@@ -12,11 +15,26 @@ function MessagingPanel({ runId }) {
 
   useEffect(() => {
     if (!runId) return
+
+    let isMounted = true
     setLoading(true)
     fetchConversation(runId)
-      .then((res) => setMessages(res.messages || []))
-      .catch(() => setMessages([]))
-      .finally(() => setLoading(false))
+      .then((res) => {
+        if (!isMounted) return
+        setMessages(res.messages || [])
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setMessages([])
+      })
+      .finally(() => {
+        if (!isMounted) return
+        setLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
   }, [runId])
 
   useEffect(() => {
@@ -42,7 +60,7 @@ function MessagingPanel({ runId }) {
         {
           id: Date.now() + 1,
           role: 'assistant',
-          content: 'Sorry, I could not process your question. Please try again.',
+          content: FALLBACK_ERROR_REPLY,
           created_at: new Date().toISOString(),
         },
       ])
@@ -74,9 +92,9 @@ function MessagingPanel({ runId }) {
       className="nexus-glass-card flex h-[520px] flex-col"
     >
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-slate-200/70 px-4 py-3">
         <Bot className="h-5 w-5 text-cyan-400" />
-        <h3 className="text-sm font-semibold text-slate-200">Follow-Up Assistant</h3>
+        <h3 className="text-sm font-semibold text-slate-800">Follow-Up Assistant</h3>
         <span className="ml-auto text-xs text-slate-500">{messages.length} messages</span>
       </div>
 
@@ -94,50 +112,51 @@ function MessagingPanel({ runId }) {
           </div>
         )}
         <AnimatePresence>
-          {messages.map((msg) => (
+          {messages.map((msg) => {
+            const isUser = msg.role === 'user'
+            const bubbleClassName = isUser
+              ? 'bg-cyan-600/25 text-slate-900 border border-cyan-600/30'
+              : 'bg-white/70 text-slate-700 border border-slate-200/80'
+
+            return (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}
             >
-              {msg.role === 'assistant' && (
+              {!isUser && (
                 <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500/20">
                   <Bot className="h-3.5 w-3.5 text-cyan-400" />
                 </div>
               )}
-              <div
-                className={`max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-cyan-600/30 text-cyan-50'
-                    : 'bg-white/5 text-slate-300'
-                }`}
-              >
+              <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed ${bubbleClassName}`}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
                 {msg.sources_json && Array.isArray(msg.sources_json) && msg.sources_json.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {msg.sources_json.map((src, i) => (
-                      <span key={i} className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-slate-400">
+                      <span key={`${msg.id}-${src}-${i}`} className="rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-slate-500 border border-slate-200/80">
                         {src}
                       </span>
                     ))}
                   </div>
                 )}
               </div>
-              {msg.role === 'user' && (
+              {isUser && (
                 <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/20">
                   <User className="h-3.5 w-3.5 text-violet-400" />
                 </div>
               )}
             </motion.div>
-          ))}
+            )
+          })}
         </AnimatePresence>
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <div className="border-t border-white/5 p-3">
+      <div className="border-t border-slate-200/70 p-3">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -146,7 +165,7 @@ function MessagingPanel({ runId }) {
             onKeyDown={handleKeyDown}
             placeholder="Ask about this analysis…"
             disabled={sending}
-            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-500/50 disabled:opacity-50"
+            className="message-input flex-1 rounded-lg px-3 py-2 text-sm outline-none focus:border-cyan-500/50 disabled:opacity-50"
           />
           <button
             onClick={handleSend}
@@ -159,6 +178,10 @@ function MessagingPanel({ runId }) {
       </div>
     </motion.div>
   )
+}
+
+MessagingPanel.propTypes = {
+  runId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 }
 
 export default MessagingPanel

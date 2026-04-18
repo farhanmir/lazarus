@@ -37,6 +37,11 @@ def get_asset_by_code(db: Session, asset_code: str) -> models.CompanyAsset | Non
     return db.scalar(stmt)
 
 
+def get_asset_by_internal_name(db: Session, internal_name: str) -> models.CompanyAsset | None:
+    stmt = select(models.CompanyAsset).where(models.CompanyAsset.internal_name == internal_name)
+    return db.scalar(stmt)
+
+
 def create_run(db: Session, asset_id: UUID, run_type: str, status: str) -> models.AgentRun:
     run = models.AgentRun(
         asset_id=asset_id,
