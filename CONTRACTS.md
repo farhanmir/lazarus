@@ -448,7 +448,7 @@ generate-pdf:      POST http://go-service:8080/tools/generate-pdf
 photon-send:       POST http://go-service:8080/tools/photon-send
 ```
 
-For local testing outside Docker (running OpenClaw directly on your machine), replace `go-service:8080` with `localhost:8080`.
+**Note on Distributed Topology:** For local testing (`docker-compose`), `go-service:8080` or `localhost:8080` is correct. However, for the final Dedalus multi-VM deployment (where agents run on separate dedicated Dedalus Machines), Member 4's provisioning script will pass the Control Plane IP into the OpenClaw worker's environment config instead.
 
 ---
 
@@ -1001,9 +1001,9 @@ This is the nuclear fallback for total network outage — the demo log panel fil
 set -e
 
 if [ "$DEPLOY_TARGET" = "dedalus" ]; then
-  go run ./cmd/lazarus wake
-  echo "Waiting for Go service health..."
-  until curl -sf http://$APP_MACHINE_IP:8080/ > /dev/null; do sleep 1; done
+  go run ./cmd/lazarus deploy
+  echo "Waiting for Go service health on Control Plane..."
+  until curl -sf http://$CONTROL_PLANE_IP:8080/ > /dev/null; do sleep 1; done
 else
   docker-compose down -v
   docker-compose up -d redis postgres neo4j
