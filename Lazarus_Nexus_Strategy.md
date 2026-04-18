@@ -19,8 +19,6 @@ Lazarus is engineered to aggressively capture the following prize pools:
 *   **⚙️ Eragon - Build What Actually Runs Monday:** A sovereign R&D participant built on **OpenClaw** that solves a concrete internal pipeline issue.
 *   **🐳 Dedalus - Best Agent Swarm ($500):** High-concurrency swarm orchestrated via Go and hosted on Dedalus Containers.
 *   **💬 Photon - Agents in iMessage ($700):** **The High Priest** pushes the "Resurrection Blueprint" directly to executive iMessage via Spectrum.
-*   **🛒 KnotAPI:** Proactive Bio-Filtering based on transaction surrogate markers.
-*   **🛡️ Sonar:** Beautifully Engineered (Disaster) — maintain high code quality on a complex Go/Neo4j stack.
 
 ---
 
@@ -30,20 +28,21 @@ Lazarus utilizes a high-concurrency microservices architecture to ensure continu
 * **Swarm Orchestrator (Go + OpenClaw):** Leverages goroutines and the **OpenClaw** framework for stateful, intense parallelization, managing 4-5 agents simultaneously without blocking.
 * **Context Persistence (Redis + PostgreSQL + Neo4j):**
     * **Redis:** Real-time "Blackboard" for agent broadcasting via pub/sub.
-    * **PostgreSQL:** "Truth Ledger" maintaining a durable event log, patient data, and transaction links.
+    * **PostgreSQL:** "Truth Ledger" maintaining a durable event log, patient data, and historical R&D outcomes.
     * **Neo4j:** "Biological Knowledge Graph" managing complex relationships between Drugs, Targets, Diseases, and Evidence.
 * **Execution Environment:** Hosted on **Dedalus Containers** for enterprise-grade uptime.
 * **The Reasoning Engine:** **Gemma 4** (Massive context extraction & Advocate) + **IFM K2 Think V2** (Targeted skeptical logic/verification).
 
 ---
 
-## 4. The Sourcing Layer: How Lazarus Mines the Valley
-Lazarus operates across four distinct data environments to identify and validate rescue opportunities.
+---
 
-*   **Clinical Pipeline Miner (CTG API v2):** Lazarus queries `clinicaltrials.gov` for real-world NCT records marked as `TERMINATED` or `WITHDRAWN`. It scrapes failure points (Primary Outcome measures) and eligibility criteria.
-*   **Biological Truth Engine (Knowledge Graphs):** Cross-references drug Mechanisms of Action (MOA) against PubMed citations, biobanking data, and metabolic pathway maps to find "Biological Exceptions."
-*   **Bio-Nexus Mirror (NHANES Labs):** Ingests national health datasets (Mocked for MVP) to simulate large-scale subgroup analysis using metrics like `LBXGH` (HbA1c) and `LBXCRP` (Inflammation).
-*   **Behavioral Context (Knot API):** Syncs real-world transaction history to find "High-Frequency" health signals and surrogate markers for subgroup profiling.
+## 4. The Sourcing Layer: How Lazarus Mines the Valley
+Lazarus operates across three distinct scientific data environments:
+
+*   **Clinical Pipeline Miner (CTG API v2):** Lazarus queries `clinicaltrials.gov` for records marked as `TERMINATED` or `WITHDRAWN` to scrape failure points.
+*   **Biological Truth Engine (Knowledge Graphs):** Cross-references drug MOA against PubMed, biobanking data, and pathways in Neo4j.
+*   **Bio-Nexus Mirror (NHANES Labs):** Ingests national health datasets (Mocked for MVP) to simulate subgroup analysis using metrics like `LBXGH` (HbA1c) and `LBXCRP` (Inflammation).
 
 ---
 
@@ -90,10 +89,5 @@ We will implement a secondary **Bio-Nexus Dashboard** (sleek, terminal-style UI)
     *   `[The Defibrillator] Applying 1.21 gigawatts to Patient_Cluster_B (Females 65+)...`
     *   `[The Coroner] Verifying heartbeat... Detected CRP-mediated synergy. Resurrection possible.`
 
-### 2. Knot API: Proactive Bio-Filtering
-We use Knot API’s `TransactionLink` (mocked for MVP reliability) to create a proactive clinical monitoring loop.
-*   **The Feature:** A secure login portal where a user/executive can configure their "R&D Focus."
-*   **Optimization Layer:** If the user selects **"Performance Enhancement Only,"** the swarm filters out noise (generic pharmacy purchases like band-aids or cough syrup) and narrows its reasoning strictly to high-value assets related to bio-performance and nootropics.
-
-### 3. MVP Mock Data Strategy
-To ensure a bulletproof Sunday demo, we use `purchases_mock.json` to simulate diverse financial datasets. This allows us to trigger the adversarial reasoning loop instantly when a "relevant" purchase is detected in the mock stream.
+### 2. MVP Mock Data Strategy
+To ensure a bulletproof Sunday demo, we use `patients_mock.json` to simulate diverse laboratory datasets. This allows us to trigger the adversarial reasoning loop instantly when a "relevant" biological signal is detected in the mock stream.

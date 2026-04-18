@@ -91,16 +91,3 @@ The source data for the final "Mic-Drop" one-page report.
 - `rescue_narrative`: "Mechanism of action (PPAR-gamma) successfully modulated by high systemic inflammation markers previously ignored in Phase 2 aggregate analysis."
 - `key_stats`: { "efficacy_increase": "84%", "p_value": "< 0.001" }
 
----
-
-## 4. Knot API Filter Schema (`knot_sync.json`)
-```json
-{
-  "transaction_id": "tx_9982",
-  "merchant": "Regeneron Specialty Pharmacy",
-  "amount": 240.50,
-  "item_name": "Modafinil 200mg",
-  "bio_category": "PERFORMANCE_ENHANCEMENT",
-  "agent_relevance": true
-}
-```
