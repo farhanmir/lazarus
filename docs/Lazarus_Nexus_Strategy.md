@@ -25,7 +25,7 @@ Lazarus is engineered to aggressively capture the following prize pools:
 ## 3. System Architecture: The Sovereign Backend
 Lazarus utilizes a high-concurrency microservices architecture to ensure continuous execution without state drift.
 
-* **Swarm Orchestrator (Go + OpenClaw):** Leverages goroutines and the **OpenClaw** framework for stateful, intense parallelization, managing 4-5 agents simultaneously without blocking.
+* **Swarm Orchestrator (FastAPI + OpenClaw):** Leverages async Python and the **OpenClaw** framework for stateful, intense parallelization, managing 4 agents simultaneously without blocking.
 * **Context Persistence (Redis + PostgreSQL + Neo4j):**
     * **Redis:** Real-time "Blackboard" for agent broadcasting via pub/sub.
     * **PostgreSQL:** "Truth Ledger" maintaining a durable event log, patient data, and historical R&D outcomes.
@@ -49,10 +49,10 @@ Lazarus operates across three distinct scientific data environments:
 ---
 
 ## 5. Swarm Logic: The Adversarial Court
-Lazarus employs a 4-agent adversarial reasoning loop, backed by a **Deterministic Biostatistics Engine (Go)**. LLMs do not guess statistical significance; they ask the Go backend to calculate actual synthetic P-Values (Fisher's Exact Test / Kaplan-Meier) on sub-cohorts.
+Lazarus employs a 4-agent adversarial reasoning loop, backed by a **Deterministic Biostatistics Engine (Python/SciPy)**. LLMs do not guess statistical significance; they ask the FastAPI backend to calculate actual synthetic P-Values (Fisher's Exact Test / Kaplan-Meier) on sub-cohorts.
 
 1.  **The Mortician (Sourcing):** Scours the **VALLEY OF DEATH** (ClinicalTrials.gov) for terminated assets. 
-2.  **The Defibrillator (Gemma 4 - Advocate):** Ingests the full FDA clinical briefing (using 2M+ context). Finds the hidden efficacy spike and relies on Go for the deterministic math validation.
+2.  **The Defibrillator (Gemma 4 - Advocate):** Ingests the full FDA clinical briefing (using 2M+ context). Finds the hidden efficacy spike and relies on Python for the deterministic math validation.
 3.  **The Coroner (K2 Think V2 - Skeptic):** Performs the 10-step "Biological Autopsy" to verify if the pulse is real. Its deep "Thinking Trace" explores mechanism of action and synthesis pathways.
 4.  **The High Priest (Judge):** Synthesizes the debate into a heavily cited (PMID) blueprint.
 
@@ -60,14 +60,14 @@ Lazarus employs a 4-agent adversarial reasoning loop, backed by a **Deterministi
 
 ## 6. The Demo UX (The Terminal of Truth)
 To win, we move beyond static reports to a live "Swarm Visualization."
-*   **The UI:** Features a live "Heart Rate Monitor" for the drug asset. It flatlines until the Go backend calculates `P < .05`, then it starts beating.
+*   **The UI:** Features a live "Heart Rate Monitor" for the drug asset. It flatlines until the FastAPI backend calculates `P < .05`, then it starts beating.
 *   **The Graph:** The Neo4j graph expands dynamically on screen as K2 explores biological relationships.
 *   **The Participation:** When the executive answers the iMessage, the agent functions in a *group chat*, defending its biostatistics against skeptics natively in the thread.
 
 ---
 
 ## 6. Execution Roadmap
-* **Hours 0–8:** Initialize Dedalus, Go orchestrator, Redis, and Postgres.
+* **Hours 0–8:** Initialize Dedalus, FastAPI orchestrator, Redis, and Postgres.
 * **Hours 8–20:** Implement K2 Think "Skeptic" loop and Gemini PDF pipeline.
 * **Hours 20–30:** Integrate Photon Spectrum and PDF generation logic.
 * **Hours 30–36:** Pitch lockdown: "We build sovereign participants in clinical R&D."
