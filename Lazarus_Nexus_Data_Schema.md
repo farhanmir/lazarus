@@ -7,11 +7,15 @@ We use official NHANES variable prefixes to provide immediate scientific credibi
 
 | Variable | Description | Value Type | Demo Role |
 | :--- | :--- | :--- | :--- |
-| `SEQN` | Sequence Number (Patient ID) | Integer | Unique identifier |
+| `NCTId` | ClinicalTrials.gov Identifier | String | The "Search Key" for the failed asset |
+| `Condition` | Primary therapeutic area | String | Context for reasoning (e.g., T2D) |
+| `Sponsor` | Biotech/Pharma company | String | The "Owner" of the dead asset |
+| `OverallStatus` | Recruitment status | Enum | Filters for TERMINATED/WITHDRAWN |
+| `SEQN` | Sequence Number (Patient ID) | Integer | Unique identifier for NHANES labs |
 | `RIAGENDR` | Gender (1: Male, 2: Female) | Int (Enum) | Used for subgroup filtering |
 | `RIDAGEYR` | Age in Years | Integer | Used for subgroup filtering |
 | `LBXGH` | Glycohemoglobin (HbA1c %) | Float | Primary efficacy metric |
-| `LBXCRP` | C-Reactive Protein (mg/L) | Float | The "Hidden Marker" for Zeloprin success |
+| `LBXCRP` | C-Reactive Protein (mg/L) | Float | The "Hidden Marker" for success |
 | `LBXGLU` | Fasting Glucose (mg/dL) | Float | Supplementary metabolic data |
 | `DRUG_EXPOSURE` | Zeloprin Dosage (mg) | Float | Treatment vs. Control (0mg) |
 | `EFFICACY_DELTA` | Calculated % Change | Percentage | The "Billion-Dollar" signal |

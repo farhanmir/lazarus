@@ -34,7 +34,17 @@ Lazarus utilizes a high-concurrency microservices architecture to ensure continu
 
 ---
 
-## 4. Swarm Logic: The Adversarial Court
+## 4. The Sourcing Layer: How Lazarus Mines the Valley
+Lazarus operates across four distinct data environments to identify and validate rescue opportunities.
+
+*   **Clinical Pipeline Miner (CTG API v2):** Lazarus queries `clinicaltrials.gov` for real-world NCT records marked as `TERMINATED` or `WITHDRAWN`. It scrapes failure points (Primary Outcome measures) and eligibility criteria.
+*   **Biological Truth Engine (Knowledge Graphs):** Cross-references drug Mechanisms of Action (MOA) against PubMed citations, biobanking data, and metabolic pathway maps to find "Biological Exceptions."
+*   **Bio-Nexus Mirror (NHANES Labs):** Ingests national health datasets (Mocked for MVP) to simulate large-scale subgroup analysis using metrics like `LBXGH` (HbA1c) and `LBXCRP` (Inflammation).
+*   **Behavioral Context (Knot API):** Syncs real-world transaction history to find "High-Frequency" health signals and surrogate markers for subgroup profiling.
+
+---
+
+## 5. Swarm Logic: The Adversarial Court
 Lazarus employs an adversarial reasoning loop to force a "survival of the fittest" for hypotheses:
 
 1.  **The Advocate (Gemma 4):** Mines shelved data and proposes novel hypotheses (e.g., failed Asthma drugs with Lupus potential). Gemma 4 is our primary engine for the **Best Use of Gemini API** track.
