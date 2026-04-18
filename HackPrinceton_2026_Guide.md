@@ -177,6 +177,26 @@ Compete in these additional challenges to win exclusive gear and swag!
 
 ---
 
+## 💡 Winning Strategy: The "Bio-Nexus" Pattern
+To truly impress judges, don't just show a chatbot. Show the **"Brain"** working in the background.
+
+### 1. Visualize the "Background" Agent
+Instead of just an iMessage screen, build a secondary **Agent Dashboard** (a simple terminal-style UI) that streams the agent's internal logs in real-time.
+*   **Judge Impact:** It proves the agent is autonomously analyzing data, not just hardcoded responses.
+*   **The Log:** `[Photon] Scanning incoming iMessage...`, `[Classifier] Tagging context: "Biohacking/Supplements"`, `[KnotAPI] Cross-referencing purchase history...`
+
+### 2. High-Impact MVP with Mock Data
+Don't get stuck in "Integration Hell." Use **Mock Data** to ensure your demo is bulletproof during the 2-minute judging period.
+*   **Mock Pattern:** Create a `purchases_mock.json` with categories like `Performance Enhancement`, `General Recovery`, and `Mundane`.
+*   **Example Prompt:** *"Identify if this $GNC purchase contains any performance enhancers."*
+
+### 3. Knot API: The "Bio-Filter" Feature
+Use Knot API's `TransactionLink` (mocked for speed) to add a sophisticated data-filtering layer.
+*   **The Feature:** A "Login" portal where users can narrow down their agent's interest. 
+*   **Use Case:** The user selects **"Performance Enhancement Only."** The agent then proactively monitors purchases for things like Nootropics or PEDs while ignoring non-relevant pharmacy items (band-aids, Tylenol, etc.).
+
+---
+
 ## 🤝 Career Fair
 **Saturday, 11:00 AM @ 1st Floor Atrium, Julis Romo Rabinowitz Building**
 
