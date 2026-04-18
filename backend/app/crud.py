@@ -354,3 +354,109 @@ def resolve_human_review(
     db.commit()
     db.refresh(review)
     return review
+
+
+# --- Effort Analysis ---
+
+
+def create_effort_analysis(
+    db: Session,
+    *,
+    run_id: UUID,
+    hypothesis_id: UUID,
+    estimated_cost_usd: int,
+    estimated_time_months: int,
+    trial_complexity: str,
+    effort_score: float,
+) -> models.EffortAnalysis:
+    record = models.EffortAnalysis(
+        run_id=run_id,
+        hypothesis_id=hypothesis_id,
+        estimated_cost_usd=estimated_cost_usd,
+        estimated_time_months=estimated_time_months,
+        trial_complexity=trial_complexity,
+        effort_score=effort_score,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def get_effort_analysis_by_run(db: Session, run_id: UUID) -> models.EffortAnalysis | None:
+    stmt = select(models.EffortAnalysis).where(models.EffortAnalysis.run_id == run_id)
+    return db.scalar(stmt)
+
+
+def get_effort_analysis_by_hypothesis(db: Session, hypothesis_id: UUID) -> models.EffortAnalysis | None:
+    stmt = select(models.EffortAnalysis).where(models.EffortAnalysis.hypothesis_id == hypothesis_id)
+    return db.scalar(stmt)
+
+
+# --- Impact Analysis ---
+
+
+def create_impact_analysis(
+    db: Session,
+    *,
+    run_id: UUID,
+    hypothesis_id: UUID,
+    patient_population_size: int,
+    expected_breakthrough_score: float,
+    commercial_value_estimate: str,
+    impact_score: float,
+) -> models.ImpactAnalysis:
+    record = models.ImpactAnalysis(
+        run_id=run_id,
+        hypothesis_id=hypothesis_id,
+        patient_population_size=patient_population_size,
+        expected_breakthrough_score=expected_breakthrough_score,
+        commercial_value_estimate=commercial_value_estimate,
+        impact_score=impact_score,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def get_impact_analysis_by_run(db: Session, run_id: UUID) -> models.ImpactAnalysis | None:
+    stmt = select(models.ImpactAnalysis).where(models.ImpactAnalysis.run_id == run_id)
+    return db.scalar(stmt)
+
+
+def get_impact_analysis_by_hypothesis(db: Session, hypothesis_id: UUID) -> models.ImpactAnalysis | None:
+    stmt = select(models.ImpactAnalysis).where(models.ImpactAnalysis.hypothesis_id == hypothesis_id)
+    return db.scalar(stmt)
+
+
+# --- Messages ---
+
+
+def create_message(
+    db: Session,
+    *,
+    run_id: UUID,
+    role: str,
+    content: str,
+    sources_json: dict | list | None = None,
+) -> models.Message:
+    msg = models.Message(
+        run_id=run_id,
+        role=role,
+        content=content,
+        sources_json=sources_json,
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return msg
+
+
+def list_messages(db: Session, run_id: UUID) -> list[models.Message]:
+    stmt = (
+        select(models.Message)
+        .where(models.Message.run_id == run_id)
+        .order_by(models.Message.created_at.asc())
+    )
+    return list(db.scalars(stmt).all())

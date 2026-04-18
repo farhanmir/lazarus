@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -177,3 +177,48 @@ class HumanReview(Base):
 
     run: Mapped["AgentRun"] = relationship(back_populates="human_reviews")
     asset: Mapped["CompanyAsset"] = relationship(back_populates="human_reviews")
+
+
+class EffortAnalysis(Base):
+    __tablename__ = "effort_analyses"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_runs.id"), nullable=False, index=True)
+    hypothesis_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("hypotheses.id"), nullable=False, index=True)
+    estimated_cost_usd: Mapped[int] = mapped_column(Integer, nullable=False)
+    estimated_time_months: Mapped[int] = mapped_column(Integer, nullable=False)
+    trial_complexity: Mapped[str] = mapped_column(String(32), nullable=False)
+    effort_score: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    run: Mapped["AgentRun"] = relationship()
+    hypothesis: Mapped["Hypothesis"] = relationship()
+
+
+class ImpactAnalysis(Base):
+    __tablename__ = "impact_analyses"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_runs.id"), nullable=False, index=True)
+    hypothesis_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("hypotheses.id"), nullable=False, index=True)
+    patient_population_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    expected_breakthrough_score: Mapped[float] = mapped_column(Float, nullable=False)
+    commercial_value_estimate: Mapped[str] = mapped_column(String(64), nullable=False)
+    impact_score: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    run: Mapped["AgentRun"] = relationship()
+    hypothesis: Mapped["Hypothesis"] = relationship()
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_runs.id"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)  # "user" or "assistant"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    sources_json: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    run: Mapped["AgentRun"] = relationship()

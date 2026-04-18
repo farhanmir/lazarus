@@ -333,3 +333,56 @@ class SpectrumWebhookResponse(BaseModel):
 
 PhotonSpectrumWebhookRequest = SpectrumWebhookRequest
 PhotonSpectrumWebhookResponse = SpectrumWebhookResponse
+
+
+# --- Effort & Impact Analysis ---
+
+
+class EffortAnalysisResponse(ORMModel):
+    id: UUID
+    run_id: UUID
+    hypothesis_id: UUID
+    estimated_cost_usd: int
+    estimated_time_months: int
+    trial_complexity: str
+    effort_score: float
+    created_at: datetime
+
+
+class ImpactAnalysisResponse(ORMModel):
+    id: UUID
+    run_id: UUID
+    hypothesis_id: UUID
+    patient_population_size: int
+    expected_breakthrough_score: float
+    commercial_value_estimate: str
+    impact_score: float
+    created_at: datetime
+
+
+class EffortImpactSummary(BaseModel):
+    effort: EffortAnalysisResponse
+    impact: ImpactAnalysisResponse
+    investment_readiness_score: float
+
+
+# --- Messages (Follow-Up Assistant) ---
+
+
+class MessageCreate(BaseModel):
+    run_id: UUID
+    question: str
+
+
+class MessageResponse(ORMModel):
+    id: UUID
+    run_id: UUID
+    role: str
+    content: str
+    sources_json: dict | list | None = None
+    created_at: datetime
+
+
+class ConversationResponse(BaseModel):
+    run_id: UUID
+    messages: list[MessageResponse]

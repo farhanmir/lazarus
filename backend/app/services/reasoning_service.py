@@ -11,14 +11,20 @@ from sqlalchemy.orm import Session
 
 from backend.app import crud, schemas
 from backend.app.agents.advocate import run_advocate
+from backend.app.agents.effort_estimator import run_effort_estimator
 from backend.app.agents.evidence_curator import run_evidence_curator
+from backend.app.agents.impact_predictor import run_impact_predictor
 from backend.app.agents.judge import run_judge
 from backend.app.agents.skeptic import run_skeptic
 from backend.app.agents.types import (
     AdvocateOutput,
     AssetContext,
+    EffortEstimatorInput,
+    EffortEstimatorOutput,
     EvidenceCuratorOutput,
     HITLDecision,
+    ImpactPredictorInput,
+    ImpactPredictorOutput,
     JudgeOutput,
     ParallelEvidenceOutput,
     ReasoningAssessment,
@@ -85,6 +91,8 @@ def _build_trace(
     parallel_evidence: ParallelEvidenceOutput,
     assessment: ReasoningAssessment,
     hitl: HITLDecision,
+    effort_estimator: EffortEstimatorOutput | None = None,
+    impact_predictor: ImpactPredictorOutput | None = None,
 ) -> ReasoningTrace:
     return ReasoningTrace(
         asset_code=context.asset_code,
@@ -94,6 +102,8 @@ def _build_trace(
         evidence_curator=evidence,
         judge=judge,
         trial_strategist=trial_strategist,
+        effort_estimator=effort_estimator,
+        impact_predictor=impact_predictor,
         parallel_evidence=parallel_evidence,
         assessment=assessment,
         hitl=hitl,
@@ -384,6 +394,68 @@ def _execute_reasoning_pipeline(
             ),
         )
 
+        # --- Effort Estimator (Agent 6) ---
+        effort_input = EffortEstimatorInput(
+            drug_name=context.internal_name,
+            original_indication=context.source_disease,
+            proposed_indication=advocate.proposed_disease,
+            risk_level=skeptic.risk_level,
+            confidence=judge.final_confidence,
+            evidence_count=len(evidence.evidence),
+            priority_level=trial_strategist.priority_level,
+        )
+        effort_output = run_effort_estimator(effort_input)
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="effort_estimator",
+            step_order=13,
+            input_summary=f"Estimate cost/time/complexity for {context.asset_code} -> {advocate.proposed_disease}.",
+            output_summary=effort_output.model_dump_json(),
+            score=effort_output.effort_score,
+            citations_json=effort_output.model_dump(),
+        )
+        crud.create_effort_analysis(
+            db,
+            run_id=run.id,
+            hypothesis_id=hypothesis.id,
+            estimated_cost_usd=effort_output.estimated_cost_usd,
+            estimated_time_months=effort_output.estimated_time_months,
+            trial_complexity=effort_output.trial_complexity,
+            effort_score=effort_output.effort_score,
+        )
+
+        # --- Impact Predictor (Agent 7) ---
+        impact_input = ImpactPredictorInput(
+            drug_name=context.internal_name,
+            original_indication=context.source_disease,
+            proposed_indication=advocate.proposed_disease,
+            confidence=judge.final_confidence,
+            risk_level=skeptic.risk_level,
+            evidence_count=len(evidence.evidence),
+            priority_level=trial_strategist.priority_level,
+        )
+        impact_output = run_impact_predictor(impact_input)
+        _log_agent_step(
+            db,
+            run_id=run.id,
+            agent_name="impact_predictor",
+            step_order=14,
+            input_summary=f"Predict impact for {context.asset_code} -> {advocate.proposed_disease}.",
+            output_summary=impact_output.model_dump_json(),
+            score=impact_output.impact_score,
+            citations_json=impact_output.model_dump(),
+        )
+        crud.create_impact_analysis(
+            db,
+            run_id=run.id,
+            hypothesis_id=hypothesis.id,
+            patient_population_size=impact_output.patient_population_size,
+            expected_breakthrough_score=impact_output.expected_breakthrough_score,
+            commercial_value_estimate=impact_output.commercial_value_estimate,
+            impact_score=impact_output.impact_score,
+        )
+
         if hitl.required:
             crud.create_human_review(
                 db,
@@ -438,6 +510,8 @@ def _execute_reasoning_pipeline(
             evidence_curator=evidence,
             judge=judge,
             trial_strategist=trial_strategist,
+            effort_estimator=effort_output,
+            impact_predictor=impact_output,
             parallel_evidence=parallel_evidence,
             assessment=assessment,
             hitl=hitl,
@@ -452,6 +526,8 @@ def _execute_reasoning_pipeline(
             parallel_evidence,
             assessment,
             hitl,
+            effort_estimator=effort_output,
+            impact_predictor=impact_output,
         )
 
         return schemas.RunAnalysisResponse(

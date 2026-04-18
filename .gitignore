@@ -31,3 +31,5 @@ lazarus-blueprint-*.pdf
 .idea/
 .vscode/
 .claude/
+*.pyc
+frontend/.vite/
