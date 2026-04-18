@@ -1,6 +1,6 @@
 # Lazarus: Autonomous Clinical R&D Swarm
 
-Resurrecting shelved clinical assets from the **VALLEY OF DEATH** using a sovereign, adversarial multi-agent swarm.
+Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resurrects' them by finding new patient sub-groups where the drug actually works. When it finds a billion-dollar match, it pings the executive's iMessage with a ready-to-sign R&D blueprint.
 
 ## Quick Links
 - **[Project Strategy & Vision](Lazarus_Nexus_Strategy.md):** Deep dive into the Lazarus architecture, swarm logic, and the "Bio-Nexus" demo strategy.

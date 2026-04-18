@@ -5,7 +5,7 @@
 ## 1. The Pitch
 The pharmaceutical industry is a graveyard of "near-misses." Biotech firms bleed billions on clinical trials that fail not because of biology, but because of business: funding cuts, strategic pivots, or poor enrollment. These "dead" assets are shelved while patients wait for cures.
 
-**Lazarus** is a sovereign, multi-agent swarm designed to resurrect these assets from the **VALLEY OF DEATH**. It acts as an autonomous, founder-level R&D engine that continuously mines a company’s proprietary clinical pipeline, cross-references it with global biological knowledge graphs, and actively pushes validated, citation-backed repurposing blueprints directly to executives via iMessage. Lazarus doesn't just "search"—it reasons, self-corrects, and executes.
+Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resurrects' them by finding new patient sub-groups where the drug actually works. When it finds a billion-dollar match, it pings the executive's iMessage with a ready-to-sign R&D blueprint.
 
 ---
 
