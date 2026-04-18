@@ -11,7 +11,7 @@ Lazarus is an autonomous R&D engine designed for HackPrinceton Spring 2026. It m
 
 ### Key Technologies
 - **Sovereign Backend:** Go, Redis, PostgreSQL
-- **Reasoning:** IFM K2 Think V2, Gemini 2.0 Flash
+- **Reasoning:** Gemma 4 (Primary Advocate), IFM K2 Think V2 (Logic Sourcing)
 - **CX:** Photon Spectrum (iMessage)
 - **Data:** Knot API (TransactionLink)
 - **Deployment:** Dedalus Containers

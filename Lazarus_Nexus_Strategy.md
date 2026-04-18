@@ -30,15 +30,15 @@ Lazarus utilizes a high-concurrency microservices architecture to ensure continu
     * **Redis:** Real-time "Blackboard" for agent broadcasting via pub/sub.
     * **PostgreSQL:** "Truth Ledger" maintaining a durable event log and strict citation chains.
 * **Execution Environment:** Hosted on **Dedalus Containers** for enterprise-grade uptime.
-* **The Reasoning Engine:** **IFM K2 Think V2** (Logic/Mechanistic verification) + **Gemini 2.0 Flash** (Massive context extraction).
+* **The Reasoning Engine:** **Gemma 4** (Massive context extraction & Advocate) + **IFM K2 Think V2** (Targeted skeptical logic/verification).
 
 ---
 
 ## 4. Swarm Logic: The Adversarial Court
 Lazarus employs an adversarial reasoning loop to force a "survival of the fittest" for hypotheses:
 
-1.  **The Advocate (Gemini):** Mines shelved data and proposes novel hypotheses (e.g., failed Asthma drugs with Lupus potential).
-2.  **The Skeptic (K2 Think V2):** Attempts to falsify hypotheses by simulating enzyme interactions and checking contraindications.
+1.  **The Advocate (Gemma 4):** Mines shelved data and proposes novel hypotheses (e.g., failed Asthma drugs with Lupus potential). Gemma 4 is our primary engine for the **Best Use of Gemini API** track.
+2.  **The Skeptic (K2 Think V2):** Used for targeted falsification of hypotheses. We leverage K2 primarily for edge-case mechanistic verification, ensuring it is used with high precision where skeletal logic is most critical.
 3.  **The Judge:** Synthesizes the debate into an Executive Blueprint with a **Strict Citation Chain** linking to source PDFs, FAERS data, and PubMed IDs.
 
 ---
