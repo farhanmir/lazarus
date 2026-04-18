@@ -1,47 +1,63 @@
-# Project Lazarus: Autonomous Clinical R&D Swarm
-**HackPrinceton Spring 2026 Proposal**
+# Lazarus: Autonomous Clinical R&D Swarm
+
+**HackPrinceton Spring 2026 Strategy**
 
 ## 1. The Pitch
-Biotech companies bleed billions on clinical trials that fail for non-scientific reasons—funding cuts, poor enrollment, supply chain issues. Meanwhile, the standard "AI hackathon project" is a stateless chatbot that hallucinates biology and forgets its own context after three prompts. 
+The pharmaceutical industry is a graveyard of "near-misses." Biotech firms bleed billions on clinical trials that fail not because of biology, but because of business: funding cuts, strategic pivots, or poor enrollment. These "dead" assets are shelved while patients wait for cures.
 
-**Project Lazarus** is a durable, multi-turn autonomous swarm that acts as a tireless founder-level R&D agent. It continuously mines a company’s "dead" asset pipeline, cross-references it with real-time biological knowledge graphs and global literature, and actively pushes highly validated, citation-backed repurposing blueprints directly to executives via iMessage. It doesn't just search; it reasons, corrects itself, and acts.
+**Lazarus** is a sovereign, multi-agent swarm designed to resurrect these assets. It acts as an autonomous, founder-level R&D engine that continuously mines a company’s proprietary clinical pipeline, cross-references it with global biological knowledge graphs, and actively pushes validated, citation-backed repurposing blueprints directly to executives via iMessage. Lazarus doesn't just "search"—it reasons, self-corrects, and executes.
+
+---
 
 ## 2. Target Tracks & Bounty Strategy
-We are engineering this architecture specifically to dominate the main tracks while systematically sniping the highest-value sponsor prizes, without compromising the integrity of the enterprise narrative.
+Lazarus is engineered to sweep the following high-value tracks:
 
-* **🏆 Best Overall Hack:** The ultimate goal. A bulletproof enterprise narrative combined with extreme technical depth.
-* **🏥 Best Healthcare Hack / 🏢 Best Business and Enterprise:** Saves lives by finding cures; saves biotech firms billions in sunk R&D costs.
-* **🧬 Regeneron - AI & Tech for Clinical Trials ($1000):** A purpose-built solution for clinical trial asset repurposing.
-* **🧠 K2 Think V2 - Institute of Foundation Models:** Using K2 not as a wrapper, but as the core "Skeptic Agent" to execute complex, multi-step scientific reasoning and biological logic validation.
-* **💬 Photon - Agents in iMessage ($700):** Executives live in iMessage. The swarm pushes alerts and formatted PDF proposals directly to the chat, creating a frictionless, zero-dashboard UX.
-* **⚙️ Eragon - Build What Actually Runs Monday (Mac Mini):** Lazarus is a stateful internal daemon that runs autonomously over a company's proprietary stack. It executes real work.
-* **🐳 Dedalus - Best Agent Swarm ($500):** The entire microservice architecture is dockerized and hosted natively on Dedalus Containers.
+* **🏆 Best Overall Hack:** A bulletproof enterprise narrative combined with low-level systems engineering (Go/Redis).
+* **🏥 Best Healthcare Hack:** Addresses drug repurposing and clinical efficiency.
+* **🧬 Regeneron - AI & Tech for Clinical Trials ($1,000):** Purpose-built solution for biostatistics and trial asset recovery.
+* **🧠 K2 Think V2 - IFM:** Using K2 as the **Skeptic Agent** to execute multi-step biological logic validation.
+* **💬 Photon - Agents in iMessage ($700):** Leveraging Spectrum to move the UX from a dashboard to the executive’s pocket.
+* **⚙️ Eragon - Build What Actually Runs Monday:** A stateful, internal daemon running over real company stacks.
+* **🐳 Dedalus - Best Agent Swarm ($500):** High-concurrency swarm hosted natively on Dedalus Containers.
 
-## 3. System Architecture & Tech Stack
-To survive continuous execution without state drift, the infrastructure requires absolute precision. We are deploying a high-concurrency microservices architecture, built on the premise that the backend dictates the intelligence.
+---
 
-* **Swarm Orchestrator (Go):** Handles the intense parallelization of managing 9 different agents simultaneously. Go's goroutines ensure the orchestration layer never blocks while waiting for API responses.
-* **State & Broadcasting (Redis + PostgreSQL):** To guarantee atomic state management and real-time broadcasting across the swarm, Redis handles the pub/sub agent communication channel. PostgreSQL maintains the durable state, event logs, and the strict citation chain of every decision the swarm makes.
-* **Execution Environment:** Hosted on **Dedalus Containers**.
-* **The Reasoning Engine:** **K2 Think V2** handles deep biological logic, while **Gemini API** handles unstructured data extraction from clinical trial PDFs.
+## 3. System Architecture: The Sovereign Backend
+Lazarus utilizes a high-concurrency microservices architecture to ensure continuous execution without state drift.
 
-## 4. The Swarm Logic (The Adversarial Court)
-Lazarus utilizes an adversarial reasoning loop to prevent hallucination and ensure absolute citation integrity.
+* **Swarm Orchestrator (Go):** Leverages goroutines for intense parallelization, managing 9+ agents simultaneously without blocking.
+* **Context Persistence (Redis + PostgreSQL):**
+    * **Redis:** Real-time "Blackboard" for agent broadcasting via pub/sub.
+    * **PostgreSQL:** "Truth Ledger" maintaining a durable event log and strict citation chains.
+* **Execution Environment:** Hosted on **Dedalus Containers** for enterprise-grade uptime.
+* **The Reasoning Engine:** **IFM K2 Think V2** (Logic/Mechanistic verification) + **Gemini 2.0 Flash** (Massive context extraction).
 
-1.  **The Advocate (Gemini):** Mines the data and proposes a novel repurposing hypothesis (e.g., "Drug X failed for Asthma, but works for Lupus").
-2.  **The Skeptic (K2 Think V2):** The heavy-lifter. K2 actively tries to destroy the Advocate's hypothesis. It runs the automated repair loop: if it finds a logical gap in the enzyme interaction, it throws a "Compilation Error" back to the Advocate, forcing a loop until the biological logic is flawless.
-3.  **The Judge:** Synthesizes the finalized, heavily scrutinized data into an actionable pivot plan. Every single claim is mapped to a strict citation chain directly linking to the source PDFs and FAERS data.
+---
 
-## 5. The Demo UX (The iMessage Integration)
-During Sunday's judging, we don't open a generic React dashboard. We open a phone.
+## 4. Swarm Logic: The Adversarial Court
+Lazarus employs an adversarial reasoning loop to force a "survival of the fittest" for hypotheses:
 
-* **System Action:** Lazarus has been running in the background. It finds a match.
-* **The iMessage:** The judge's phone buzzes with a text from the Photon-powered Lazarus Agent: *"🚨 Lazarus Swarm identified an 84% confidence match: Shelved compound RX-782 shows strong mechanistic viability for early-stage Lupus based on recent FAERS data."*
-* **Human-in-the-loop:** You reply in the chat: *"Draft the executive summary with the citation chain."*
-* **The Delivery:** The agent drops a fully formatted, scientifically cited PDF right into the text thread. 
+1.  **The Advocate (Gemini):** Mines shelved data and proposes novel hypotheses (e.g., failed Asthma drugs with Lupus potential).
+2.  **The Skeptic (K2 Think V2):** Attempts to falsify hypotheses by simulating enzyme interactions and checking contraindications.
+3.  **The Judge:** Synthesizes the debate into an Executive Blueprint with a **Strict Citation Chain** linking to source PDFs, FAERS data, and PubMed IDs.
 
-## 6. Execution Timeline
-* **Friday Night:** Initialize Dedalus containers. Build out the Redis pub/sub system and the PostgreSQL schema for citation tracking. Ensure the Go orchestrator can handle basic message passing.
-* **Saturday Morning/Afternoon:** Wire up the K2 Think V2 API for the Skeptic reasoning logic. Build the Gemini extraction pipeline to parse mock clinical trial PDFs. Implement the automated repair loop.
-* **Saturday Night:** Integrate Photon's Spectrum framework. Map the final Judge agent's outputs to iMessage payload formats.
-* **Sunday Morning:** Lockdown the 2-minute pitch. Focus purely on the enterprise narrative: the financial bleed of clinical trials, the autonomous architecture, and the iMessage delivery.
+---
+
+## 5. The Demo UX (The Sunday Moment)
+* **The Scenario:** Lazarus finds a match autonomously.
+* **The iMessage:** Judge’s phone buzzes via **Photon**: *"🚨 Lazarus identified an 84% match for RX-782 for Lupus. Reply DRAFT for blueprint."*
+* **The Action:** Reply "DRAFT".
+* **The Delivery:** Lazarus drops a professionally formatted, cited R&D PDF directly into the iMessage thread.
+
+---
+
+## 6. Execution Roadmap
+* **Hours 0–8:** Initialize Dedalus, Go orchestrator, Redis, and Postgres.
+* **Hours 8–20:** Implement K2 Think "Skeptic" loop and Gemini PDF pipeline.
+* **Hours 20–30:** Integrate Photon Spectrum and PDF generation logic.
+* **Hours 30–36:** Pitch lockdown: "We build sovereign participants in clinical R&D."
+
+---
+
+## 7. Vision
+Lazarus ensures that the next life-saving cure doesn't die in a digital vault. We are raising the graveyard of medicine.
