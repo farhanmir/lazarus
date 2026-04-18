@@ -31,37 +31,30 @@
 ## System Map
 
 ```
-LOCAL DEV: Docker Compose          DEMO: Dedalus DCS Machines
+LOCAL DEV: Docker Compose          DEMO: Dedalus Distributed Swarm
 ───────────────────────────────    ─────────────────────────────────────────────
-                                    ┌─ DCS Machine: app ──────────────────────┐
-┌──────────────┐                    │  ┌────────────┐  ┌──────────────────┐   │
-│  OpenClaw    │◄───────────────────┤  │  OpenClaw  │  │  Go Orch. :8080  │   │
-│  Gateway     │  agent→agent msg   │  │  :18789    │  │  Tools / WS Hub  │   │
-│  :18789      │───────────────────►│  └─────┬──────┘  └────────┬─────────┘   │
-│  4 Agents    │                    │        │  BYOK             │             │
-└──────┬───────┘                    │        ▼                   │             │
-       │ BYOK                       │  ┌─────────────────────┐   │             │
-       ▼                            │  │  DEDALUS UNIFIED    │   │             │
-┌─────────────────────┐             │  │  api.dedaluslabs.ai │   │             │
-│  DEDALUS UNIFIED    │             │  │  X-Provider: google │──►│ Gemini 4    │
-│  API                │             │  │  X-Provider: mbzuai │──►│ K2 Think V2 │
-│  api.dedaluslabs.ai │             │  └─────────────────────┘   │             │
-│  X-Provider: google │──► Gemini   │                             │             │
-│  X-Provider: mbzuai │──► K2       │  ┌──────────────────────┐  │             │
-└─────────────────────┘             │  │  Photon Service      │◄─┘             │
-                                    │  │  :3001 (TypeScript)  │                │
-                                    │  │  @photon-ai/adv-imsg │                │
-                                    │  │  im.messages.send()  │                │
-                                    │  │  im.messages         │                │
-                                    │  │    .subscribe() loop │                │
-                                    │  └──────────┬───────────┘                │
-                                    └─────────────┼──────────────────────────── ┘
-                                                  │
-                                    ┌─ DCS Machine: data ──┐
-                                    │  Redis   :6379        │
-                                    │  Postgres :5432       │
-                                    │  Neo4j    :7687       │
-                                    └───────────────────────┘
+                                    ┌─ DCS Machine 1: Control Plane ────┐
+┌──────────────┐                    │  ┌──────────────────┐             │
+│  OpenClaw    │◄───────────────────┤  │  Go Orch. :8080  │             │
+│  Gateway     │  agent msg         │  │  Redis, Postgres, Neo4j    │   │
+│  :18789      │───────────────────►│  └────────┬─────────┘             │
+│              │                    │           │                       │
+└──────┬───────┘                    │           ▼                       │
+       │                            │  ┌─────────────────────┐          │
+       ▼                            │  │  Photon Service     │          │
+┌─────────────────────┐             │  └─────────────────────┘          │
+│  DEDALUS UNIFIED    │             └───────────▲───────────────────────┘
+│  API                │                         │
+│  api.dedaluslabs.ai │             ┌─ DCS Machine 2: The Advocate ─────┐
+│  X-Provider: google │──► Gemini   │  Runs: OpenClaw Agent Worker      │
+│  X-Provider: mbzuai │──► K2       │  Role: The Defibrillator (Gemma 4)│
+└─────────────────────┘             └───────────────────────────────────┘
+
+                                    ┌─ DCS Machine 3: The Skeptic ──────┐
+                                    │  Runs: OpenClaw Agent Worker      │
+                                    │  Role: The Coroner (K2 Think V2)  │
+                                    └───────────────────────────────────┘
+
                                                   │
                                                   ▼
                                          exec's iMessage        Browser
@@ -719,38 +712,33 @@ This is a targeted, high-impact update. The existing visual design is augmented 
 
 This phase replaces Docker Compose with Dedalus DCS machines for the actual demo. Local Docker Compose continues to work for development — this is an additive deployment path.
 
-### Task 22: Dedalus Go SDK Client & Machine Provisioner
+### Task 22: Dedalus Go SDK Distributed Provisioner
 
 **Files:**
 - Create: `internal/dedalus/client.go`
 - Create: `internal/dedalus/machines.go`
 
 - [ ] Install the Dedalus CLI locally: `brew install dedalus-labs/tap/dedalus` (or `go install github.com/dedalus-labs/dedalus-cli@latest`). Verify with `dedalus --version`.
-
 - [ ] Authenticate: `dedalus login` or set `DEDALUS_API_KEY` in your shell. Verify with `dedalus machines list`.
+- [ ] Create `internal/dedalus/client.go`: initializes a Dedalus SDK client using `dedalus.NewClient(apiKey)` with the `DEDALUS_API_KEY`.
+- [ ] Create `internal/dedalus/machines.go` with distributed VM provisioning functions to hit the $500 track requirement:
 
-- [ ] Create `internal/dedalus/client.go`: initializes a Dedalus SDK client using `dedalus.NewClient(apiKey)` with the `DEDALUS_API_KEY` and `DEDALUS_ORG_ID` from config. Expose a singleton `Client` used by the rest of the package.
+  **`ProvisionControlPlane(ctx, client)`** — provisions Machine 1 (Go + DBs + Gateway):
+  - `vcpu: 4`, `memoryMiB: 8192`, `storageGiB: 20`
+  - Installs Docker, starts Redis, Postgres, Neo4j, and the Go Orchestrator container.
+  - Returns the machine ID and public IP.
 
-- [ ] Create `internal/dedalus/machines.go` with two machine provisioning functions:
+  **`ProvisionAdvocateNode(ctx, client, gatewayIP)`** — provisions Machine 2:
+  - `vcpu: 2`, `memoryMiB: 4096`
+  - Installs Node.js/Docker and starts ONLY the `defibrillator` OpenClaw worker agent, configured to connect back to the `gatewayIP`.
 
-  **`ProvisionAppMachine(ctx, client)`** — provisions the machine that runs Go + OpenClaw:
-  - Calls `client.Machines.Create(ctx, ...)` with `vcpu: 4`, `memoryMiB: 8192`, `storageGiB: 20`
-  - Uses `client.Machines.Exec(ctx, id, "apt-get update && apt-get install -y docker.io docker-compose-plugin nodejs npm")` to install dependencies
-  - Copies the repo to `/home/machine/lazarus` via SSH/SCP
-  - Starts the Go service and OpenClaw via docker-compose on the machine
-  - Returns the machine ID and its public IP / preview URL
+  **`ProvisionSkepticNode(ctx, client, gatewayIP)`** — provisions Machine 3:
+  - `vcpu: 2`, `memoryMiB: 4096`
+  - Starts ONLY the `coroner` OpenClaw worker agent.
 
-  **`ProvisionDataMachine(ctx, client)`** — provisions the machine that runs Redis, Postgres, Neo4j:
-  - `vcpu: 2`, `memoryMiB: 4096`, `storageGiB: 20`
-  - Installs Docker, starts only the data services (`docker-compose up -d redis postgres neo4j`)
-  - Returns connection strings for Postgres, Redis, Neo4j so the app machine can connect to them
-  - Note: `/home/machine` is S3-backed and persists across sleep/wake — the databases survive machine restarts
-
-- [ ] Add a `cmd/lazarus/deploy.go` subcommand: `go run ./cmd/lazarus deploy` that calls both provisioning functions in parallel, waits for health, runs the seed script on the data machine, then prints the public URL.
-
-- [ ] Test: run `go run ./cmd/lazarus deploy` and verify both machines come online in Dedalus dashboard
-
-- [ ] Commit: `feat: dedalus dcs machine provisioning for demo deployment`
+- [ ] Add a `cmd/lazarus/deploy.go` subcommand: `go run ./cmd/lazarus deploy` that calls the Control Plane provisioning, waits for completion, retrieves the IP, then provisions the Advocate and Skeptic nodes in parallel.
+- [ ] Test: run `go run ./cmd/lazarus deploy` and verify all 3 machines come online in the Dedalus dashboard.
+- [ ] Commit: `feat: distributed dedalus dcs machine provisioning for $500 track`
 
 ---
 

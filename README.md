@@ -22,7 +22,7 @@ Lazarus is an autonomous R&D engine designed for HackPrinceton Spring 2026. It m
 - ✨ **Best Use of Gemini API (MLH):** **The Defibrillator** ingests 500-page FDA briefings into the 2M window.
 - 🧠 **Best Use of K2 Think V2:** **The Coroner** exposes a precise 10-step biological "Thinking Trace".
 - ⚙️ **Eragon:** An **Internal R&D Sovereign** that governs internal pipelines.
-- 🐳 **Dedalus ($500):** Sovereign **High-Concurrency Agent Swarms** on containers.
+- 🐳 **Dedalus ($500):** A **Natively Distributed Agent Swarm** where each reasoning agent runs on its own independent, stateful Linux VM, coordinated via a centralized Go Control Plane.
 - 💬 **Photon ($700):** **Interactive iMessage group-chat** where the agent defends P-Values natively.
 
 ---
