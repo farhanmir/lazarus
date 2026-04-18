@@ -216,6 +216,3 @@ def search_candidates(
         disease=disease_query,
         candidates=candidates[:limit],
     )
-        disease=disease_query,
-        candidates=candidates[:limit],
-    )
