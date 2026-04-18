@@ -26,7 +26,7 @@
 ### Go files
 - `internal/tools/replay.go` — `ReplayHandler(deps)` registers `POST /tools/replay`. Reads `data/swarm_logs.json`, broadcasts each event with 2.4s gap via goroutine. Uses interface `replayDeps { Broadcaster(); SwarmLogsPath() }` so Member 1's `Deps` struct just needs those two methods.
 - `internal/dedalus/client.go` — Singleton Client wrapping `dedalus-labs/dedalus-sdk-go`. `Init()`, `Get()`, `HealthCheck()`.
-- `internal/dedalus/machines.go` — `ProvisionAppMachine`, `ProvisionDataMachine`, `WakeMachines`, `SleepMachines`, `SaveMachines`, `LoadMachines`. Persists IDs to `MACHINE_IDS.json` (gitignored).
+- `internal/dedalus/machines.go` — distributed 3-VM topology per Contract 11: `ProvisionControlPlane`, `ProvisionAdvocateNode`, `ProvisionSkepticNode`, `WakeMachines` (SSH re-installs Node.js + rewrites/launches `/home/machine/start-gateway.sh` because root FS resets on wake), `SleepMachines`, `SaveMachines`, `LoadMachines`. Persists IDs to `MACHINE_IDS.json` (gitignored).
 
 ## Handoffs to other members
 

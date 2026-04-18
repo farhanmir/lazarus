@@ -51,9 +51,19 @@ case "$DEPLOY_TARGET" in
       exit 1
     fi
 
-    APP_URL="${APP_MACHINE_URL:-http://localhost:8080}"
-    wait_http "$APP_URL/" "go-service (dedalus)"
-    echo "[demo] Dedalus demo ready: $APP_URL"
+    if [ -z "${CONTROL_PLANE_IP:-}" ]; then
+      echo "[demo] ERROR: CONTROL_PLANE_IP not set — populate .env after provisioning"
+      exit 1
+    fi
+
+    CP_URL="http://${CONTROL_PLANE_IP}:8080"
+    wait_http "$CP_URL/" "go-service (control plane)" 90
+    echo ""
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "║    LAZARUS NEXUS IS LIVE (Dedalus)               ║"
+    echo "║    Dashboard: $CP_URL"
+    echo "║    Trigger:   $CP_URL/trigger"
+    echo "╚══════════════════════════════════════════════════╝"
     ;;
 
   local|*)

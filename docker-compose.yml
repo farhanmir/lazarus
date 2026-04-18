@@ -59,16 +59,21 @@ services:
       - blueprints:/tmp/blueprints
 
   openclaw:
-    image: node:24-alpine
-    working_dir: /workspace
+    image: node:22-slim
+    working_dir: /home/machine
     command: sh -c "npm install -g openclaw && openclaw gateway"
     ports:
       - "18789:18789"
     env_file: .env
     environment:
+      HOME: /home/machine
       OPENCLAW_HOME: /workspace/openclaw
+      OPENCLAW_STATE_DIR: /home/machine/.openclaw
+      NODE_COMPILE_CACHE: /home/machine/.compile-cache
+      OPENCLAW_NO_RESPAWN: "1"
     volumes:
       - ./openclaw:/workspace/openclaw
+      - openclaw_home:/home/machine
     depends_on:
       - go-service
     restart: on-failure
@@ -102,3 +107,4 @@ volumes:
   postgres_data:
   neo4j_data:
   blueprints:
+  openclaw_home:
