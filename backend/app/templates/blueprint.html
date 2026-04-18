@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{ payload.asset_code }} Blueprint</title>
+    <link rel="stylesheet" href="blueprint.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Lazarus Executive Blueprint</p>
+          <h1>{{ payload.drug_name }} ({{ payload.asset_code }})</h1>
+          <p class="subtitle">
+            {{ payload.original_indication }} → {{ payload.proposed_indication }}
+          </p>
+          <div class="hero-tags">
+            <span>{{ payload.recommendation }}</span>
+            <span>Priority: {{ payload.priority_level }}</span>
+            <span>Risk: {{ payload.risk_level }}</span>
+          </div>
+        </div>
+        <div class="score-card">
+          <span class="score-label">Confidence</span>
+          <span class="score-value">
+            {% if payload.confidence_score <= 1 %}
+            {{ "%.1f"|format(payload.confidence_score * 100) }}%
+            {% else %}
+            {{ "%.1f"|format(payload.confidence_score) }}%
+            {% endif %}
+          </span>
+          <span class="score-reco">{{ payload.recommendation }}</span>
+        </div>
+      </header>
+
+      <section class="meta-strip">
+        <article class="meta-chip">
+          <span class="meta-label">Owner</span>
+          <strong>{{ payload.owner_company or "Internal portfolio" }}</strong>
+        </article>
+        <article class="meta-chip">
+          <span class="meta-label">Phase</span>
+          <strong>{{ payload.phase or "Not specified" }}</strong>
+        </article>
+        <article class="meta-chip">
+          <span class="meta-label">Failure Reason</span>
+          <strong>{{ payload.business_failure_reason or "Undisclosed" }}</strong>
+        </article>
+        <article class="meta-chip">
+          <span class="meta-label">Generated</span>
+          <strong>{{ payload.generated_at.strftime("%b %d, %Y %H:%M UTC") }}</strong>
+        </article>
+      </section>
+
+      <section class="grid grid-primary">
+        <article class="card">
+          <h2>Executive Summary</h2>
+          <p>{{ payload.executive_summary }}</p>
+        </article>
+        <article class="card">
+          <h2>Decision Snapshot</h2>
+          <div class="decision-stack">
+            <div class="decision-row">
+              <span>Recommendation</span>
+              <strong>{{ payload.recommendation }}</strong>
+            </div>
+            <div class="decision-row">
+              <span>Recommended Action</span>
+              <strong>{{ payload.recommended_action }}</strong>
+            </div>
+            <div class="decision-row">
+              <span>Target Cohort</span>
+              <strong>{{ payload.suggested_patient_cohort }}</strong>
+            </div>
+            <div class="decision-row">
+              <span>Trial Focus</span>
+              <strong>{{ payload.trial_focus }}</strong>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Program Context</h2>
+          <ul class="meta-list">
+            <li><strong>Drug:</strong> {{ payload.drug_name }}</li>
+            <li><strong>Original Indication:</strong> {{ payload.original_indication }}</li>
+            <li><strong>Proposed Indication:</strong> {{ payload.proposed_indication }}</li>
+            <li><strong>Priority Level:</strong> {{ payload.priority_level }}</li>
+            <li><strong>Risk Level:</strong> {{ payload.risk_level }}</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h2>Business Rationale</h2>
+          <p>{{ payload.business_rationale }}</p>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Supporting Evidence</h2>
+        <div class="evidence-list">
+          {% for item in payload.supporting_evidence %}
+          <article class="evidence-item">
+            <div class="evidence-header">
+              <h3>{{ item.title }}</h3>
+              <span>{{ item.evidence_type }} · {{ item.source_ref }}</span>
+            </div>
+            <p>{{ item.snippet }}</p>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Risk Summary</h2>
+          <p>{{ payload.risk_summary }}</p>
+        </article>
+        <article class="card">
+          <h2>Next Recommended Action</h2>
+          <ul class="meta-list">
+            <li><strong>Recommended Next Action:</strong> {{ payload.recommended_action }}</li>
+            <li><strong>Target Cohort:</strong> {{ payload.suggested_patient_cohort }}</li>
+            <li><strong>Trial Focus:</strong> {{ payload.trial_focus }}</li>
+            <li><strong>Priority:</strong> {{ payload.priority_level }}</li>
+          </ul>
+          <p class="strategy-rationale">{{ payload.business_rationale }}</p>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Scoring Breakdown</h2>
+          <div class="score-grid">
+            <div class="score-item">
+              <span>Advocate</span>
+              <strong>{{ "%.2f"|format(payload.advocate_score or 0) }}</strong>
+            </div>
+            <div class="score-item">
+              <span>Skeptic</span>
+              <strong>{{ "%.2f"|format(payload.skeptic_score or 0) }}</strong>
+            </div>
+            <div class="score-item">
+              <span>Judge</span>
+              <strong>{{ "%.2f"|format(payload.judge_score or 0) }}</strong>
+            </div>
+            <div class="score-item">
+              <span>Final</span>
+              <strong>
+                {% if payload.confidence_score <= 1 %}
+                {{ "%.1f"|format(payload.confidence_score * 100) }}%
+                {% else %}
+                {{ "%.1f"|format(payload.confidence_score) }}%
+                {% endif %}
+              </strong>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <h2>Technical Summary</h2>
+          <p>{{ payload.technical_summary }}</p>
+        </article>
+      </section>
+    </main>
+  </body>
+  </html>

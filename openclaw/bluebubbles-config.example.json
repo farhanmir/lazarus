@@ -1,0 +1,12 @@
+{
+  "channels": {
+    "bluebubbles": {
+      "enabled": true,
+      "serverUrl": "http://your-mac:1234",
+      "password": "replace-with-bluebubbles-password",
+      "webhookPath": "/bluebubbles-webhook",
+      "dmPolicy": "pairing",
+      "groupPolicy": "allowlist"
+    }
+  }
+}

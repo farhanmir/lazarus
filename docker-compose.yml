@@ -7,13 +7,21 @@ services:
       - "6379:6379"
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16
+    container_name: lazarus-postgres
     environment:
-      POSTGRES_DB: lazarus
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lazarus_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "55432:5432"
+    volumes:
+      - lazarus_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lazarus_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   neo4j:
     image: neo4j:5
@@ -23,4 +31,5 @@ services:
       - "7474:7474"
       - "7687:7687"
 
-  # Other services (go-service, openclaw, photon-service) will be added in further phases
+volumes:
+  lazarus_postgres_data:

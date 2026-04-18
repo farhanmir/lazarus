@@ -1,5 +1,33 @@
-.env
-node_modules/
-__pycache__/
-*.pyc
 .DS_Store
+
+# Local environment files
+.env
+.env.*
+!.env.example
+openclaw/.env
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+openclaw/node_modules/
+frontend/dist/
+openclaw/dist/
+
+# Local services and generated outputs
+.rocketride/
+artifacts/
+lazarus-blueprint-*.pdf
+*.sqlite
+*.db
+
+# Editor / OS noise
+.idea/
+.vscode/
+.claude/
