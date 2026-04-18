@@ -31,9 +31,5 @@ lazarus-blueprint-*.pdf
 .idea/
 .vscode/
 .claude/
-.env
-venv/
-node_modules/
-__pycache__/
 *.pyc
 frontend/.vite/

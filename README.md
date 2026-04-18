@@ -1,6 +1,11 @@
-# Lazarus
+# Lazarus: Autonomous Clinical R&D Swarm
 
-Lazarus is a multi-agent clinical asset repurposing platform. It takes a shelved drug asset, runs a staged reasoning workflow, visualizes the resulting graph and agent trace, and generates an executive blueprint PDF. The repo also includes optional OpenClaw and Spectrum/iMessage access layers.
+Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resurrects' them by finding new patient sub-groups where the drug actually works. When it finds a billion-dollar match, it pings the executive's iMessage with a ready-to-sign R&D blueprint.
+
+## Quick Links
+- **[Project Strategy & Vision](docs/Lazarus_Nexus_Strategy.md):** Deep dive into the Lazarus architecture, swarm logic, and the "Bio-Nexus" demo strategy.
+- **[Implementation Plan](docs/2026-04-17-lazarus-implementation.md):** The phased roadmap.
+- **[HackPrinceton 2026 Guide](docs/HackPrinceton_2026_Guide.md):** Reference for official event tracks, prizes, and sponsor requirements.
 
 ## What’s In The Repo
 
@@ -10,23 +15,20 @@ Lazarus is a multi-agent clinical asset repurposing platform. It takes a shelved
   React + D3 + Tailwind dashboard for live reasoning, graph exploration, and blueprint preview.
 - `openclaw/`
   Optional OpenClaw and local Spectrum/iMessage bridge helpers.
+- `docs/`
+  Hackathon architecture, team contracts, and strategy documents.
 - `artifacts/`
   Generated local outputs. Ignored from Git.
 
-## Core Workflow
+## HackPrinceton Prize Tracks
 
-```text
-Advocate -> Skeptic -> Evidence Curator -> Judge -> Trial Strategist
-```
-
-The backend also includes:
-
-- async run and blueprint jobs
-- real-time run streaming
-- iterative reasoning / disagreement scoring
-- parallel evidence branches
-- short-term and long-term memory records
-- optional human-in-the-loop review queue
+- 🏆 **Best Healthcare / Overall Hack:** Deterministic, category-defining **Sovereign R&D Participant**.
+- 🧪 **Regeneron ($1,000):** Strict biological rigor. Graph nodes must cite real PubMed IDs (PMIDs).
+- ✨ **Best Use of Gemini API (MLH):** **The Defibrillator** ingests 500-page FDA briefings into the 2M window.
+- 🧠 **Best Use of K2 Think V2:** **The Coroner** exposes a precise 10-step biological "Thinking Trace".
+- ⚙️ **Eragon:** An **Internal R&D Sovereign** that governs internal pipelines.
+- 🐳 **Dedalus ($500):** A **Natively Distributed Agent Swarm** where each reasoning agent runs on its own independent, stateful Linux VM, coordinated via a centralized FastAPI Control Plane.
+- 💬 **Photon ($700):** **Interactive iMessage group-chat** where the agent defends P-Values natively.
 
 ## Quick Start
 
@@ -38,7 +40,7 @@ cp .env.example .env
 
 Fill in the keys you actually use.
 
-### 2. Start Postgres
+### 2. Start Services
 
 ```bash
 docker compose up -d
@@ -70,12 +72,6 @@ npm install
 npm run spectrum:local
 ```
 
-## Deployment Notes
-
-- `.env` is ignored. Use `.env.example` as the committed template.
-- `artifacts/`, virtualenvs, `node_modules/`, and local generated PDFs are ignored.
-- Before publishing, rotate any secrets that have ever been pasted into terminal logs, screenshots, or chat.
-
 ## Helpful Endpoints
 
 - `GET /`
@@ -89,14 +85,5 @@ npm run spectrum:local
 - `GET /spectrum/health`
 - `POST /spectrum/webhook`
 
-## Frontend Build Check
-
-```bash
-cd frontend
-npm run build
-```
-
-## OpenClaw / Spectrum Notes
-
-- `openclaw/.env.example` contains the local bridge-specific environment template.
-- If you only want the main product on GitHub, you can keep the optional messaging integrations unconfigured.
+---
+*Developed for HackPrinceton Spring 2026.*
