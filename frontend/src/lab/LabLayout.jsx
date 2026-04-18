@@ -15,7 +15,7 @@ export default function LabLayout() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
-          <Link to="/lab" className="lab-nav-brand">
+          <Link to="/" className="lab-nav-brand">
             <span className="lab-nav-brand-mark" />
             <span>Lazarus</span>
             <span className="lab-mono" style={{ fontSize: 10, color: '#6d7278', letterSpacing: '0.2em', marginLeft: 10 }}>
@@ -25,7 +25,7 @@ export default function LabLayout() {
           <div className="lab-nav-links">
             <Link to="/lab">Overview</Link>
             <Link to="/lab/analyze">Analyze</Link>
-            <Link to="/">Classic UI</Link>
+            <Link to="/dashboard">Dashboard</Link>
           </div>
         </motion.nav>
       )}

@@ -1,97 +1,87 @@
 import React, { memo, useMemo } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle2, CircleDashed, Play, XCircle } from 'lucide-react'
 
-const stageDefinitions = [
-  { key: 'advocate', label: 'Advocate', aliases: ['advocate', 'advocate_iteration'] },
-  { key: 'skeptic', label: 'Skeptic', aliases: ['skeptic', 'skeptic_iteration'] },
-  { key: 'curator', label: 'Curator', aliases: ['parallel_evidence', 'evidence_curator', 'evidence_iteration', 'assessment', 'assessment_iteration'] },
-  { key: 'judge', label: 'Judge', aliases: ['judge'] },
-  { key: 'trial', label: 'Trial Strategist', aliases: ['trial_strategist', 'hitl_router'] },
+const STAGES = [
+  { key: 'advocate', label: 'ADVOCATE',  aliases: ['advocate', 'advocate_iteration'], color: '#6b50a8' },
+  { key: 'skeptic',  label: 'SKEPTIC',   aliases: ['skeptic', 'skeptic_iteration'],   color: '#9b3d3d' },
+  { key: 'curator',  label: 'CURATOR',   aliases: ['parallel_evidence', 'evidence_curator', 'evidence_iteration', 'assessment', 'assessment_iteration'], color: '#2e5a6e' },
+  { key: 'judge',    label: 'JUDGE',     aliases: ['judge'],                           color: '#8a6e1e' },
+  { key: 'strategy', label: 'STRATEGY',  aliases: ['trial_strategist', 'hitl_router'], color: '#1f3a2e' },
 ]
 
-function buildStageState(steps, runStatus) {
-  const completedAliases = new Set(
-    steps.filter((step) => step.status === 'completed').map((step) => step.agent_name),
-  )
-  const failedStep = steps.find((step) => step.status === 'failed')
+function buildStages(steps, runStatus) {
+  const done = new Set(steps.filter(s => s.status === 'completed').map(s => s.agent_name))
+  const failed = steps.find(s => s.status === 'failed')
 
-  const states = stageDefinitions.map((stage) => {
-    const completed = stage.aliases.some((alias) => completedAliases.has(alias))
-    return {
-      ...stage,
-      status: completed ? 'completed' : 'pending',
-    }
-  })
+  const states = STAGES.map(stage => ({
+    ...stage,
+    status: stage.aliases.some(a => done.has(a)) ? 'completed' : 'pending',
+  }))
 
-  if (failedStep) {
-    const failedStage = states.find((stage) => stage.aliases.includes(failedStep.agent_name))
+  if (failed) {
+    const failedStage = states.find(s => s.aliases.includes(failed.agent_name))
     if (failedStage) failedStage.status = 'failed'
     return states
   }
 
   if (runStatus === 'running' || runStatus === 'queued') {
-    const nextStage = states.find((stage) => stage.status === 'pending')
-    if (nextStage) nextStage.status = 'running'
+    const next = states.find(s => s.status === 'pending')
+    if (next) next.status = 'running'
   }
 
   return states
 }
 
-function StageIcon({ status }) {
-  if (status === 'completed') return <CheckCircle2 className="h-4 w-4" />
-  if (status === 'running') return <Play className="h-4 w-4" />
-  if (status === 'failed') return <XCircle className="h-4 w-4" />
-  return <CircleDashed className="h-4 w-4" />
+function StageDot({ status, color }) {
+  const bg =
+    status === 'completed' ? color :
+    status === 'running'   ? color :
+    status === 'failed'    ? '#9b3d3d' :
+    'rgba(20,23,26,0.2)'
+
+  return (
+    <span
+      className="stage-dot"
+      style={{
+        background: bg,
+        boxShadow: 'none',
+      }}
+    />
+  )
 }
 
 function AgentProgressBar({ steps = [], runStatus = 'idle' }) {
-  const stages = useMemo(() => buildStageState(steps, runStatus), [steps, runStatus])
+  const stages = useMemo(() => buildStages(steps, runStatus), [steps, runStatus])
 
   return (
-    <section className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-panel">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Live Stage Flow</p>
-          <h2 className="mt-1 text-lg font-semibold text-slate-900">Multi-Agent Pipeline</h2>
+    <div className="term-panel" style={{ marginBottom: 'var(--space-4)' }}>
+      <div className="term-panel-header">
+        <span className="term-panel-title">Agent Pipeline</span>
+        <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--font-body)' }}>
+          {stages.filter(s => s.status === 'completed').length} of {stages.length} complete
+        </span>
+      </div>
+      <div className="term-panel-body">
+        <div className="pipeline-bar">
+          {stages.map(stage => (
+            <div key={stage.key} className={`pipeline-stage ${stage.status}`}>
+              <div className="stage-row">
+                <StageDot status={stage.status} color={stage.color} />
+                <span className="stage-name" style={{
+                  color: stage.status === 'completed' || stage.status === 'running'
+                    ? stage.color
+                    : 'var(--text-dim)'
+                }}>
+                  {stage.label}
+                </span>
+              </div>
+              <span className={`stage-status ${stage.status}`}>
+                {stage.status.toUpperCase()}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
-      <div className="grid gap-3 xl:grid-cols-5">
-        {stages.map((stage, index) => (
-          <div key={stage.key} className="relative">
-            <motion.div
-              layout
-              className={`flex items-center gap-3 rounded-2xl border px-4 py-4 ${
-                stage.status === 'completed'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : stage.status === 'running'
-                    ? 'border-blue-200 bg-blue-50 text-blue-700'
-                    : stage.status === 'failed'
-                      ? 'border-rose-200 bg-rose-50 text-rose-700'
-                      : 'border-slate-200 bg-slate-50 text-slate-500'
-              }`}
-            >
-              <div className={`${stage.status === 'running' ? 'animate-pulse' : ''}`}>
-                <StageIcon status={stage.status} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">{stage.label}</p>
-                <p className="text-[11px] uppercase tracking-[0.18em]">{stage.status}</p>
-              </div>
-            </motion.div>
-            <AnimatePresence>
-              {index < stages.length - 1 ? (
-                <motion.div
-                  initial={{ opacity: 0.35 }}
-                  animate={{ opacity: 1 }}
-                  className="hidden xl:block absolute right-[-18px] top-1/2 h-px w-8 bg-slate-300"
-                />
-              ) : null}
-            </AnimatePresence>
-          </div>
-        ))}
-      </div>
-    </section>
+    </div>
   )
 }
 
