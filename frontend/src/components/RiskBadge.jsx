@@ -1,15 +1,29 @@
 import React, { memo } from 'react'
 
-const toneMap = {
-  low: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  medium: 'bg-amber-50 text-amber-700 ring-amber-200',
-  high: 'bg-rose-50 text-rose-700 ring-rose-200',
+function toneColor(label) {
+  const l = label.toLowerCase()
+  if (l === 'low')    return { color: '#2e5a47', bg: 'rgba(46,90,71,0.08)',  border: 'rgba(46,90,71,0.25)' }
+  if (l === 'medium') return { color: '#8a6e1e', bg: 'rgba(201,162,75,0.1)', border: 'rgba(201,162,75,0.3)' }
+  if (l === 'high')   return { color: '#9b3d3d', bg: 'rgba(155,61,61,0.08)', border: 'rgba(155,61,61,0.25)' }
+  return { color: '#6d7278', bg: 'rgba(20,23,26,0.04)', border: 'rgba(20,23,26,0.12)' }
 }
 
 function RiskBadge({ label = 'Unknown', prefix = 'Risk' }) {
-  const tone = toneMap[label.toLowerCase()] ?? 'bg-slate-100 text-slate-700 ring-slate-200'
+  const { color, bg, border } = toneColor(label)
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ring-1 ${tone}`}>
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '2px 8px',
+      fontSize: '7.5px',
+      fontWeight: 700,
+      letterSpacing: '0.16em',
+      fontFamily: 'var(--font-mono)',
+      color,
+      background: bg,
+      border: `1px solid ${border}`,
+      borderRadius: '2px',
+    }}>
       {prefix}: {label}
     </span>
   )

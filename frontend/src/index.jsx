@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App'
-import SwitchUIsPill from './lab/SwitchUIsPill'
+import Landing from './pages/Landing'
 import LabLayout from './lab/LabLayout'
 import LabLanding from './lab/pages/LabLanding'
 import LabAnalyze from './lab/pages/LabAnalyze'
@@ -14,15 +14,8 @@ function Root() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <>
-              <App />
-              <SwitchUIsPill />
-            </>
-          }
-        />
+        <Route path="/" element={<Landing />} />
+        <Route path="/dashboard" element={<App />} />
         <Route path="/lab" element={<LabLayout />}>
           <Route index element={<LabLanding />} />
           <Route path="analyze" element={<LabAnalyze />} />

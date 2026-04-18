@@ -1,19 +1,6 @@
 import React, { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  Activity,
-  BrainCircuit,
-  FileText,
-  LayoutDashboard,
-  MessageCircle,
-  MoonStar,
-  Network,
-  RotateCcw,
-  Search,
-  SunMedium,
-  TrendingUp,
-  Zap,
-} from 'lucide-react'
 import AgentProgressBar from './components/AgentProgressBar'
 import AgentTimeline from './components/AgentTimeline'
 import BlueprintProgress from './components/BlueprintProgress'
@@ -25,6 +12,8 @@ import MessagingPanel from './components/MessagingPanel'
 import MetricsBar from './components/MetricsBar'
 import NodeDetailsPanel from './components/NodeDetailsPanel'
 import RiskBadge from './components/RiskBadge'
+import { GlobeScene } from './components/GlobeScene'
+import { AgentLogFeed } from './components/AgentLogFeed'
 import { useGraphData } from './hooks/useGraphData'
 import { useRunStatus } from './hooks/useRunStatus'
 import {
@@ -37,102 +26,40 @@ import {
   subscribeRunStream,
 } from './services/api'
 
-const emptyGraph = {
-  nodes: [],
-  links: [],
-}
+const emptyGraph = { nodes: [], links: [] }
 
-const tabs = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'graph', label: 'Graph Explorer', icon: Network },
-  { id: 'agents', label: 'Agent Timeline', icon: BrainCircuit },
-  { id: 'strategy', label: 'Strategy', icon: TrendingUp },
-  { id: 'messages', label: 'Messages', icon: MessageCircle },
-  { id: 'blueprint', label: 'Blueprint', icon: FileText },
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'graph',     label: 'Graph' },
+  { id: 'agents',    label: 'Agents' },
+  { id: 'strategy',  label: 'Strategy' },
+  { id: 'messages',  label: 'Messages' },
+  { id: 'blueprint', label: 'Blueprint' },
 ]
 
 const pageVariants = {
-  initial: { opacity: 0, y: 20, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -20, scale: 0.98 },
-}
-
-const staggerContainer = {
-  animate: { transition: { staggerChildren: 0.06 } },
-}
-
-const staggerItem = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-}
-
-const glowPulse = {
-  animate: {
-    boxShadow: [
-      '0 0 20px rgba(16,185,129,0.15)',
-      '0 0 40px rgba(16,185,129,0.25)',
-      '0 0 20px rgba(16,185,129,0.15)',
-    ],
-    transition: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' },
-  },
-}
-
-function ParticleField() {
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 30 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        size: 1 + Math.random() * 2,
-        duration: 15 + Math.random() * 25,
-        delay: Math.random() * 10,
-      })),
-    [],
-  )
-
-  return (
-    <div className="particle-field" aria-hidden="true">
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="particle"
-          style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size }}
-          animate={{
-            y: [0, -30, 10, -20, 0],
-            x: [0, 15, -10, 5, 0],
-            opacity: [0, 0.6, 0.3, 0.7, 0],
-          }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      ))}
-    </div>
-  )
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  exit:    { opacity: 0, y: -6 },
 }
 
 function App() {
-  const [assets, setAssets] = useState([])
+  const [assets, setAssets]               = useState([])
   const [selectedAssetId, setSelectedAssetId] = useState('')
-  const [graphData, setGraphData] = useState(emptyGraph)
-  const [selectedNode, setSelectedNode] = useState(null)
+  const [graphData, setGraphData]         = useState(emptyGraph)
+  const [selectedNode, setSelectedNode]   = useState(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [blueprintLoading, setBlueprintLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
+  const [errorMessage, setErrorMessage]   = useState('')
   const [analysisResult, setAnalysisResult] = useState(null)
-  const [runTrace, setRunTrace] = useState(null)
+  const [runTrace, setRunTrace]           = useState(null)
   const [blueprintResult, setBlueprintResult] = useState(null)
-  const [theme, setTheme] = useState('light')
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [query, setQuery] = useState('')
+  const [activeTab, setActiveTab]         = useState('dashboard')
+  const [query, setQuery]                 = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-  const deferredGraphData = useDeferredValue(graphData)
+  const deferredGraphData    = useDeferredValue(graphData)
   const deferredSelectedNode = useDeferredValue(selectedNode)
   const runStatus = useRunStatus(analysisResult?.run, { analysisLoading, errorMessage })
   const { details: nodeDetails, legendItems } = useGraphData(deferredGraphData, deferredSelectedNode)
@@ -146,24 +73,20 @@ function App() {
   }, [assets, query])
 
   const metrics = useMemo(() => {
-    const skepticStep = runTrace?.steps?.find((step) => step.agent_name === 'skeptic')
-    const strategistStep = runTrace?.steps?.find((step) => step.agent_name === 'trial_strategist')
-    let riskLevel = 'Awaiting review'
+    const skepticStep    = runTrace?.steps?.find((s) => s.agent_name === 'skeptic')
+    const strategistStep = runTrace?.steps?.find((s) => s.agent_name === 'trial_strategist')
+    let riskLevel     = 'Awaiting review'
     let priorityLevel = analysisResult?.hypothesis?.priority_level ?? 'Awaiting strategy'
 
     try {
-      const skepticPayload = skepticStep?.output_summary ? JSON.parse(skepticStep.output_summary) : null
-      if (skepticPayload?.risk_level) riskLevel = skepticPayload.risk_level
-    } catch {
-      // Keep fallback display when a step payload is not JSON.
-    }
+      const p = skepticStep?.output_summary ? JSON.parse(skepticStep.output_summary) : null
+      if (p?.risk_level) riskLevel = p.risk_level
+    } catch { /* non-JSON payload */ }
 
     try {
-      const strategyPayload = strategistStep?.output_summary ? JSON.parse(strategistStep.output_summary) : null
-      if (strategyPayload?.priority_level) priorityLevel = strategyPayload.priority_level
-    } catch {
-      // Keep fallback display when a step payload is not JSON.
-    }
+      const p = strategistStep?.output_summary ? JSON.parse(strategistStep.output_summary) : null
+      if (p?.priority_level) priorityLevel = p.priority_level
+    } catch { /* non-JSON payload */ }
 
     const confidence = analysisResult?.run?.final_confidence
     const formattedConfidence =
@@ -173,81 +96,76 @@ function App() {
 
     return [
       {
-        key: 'hypothesis',
-        label: 'Selected Hypothesis',
+        key:  'hypothesis',
         value: analysisResult?.hypothesis
           ? `${analysisResult.hypothesis.source_disease} → ${analysisResult.hypothesis.target_disease}`
           : 'Awaiting analysis',
         caption: 'Active mechanistic repurposing candidate',
       },
       {
-        key: 'confidence',
-        label: 'Confidence',
+        key:  'confidence',
         value: formattedConfidence,
         caption: analysisResult?.run?.final_recommendation ?? 'No decision yet',
       },
       {
-        key: 'risk',
-        label: 'Risk Level',
+        key:  'risk',
         value: riskLevel,
         caption: 'Derived from skeptical review and safety pressure tests',
       },
       {
-        key: 'priority',
-        label: 'Priority Level',
+        key:  'priority',
         value: priorityLevel,
         caption: 'Trial strategist recommendation for next-stage focus',
       },
     ]
-  }, [analysisResult?.hypothesis, analysisResult?.run?.final_confidence, analysisResult?.run?.final_recommendation, runTrace?.steps])
+  }, [
+    analysisResult?.hypothesis,
+    analysisResult?.run?.final_confidence,
+    analysisResult?.run?.final_recommendation,
+    runTrace?.steps,
+  ])
 
   const liveInsight = useMemo(() => {
-    const skepticStep = runTrace?.steps?.find((step) => step.agent_name.includes('skeptic'))
-    const strategistStep = runTrace?.steps?.find((step) => step.agent_name === 'trial_strategist')
-    let riskLevel = 'Unknown'
+    const skepticStep    = runTrace?.steps?.find((s) => s.agent_name.includes('skeptic'))
+    const strategistStep = runTrace?.steps?.find((s) => s.agent_name === 'trial_strategist')
+    let riskLevel     = 'Unknown'
     let priorityLevel = analysisResult?.hypothesis?.priority_level ?? 'Pending'
 
     try {
-      const skepticPayload = skepticStep?.output_summary ? JSON.parse(skepticStep.output_summary) : null
-      if (skepticPayload?.risk_level) riskLevel = skepticPayload.risk_level
-    } catch {
-      // Ignore non-JSON payloads.
-    }
+      const p = skepticStep?.output_summary ? JSON.parse(skepticStep.output_summary) : null
+      if (p?.risk_level) riskLevel = p.risk_level
+    } catch { /* ignore */ }
 
     try {
-      const strategyPayload = strategistStep?.output_summary ? JSON.parse(strategistStep.output_summary) : null
-      if (strategyPayload?.priority_level) priorityLevel = strategyPayload.priority_level
-    } catch {
-      // Ignore non-JSON payloads.
-    }
+      const p = strategistStep?.output_summary ? JSON.parse(strategistStep.output_summary) : null
+      if (p?.priority_level) priorityLevel = p.priority_level
+    } catch { /* ignore */ }
 
-    const runtimeMs = analysisResult?.run?.started_at && analysisResult?.run?.completed_at
-      ? new Date(analysisResult.run.completed_at).getTime() - new Date(analysisResult.run.started_at).getTime()
-      : null
+    const runtimeMs =
+      analysisResult?.run?.started_at && analysisResult?.run?.completed_at
+        ? new Date(analysisResult.run.completed_at) - new Date(analysisResult.run.started_at)
+        : null
 
     return {
       riskLevel,
       priorityLevel,
-      runtimeLabel: runtimeMs !== null ? `${(runtimeMs / 1000).toFixed(1)}s` : 'Live',
+      runtimeLabel: runtimeMs !== null ? `${(runtimeMs / 1000).toFixed(1)}s` : 'LIVE',
     }
-  }, [analysisResult?.hypothesis?.priority_level, analysisResult?.run?.completed_at, analysisResult?.run?.started_at, runTrace?.steps])
+  }, [
+    analysisResult?.hypothesis?.priority_level,
+    analysisResult?.run?.completed_at,
+    analysisResult?.run?.started_at,
+    runTrace?.steps,
+  ])
 
   useEffect(() => {
     fetchAssets()
       .then((data) => {
         setAssets(data)
-        if (data.length) {
-          setSelectedAssetId(data[0].id)
-        }
+        if (data.length) setSelectedAssetId(data[0].id)
       })
-      .catch(() => {
-        setErrorMessage('Unable to load assets from the Lazarus backend.')
-      })
+      .catch(() => setErrorMessage('Unable to load assets from the Lazarus backend.'))
   }, [])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
 
   const resetGraph = () => {
     setGraphData(emptyGraph)
@@ -274,39 +192,27 @@ function App() {
       const graph = await fetchGraph(selectedAssetId)
       startTransition(() => {
         setGraphData(graph)
-        setSelectedNode(graph.nodes.find((node) => node.highlight) ?? graph.nodes[0] ?? null)
+        setSelectedNode(graph.nodes.find((n) => n.highlight) ?? graph.nodes[0] ?? null)
       })
 
       await new Promise((resolve, reject) => {
         const subscription = subscribeRunStream(job.run.id, {
           onMessage: (payload) => {
-            if (payload?.error) {
-              subscription.close()
-              reject(new Error(payload.error))
-              return
-            }
-
-            setAnalysisResult((current) => ({
-              ...current,
-              run: payload.run,
-              asset_code: payload.asset_code ?? current?.asset_code ?? job.asset_code,
+            if (payload?.error) { subscription.close(); reject(new Error(payload.error)); return }
+            setAnalysisResult((cur) => ({
+              ...cur,
+              run:       payload.run,
+              asset_code: payload.asset_code ?? cur?.asset_code ?? job.asset_code,
               hypothesis: payload.hypothesis ?? null,
             }))
             setRunTrace(payload)
-
             if (payload.run?.status === 'failed') {
               subscription.close()
               reject(new Error(payload.run.error_message || 'Analysis failed to complete.'))
             }
-
-            if (payload.run?.status === 'completed') {
-              subscription.close()
-              resolve(payload)
-            }
+            if (payload.run?.status === 'completed') { subscription.close(); resolve(payload) }
           },
-          onError: () => {
-            reject(new Error('Real-time run stream disconnected unexpectedly.'))
-          },
+          onError: () => reject(new Error('Real-time run stream disconnected unexpectedly.')),
         })
       })
     } catch (error) {
@@ -326,17 +232,13 @@ function App() {
     try {
       const job = await startBlueprintJob(hypothesisId)
       setBlueprintResult({ blueprint: job.blueprint, payload: null })
-
       let detail = null
       while (!detail || detail.blueprint.generation_status === 'pending') {
         await sleep(1200)
         detail = await fetchBlueprintDetail(job.blueprint.id)
         setBlueprintResult(detail)
       }
-
-      if (detail.blueprint.generation_status === 'failed') {
-        throw new Error('Blueprint generation failed.')
-      }
+      if (detail.blueprint.generation_status === 'failed') throw new Error('Blueprint generation failed.')
     } catch (error) {
       setErrorMessage(error?.response?.data?.detail ?? error.message ?? 'Blueprint generation failed.')
     } finally {
@@ -347,109 +249,85 @@ function App() {
   const completedSteps = runTrace?.steps?.filter((s) => s.status === 'completed').length ?? 0
   const totalSteps = 5
 
+  // Derive status dot class
+  const dotClass =
+    runStatus.tone === 'green' ? 'status-dot-strip dot-done' :
+    runStatus.tone === 'blue'  ? 'status-dot-strip dot-running' :
+    runStatus.tone === 'red'   ? 'status-dot-strip dot-error' :
+    'status-dot-strip dot-idle'
+
   return (
     <>
-      <ParticleField />
-      <div className="scanlines" aria-hidden="true" />
-      <div className="scan-beam" aria-hidden="true" />
+      <div className="lazarus-shell">
+        {/* ══════════════ LEFT PANEL ══════════════ */}
+        <aside className="nexus-left">
+          {/* Brand header */}
+          <Link to="/" className="nexus-brand" style={{ textDecoration: 'none', display: 'block' }}>
+            <span className="brand-title">Lazarus</span>
+            <span className="brand-sub">Bio-R&amp;D Swarm · Dedalus Cluster</span>
+          </Link>
 
-      <div className="nexus-shell flex min-h-screen">
-        {/* ─── Sidebar Navigation ─── */}
-        <motion.nav
-          initial={{ x: -80, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="nexus-sidebar"
-        >
-          <div className="flex flex-col items-center gap-2 pb-6 pt-5 border-b border-white/5">
-            <motion.div
-              className="nexus-logo"
-              whileHover={{ scale: 1.1, rotate: 10 }}
-              transition={{ type: 'spring', stiffness: 400 }}
-            >
-              <BrainCircuit className="h-7 w-7 text-emerald-400" />
-            </motion.div>
-            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-emerald-400/80">Lazarus</span>
+          {/* Globe */}
+          <div className="globe-wrap">
+            <GlobeScene isRunning={analysisLoading} />
+            <div className="globe-status">
+              <span className={`globe-status-dot${analysisLoading ? ' running' : ''}`} />
+              <span>{analysisLoading ? 'PROCESSING' : 'STANDBY'}</span>
+            </div>
           </div>
 
-          <div className="mt-6 flex flex-1 flex-col gap-1 px-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <motion.button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`nav-tab ${isActive ? 'nav-tab-active' : ''}`}
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="nav-tab-label">{tab.label}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="nav-indicator"
-                      className="nav-indicator"
-                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                    />
-                  )}
-                </motion.button>
-              )
-            })}
+          {/* Agent log feed */}
+          <div className="agent-log-panel">
+            <div className="panel-label">Agent Stream</div>
+            <AgentLogFeed steps={runTrace?.steps ?? []} isRunning={analysisLoading} />
           </div>
+        </aside>
 
-          <div className="mt-auto flex flex-col gap-2 border-t border-white/5 px-2 pt-4 pb-4">
-            <button
-              type="button"
-              onClick={() => setTheme((c) => (c === 'light' ? 'dark' : 'light'))}
-              className="nav-tab"
-            >
-              {theme === 'dark' ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
-              <span className="nav-tab-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
-            </button>
-          </div>
-        </motion.nav>
-
-        {/* ─── Main Content ─── */}
-        <main className="nexus-main">
-          {/* ─── Top Bar ─── */}
-          <motion.header
-            className="nexus-topbar"
-            initial={{ y: -30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-          >
-            <div className="flex items-center gap-4 flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold text-white/90">Autonomous Clinical R&amp;D Swarm</h1>
+        {/* ══════════════ RIGHT PANEL ══════════════ */}
+        <div className="nexus-right">
+          {/* Header */}
+          <header className="nexus-header">
+            <div className="header-left">
+              <div className="system-status">
+                <span className="status-blink" />
+                <span style={{ fontSize: '10px', letterSpacing: '0.06em', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
+                  Online
+                </span>
               </div>
-              <div className="hidden md:flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 ml-4">
-                <span className="hud-dot">Postgres</span>
-                <span className="hud-dot">Neo4j</span>
-                <span className="hud-dot">Dedalus</span>
-                <span className="hud-dot">K2 Think</span>
-                <span className="hud-dot">Spectrum</span>
+              <div className="hud-services">
+                {['Postgres', 'Neo4j', 'Dedalus', 'K2 Think', 'Spectrum'].map((s) => (
+                  <span key={s} className="hud-service">{s}</span>
+                ))}
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Inline asset selector */}
-              <div className="topbar-search">
-                <Search className="h-3.5 w-3.5 text-slate-500" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search assets..."
-                  className="bg-transparent text-xs text-white/80 outline-none placeholder:text-slate-500 w-32 lg:w-48"
-                />
-              </div>
+            <div className="header-right">
+              {/* Search */}
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search compounds…"
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-bright)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '9px',
+                  letterSpacing: '0.06em',
+                  padding: '5px 8px',
+                  outline: 'none',
+                  borderRadius: '2px',
+                  width: '130px',
+                }}
+              />
+
+              {/* Asset selector */}
               <select
                 value={selectedAssetId}
                 onChange={(e) => setSelectedAssetId(e.target.value)}
-                className="topbar-select"
+                className="term-select"
               >
-                <option value="">Select asset</option>
+                <option value="">— SELECT ASSET —</option>
                 {filteredAssets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
                     {asset.asset_code} · {asset.internal_name}
@@ -457,160 +335,171 @@ function App() {
                 ))}
               </select>
 
-              {/* Action buttons */}
-              <motion.button
+              {/* Execute */}
+              <button
                 type="button"
                 onClick={handleRunAnalysis}
                 disabled={!selectedAssetId || analysisLoading}
-                className="topbar-btn topbar-btn-primary"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                {...(analysisLoading ? glowPulse : {})}
+                className={`term-btn term-btn-execute${analysisLoading ? ' running' : ''}`}
               >
-                <Zap className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline">{analysisLoading ? 'Running...' : 'Analyze'}</span>
-              </motion.button>
+                {analysisLoading ? 'Running…' : 'Run Analysis'}
+              </button>
 
-              <motion.button
+              {/* Blueprint */}
+              <button
                 type="button"
                 onClick={handleGenerateBlueprint}
                 disabled={!analysisResult?.hypothesis?.id || blueprintLoading}
-                className="topbar-btn topbar-btn-secondary"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                className="term-btn"
               >
-                <FileText className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline">{blueprintLoading ? 'Generating...' : 'Blueprint'}</span>
-              </motion.button>
+                {blueprintLoading ? 'Generating…' : 'Blueprint'}
+              </button>
 
-              <motion.button
+              {/* Reset */}
+              <button
                 type="button"
                 onClick={() => setShowResetConfirm(true)}
-                className="topbar-btn"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                className="term-btn term-btn-ghost"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </motion.button>
+                Reset
+              </button>
 
+              {/* Run ID chip */}
               {analysisResult?.run && (
-                <div className="nexus-run-chip-mini">
-                  <span className="text-emerald-400 text-[9px]">●</span>
-                  <span className="text-[10px] text-slate-400 font-mono">{analysisResult.run.id?.slice(0, 8)}</span>
+                <div className="run-id-chip">
+                  <span style={{ color: 'var(--accent)', fontSize: '8px' }}>●</span>
+                  <span>{analysisResult.run.id?.slice(0, 8)}</span>
                 </div>
               )}
             </div>
-          </motion.header>
+          </header>
 
-          {/* ─── Error Banner ─── */}
+          {/* Tab nav */}
+          <nav className="nexus-tabnav">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`tab-btn${activeTab === tab.id ? ' active' : ''}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Error banner */}
           <AnimatePresence>
             {errorMessage && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mx-4 mt-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs text-red-300"
+                className="error-banner"
               >
-                {errorMessage}
+                ⚠ {errorMessage}
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ─── Status Strip ─── */}
-          <div className="nexus-status-strip mx-4 mt-3">
-            <div className="flex items-center gap-3 text-xs">
-              <span className={`status-dot ${runStatus.tone === 'green' ? 'status-dot-green' : runStatus.tone === 'blue' ? 'status-dot-blue' : runStatus.tone === 'red' ? 'status-dot-red' : 'status-dot-default'}`} />
-              <span className="text-slate-400 font-medium">{runStatus.label}</span>
-              <span className="text-slate-600">·</span>
-              <span className="text-slate-500">{runStatus.description}</span>
+          {/* Status strip */}
+          <div className="nexus-status-strip">
+            <div className="status-info">
+              <span className={dotClass} />
+              <span className="status-label">{runStatus.label}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span className="status-desc">{runStatus.description}</span>
             </div>
-            <div className="status-progress-bar">
+            <div className="progress-track">
               <motion.div
-                className="status-progress-fill"
+                className="progress-fill"
                 animate={{ width: `${runStatus.progress}%` }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
+                transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
               />
             </div>
           </div>
 
-          {/* ─── Tab Content ─── */}
+          {/* Content area */}
           <div className="nexus-content">
             <AnimatePresence mode="wait">
-              {/* ═══ DASHBOARD TAB ═══ */}
+              {/* ═══ DASHBOARD ═══ */}
               {activeTab === 'dashboard' && (
-                <motion.div
-                  key="dashboard"
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
-                  <motion.div variants={staggerContainer} initial="initial" animate="animate" className="grid gap-4">
-                    {/* Pipeline + Metrics Row */}
-                    <motion.div variants={staggerItem}>
-                      <AgentProgressBar steps={runTrace?.steps ?? []} runStatus={analysisResult?.run?.status ?? 'idle'} />
-                    </motion.div>
+                <motion.div key="dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    <AgentProgressBar steps={runTrace?.steps ?? []} runStatus={analysisResult?.run?.status ?? 'idle'} />
+                    <MetricsBar metrics={metrics} />
 
-                    {/* Metrics + Confidence + Decision in a combined row */}
-                    <motion.div variants={staggerItem} className="grid gap-4 xl:grid-cols-[1fr_280px]">
-                      <div className="grid gap-4">
-                        <MetricsBar metrics={metrics} />
-                        {/* Inline Decision Feed */}
-                        <div className="nexus-glass-card p-5">
-                          <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Live Decision Feed</p>
-                              <h2 className="mt-1 text-lg font-semibold text-white/90">
-                                {analysisResult?.run?.final_recommendation ?? 'Awaiting final recommendation'}
-                              </h2>
-                              <p className="mt-1.5 text-xs text-slate-500">
-                                Total run: {liveInsight.runtimeLabel} {analysisResult?.run?.status === 'running' ? '· streaming' : ''}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <RiskBadge label={liveInsight.riskLevel} />
-                              <RiskBadge label={liveInsight.priorityLevel} prefix="Priority" />
-                            </div>
+                    {/* Decision feed + confidence row */}
+                    <div className="dash-grid">
+                      <div className="dash-main">
+                        <div className="term-panel">
+                          <div className="term-panel-header">
+                            <span className="term-panel-title">Live Decision</span>
+                            <span style={{ fontSize: '7.5px', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
+                              {liveInsight.runtimeLabel}
+                              {analysisResult?.run?.status === 'running' ? ' · STREAMING' : ''}
+                            </span>
+                          </div>
+                          <div className="decision-feed">
+                            {analysisResult?.run?.final_recommendation ? (
+                              <>
+                                <div className="decision-line">
+                                  <span className="decision-highlight">VERDICT · </span>
+                                  {analysisResult.run.final_recommendation}
+                                </div>
+                                <div className="decision-line" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                  <RiskBadge label={liveInsight.riskLevel} />
+                                  <RiskBadge label={liveInsight.priorityLevel} prefix="Priority" />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="decision-empty">
+                                &gt; AWAITING FINAL RECOMMENDATION
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                      <div className="flex flex-col gap-4">
-                        <ConfidenceGauge value={analysisResult?.run?.final_confidence} />
-                        {/* Mini pipeline progress */}
-                        <div className="nexus-glass-card p-4">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3">Pipeline Progress</p>
-                          <div className="flex items-center gap-2">
+
+                        {/* Mini pipeline progress dots */}
+                        <div className="term-panel" style={{ marginTop: 'var(--space-4)' }}>
+                          <div className="term-panel-header">
+                            <span className="term-panel-title">Pipeline Progress</span>
+                            <span style={{ fontSize: '7.5px', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
+                              {completedSteps}/{totalSteps}
+                            </span>
+                          </div>
+                          <div style={{ padding: 'var(--space-3)', display: 'flex', gap: 'var(--space-2)' }}>
                             {Array.from({ length: totalSteps }, (_, i) => (
                               <motion.div
                                 key={i}
-                                className={`h-2 flex-1 rounded-full ${i < completedSteps ? 'bg-emerald-500' : 'bg-slate-700/50'}`}
+                                style={{
+                                  height: 3,
+                                  flex: 1,
+                                  borderRadius: 2,
+                                  background: i < completedSteps ? 'var(--accent)' : 'rgba(20,23,26,0.1)',
+                                  boxShadow: 'none',
+                                }}
                                 initial={{ scaleX: 0 }}
                                 animate={{ scaleX: 1 }}
-                                transition={{ duration: 0.3, delay: i * 0.08 }}
+                                transition={{ duration: 0.3, delay: i * 0.07 }}
                               />
                             ))}
                           </div>
-                          <p className="text-[10px] text-slate-500 mt-2">{completedSteps}/{totalSteps} stages complete</p>
                         </div>
                       </div>
-                    </motion.div>
-                  </motion.div>
+
+                      <div className="dash-side">
+                        <ConfidenceGauge value={analysisResult?.run?.final_confidence} />
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               )}
 
-              {/* ═══ GRAPH TAB ═══ */}
+              {/* ═══ GRAPH ═══ */}
               {activeTab === 'graph' && (
-                <motion.div
-                  key="graph"
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                  className="grid gap-4 h-full"
-                >
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.6fr)]">
+                <motion.div key="graph" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(280px,0.6fr)', gap: 'var(--space-4)' }}>
                     <InteractiveGraph
                       graphData={deferredGraphData}
                       selectedNode={selectedNode}
@@ -624,106 +513,77 @@ function App() {
                 </motion.div>
               )}
 
-              {/* ═══ AGENTS TAB ═══ */}
+              {/* ═══ AGENTS ═══ */}
               {activeTab === 'agents' && (
-                <motion.div
-                  key="agents"
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
+                <motion.div key="agents" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <AgentTimeline steps={runTrace?.steps ?? []} />
                 </motion.div>
               )}
 
-              {/* ═══ STRATEGY TAB ═══ */}
+              {/* ═══ STRATEGY ═══ */}
               {activeTab === 'strategy' && (
-                <motion.div
-                  key="strategy"
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
+                <motion.div key="strategy" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <EffortImpactChart runId={analysisResult?.run?.id} />
                 </motion.div>
               )}
 
-              {/* ═══ MESSAGES TAB ═══ */}
+              {/* ═══ MESSAGES ═══ */}
               {activeTab === 'messages' && (
-                <motion.div
-                  key="messages"
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
+                <motion.div key="messages" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <MessagingPanel runId={analysisResult?.run?.id} />
                 </motion.div>
               )}
 
-              {/* ═══ BLUEPRINT TAB ═══ */}
+              {/* ═══ BLUEPRINT ═══ */}
               {activeTab === 'blueprint' && (
-                <motion.div
-                  key="blueprint"
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                  className="grid gap-4"
-                >
-                  <BlueprintProgress loading={blueprintLoading} ready={Boolean(blueprintResult?.blueprint?.id)} />
-                  <BlueprintViewer
-                    blueprintResult={blueprintResult}
-                    blueprintLoading={blueprintLoading}
-                    downloadUrl={
-                      blueprintResult?.blueprint?.id ? getBlueprintDownloadUrl(blueprintResult.blueprint.id) : undefined
-                    }
-                  />
+                <motion.div key="blueprint" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    <BlueprintProgress loading={blueprintLoading} ready={Boolean(blueprintResult?.blueprint?.id)} />
+                    <BlueprintViewer
+                      blueprintResult={blueprintResult}
+                      blueprintLoading={blueprintLoading}
+                      downloadUrl={blueprintResult?.blueprint?.id ? getBlueprintDownloadUrl(blueprintResult.blueprint.id) : undefined}
+                    />
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-        </main>
+        </div>
       </div>
 
-      {/* Reset confirm modal */}
+      {/* ══════════════ RESET CONFIRM ══════════════ */}
       <AnimatePresence>
         {showResetConfirm && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+            className="reset-overlay"
           >
             <motion.div
-              initial={{ y: 24, opacity: 0, scale: 0.94 }}
+              initial={{ y: 16, opacity: 0, scale: 0.96 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 12, opacity: 0, scale: 0.96 }}
-              className="nexus-glass-card w-full max-w-md p-6"
+              exit={{ y: 8, opacity: 0, scale: 0.97 }}
+              className="reset-dialog"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Confirm Reset</p>
-              <h3 className="mt-2 text-xl font-semibold text-white/90">Clear the current workspace?</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                This clears the graph, run context, and blueprint preview.
-              </p>
-              <div className="mt-6 flex justify-end gap-3">
+              <div className="reset-title">Confirm reset</div>
+              <div className="reset-msg">
+                Clear graph, run context, and blueprint preview. This cannot be undone.
+              </div>
+              <div className="reset-actions">
                 <button
                   type="button"
                   onClick={() => setShowResetConfirm(false)}
-                  className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition"
+                  className="term-btn term-btn-ghost"
                 >
-                  Cancel
+                  CANCEL
                 </button>
                 <button
                   type="button"
                   onClick={() => { setShowResetConfirm(false); resetGraph() }}
-                  className="rounded-xl bg-red-500/20 border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-500/30 transition"
+                  className="term-btn"
+                  style={{ borderColor: 'rgba(155,61,61,0.5)', color: 'var(--red)' }}
                 >
                   Reset
                 </button>
