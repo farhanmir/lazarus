@@ -12,13 +12,13 @@ Lazarus is an **Internal Clinical R&D Participant** orchestrated as an autonomou
 ## 2. Target Tracks & Bounties
 Lazarus is engineered to aggressively capture the following prize pools:
 
-*   **🏆 Best Healthcare / Overall Hack:** Solving the multibillion-dollar clinical "Valley of Death" problem.
-*   **🧬 Regeneron ($1,000):** AI & Tech for Clinical Trials — purpose-built for trial asset recovery.
-*   **✨ Best Use of Gemini API (MLH):** **The Defibrillator** agent uses Gemini's 2M+ context window to mine decades of clinical records.
-*   **🧠 MBZUAI - K2 Think V2:** **The Coroner** agent uses K2's high-parameter reasoning for "Biological Autopsies."
-*   **⚙️ Eragon - Build What Actually Runs Monday:** A sovereign R&D participant built on **OpenClaw** that solves a concrete internal pipeline issue.
+*   **🏆 Best Healthcare / Overall Hack:** Graduating from a "feature-parity research tool" to a "Sovereign R&D Participant" that proves its work with deterministic math.
+*   **🧬 Regeneron ($1,000):** Strict biological rigor. Graph nodes must cite real PubMed IDs (PMIDs) avoiding "AI Fluff."
+*   **✨ Best Use of Gemini API (MLH):** **The Defibrillator** agent uses Gemini's 2M+ context window to ingest a 500-page FDA clinical briefing in seconds.
+*   **🧠 MBZUAI - K2 Think V2:** **The Coroner** executes a strict 10-step biological autopsy (protein-ligand interaction) producing a verifiable "Thinking Trace".
+*   **⚙️ Eragon - Build What Actually Runs Monday:** An internal agent for the CTO. This is not an external semantic search app; it governs internal company pipelines.
 *   **🐳 Dedalus - Best Agent Swarm ($500):** High-concurrency swarm orchestrated via Go and hosted on Dedalus Containers.
-*   **💬 Photon - Agents in iMessage ($700):** **The High Priest** pushes the "Resurrection Blueprint" directly to executive iMessage via Spectrum.
+*   **💬 Photon - Agents in iMessage ($700):** **The High Priest** functions as an active participant in a group chat, defending its P-Value calculations natively in the thread.
 
 ---
 
@@ -49,25 +49,20 @@ Lazarus operates across three distinct scientific data environments:
 ---
 
 ## 5. Swarm Logic: The Adversarial Court
-Lazarus employs an adversarial reasoning loop to force a "survival of the fittest" for hypotheses:
+Lazarus employs a 4-agent adversarial reasoning loop, backed by a **Deterministic Biostatistics Engine (Go)**. LLMs do not guess statistical significance; they ask the Go backend to calculate actual synthetic P-Values (Fisher's Exact Test / Kaplan-Meier) on sub-cohorts.
 
-1.  **The Mortician (Sourcing):** Scours the **VALLEY OF DEATH** (ClinicalTrials.gov) for terminated assets. Performs the "pre-autopsy" by extracting failed outcome measures.
-2.  **The Defibrillator (Gemma 4 - Advocate):** Attempts to restart the asset’s heart by identifying hidden efficacy spikes. This is our primary engine for the **Best Use of Gemini API** track, utilizing Gemini's massive 2M+ context window to mine decades of clinical PDFs.
-3.  **The Coroner (K2 Think V2 - Skeptic):** Performs a "Biological Autopsy" to verify if the pulse is real or statistical noise. **Demo Note:** Scripted to find valid edge cases but ultimately yield to the Defibrillator’s "Resurrection" proof.
-4.  **The High Priest (Judge):** Synthesizes the debate into a final "Resurrection Blueprint" with a **Strict Citation Chain**.
+1.  **The Mortician (Sourcing):** Scours the **VALLEY OF DEATH** (ClinicalTrials.gov) for terminated assets. 
+2.  **The Defibrillator (Gemma 4 - Advocate):** Ingests the full FDA clinical briefing (using 2M+ context). Finds the hidden efficacy spike and relies on Go for the deterministic math validation.
+3.  **The Coroner (K2 Think V2 - Skeptic):** Performs the 10-step "Biological Autopsy" to verify if the pulse is real. Its deep "Thinking Trace" explores mechanism of action and synthesis pathways.
+4.  **The High Priest (Judge):** Synthesizes the debate into a heavily cited (PMID) blueprint.
 
 ---
 
-## 6. The Demo UX: Participating in Truth (**Photon**)
-Instead of just "alerting," **The High Priest** participates in the corporate conversation with taste and social context.
-
-*   **The Scenario:** Lazarus finds a match autonomously.
-*   **The iMessage:** Executive’s phone buzzes: *"🚨 Lazarus unburied a pulse in Zeloprin. 84% efficacy signature detected in High-CRP females. Reply DRAFT for the blueprint."*
-*   **The Conversation (Participation):**
-    *   **User:** "Wait, what's the p-value?"
-    *   **The High Priest:** "0.003. The Coroner has already verified the biological plausibility via PPAR-gamma pathways. It’s not just noise—it’s a resurrection."
-    *   **User:** "Send the draft."
-*   **The Delivery:** **The High Priest** drops the professionally formatted, cited R&D PDF directly into the thread.
+## 6. The Demo UX (The Terminal of Truth)
+To win, we move beyond static reports to a live "Swarm Visualization."
+*   **The UI:** Features a live "Heart Rate Monitor" for the drug asset. It flatlines until the Go backend calculates `P < .05`, then it starts beating.
+*   **The Graph:** The Neo4j graph expands dynamically on screen as K2 explores biological relationships.
+*   **The Participation:** When the executive answers the iMessage, the agent functions in a *group chat*, defending its biostatistics against skeptics natively in the thread.
 
 ---
 
