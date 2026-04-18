@@ -67,10 +67,10 @@ The schema for the "Agent Theater" UI.
 ```json
 {
   "timestamp": "2026-04-19T08:15:22Z",
-  "agent_id": "GEMMA_ADVOCATE",
-  "name": "Gemma v4",
+  "agent_id": "THE_DEFIBRILLATOR",
+  "name": "The Defibrillator (Gemma 4)",
   "category": "HYPOTHESIS_GENERATION",
-  "message": "Detecting efficacy spike in SEQN sub-cluster (Female, Age 65+). Correlating with high LBXCRP markers.",
+  "message": "Applying 1.21 gigawatts to Patient_Cluster_B (Females 65+)... Detected CRP-mediated synergy. Resurrection possible.",
   "confidence": 0.92,
   "metadata": {
     "subgroup_size": 412,

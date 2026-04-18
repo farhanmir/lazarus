@@ -48,9 +48,10 @@ Lazarus operates across four distinct data environments to identify and validate
 ## 5. Swarm Logic: The Adversarial Court
 Lazarus employs an adversarial reasoning loop to force a "survival of the fittest" for hypotheses:
 
-1.  **The Advocate (Gemma 4):** Mines shelved data and proposes novel hypotheses (e.g., failed Asthma drugs with Lupus potential). Gemma 4 is our primary engine for the **Best Use of Gemini API** track.
-2.  **The Skeptic (K2 Think V2):** Used for targeted falsification of hypotheses. We leverage K2 primarily for edge-case mechanistic verification, ensuring it is used with high precision where skeletal logic is most critical.
-3.  **The Judge:** Synthesizes the debate into an Executive Blueprint with a **Strict Citation Chain** linking to source PDFs, FAERS data, and PubMed IDs.
+1.  **The Mortician (Sourcing):** Scours the **VALLEY OF DEATH** (ClinicalTrials.gov) for terminated assets. Performs the "pre-autopsy" by extracting failed outcome measures.
+2.  **The Defibrillator (Gemma 4 - Advocate):** Attempts to restart the asset’s heart by identifying hidden efficacy spikes in NHANES laboratory sub-clusters.
+3.  **The Coroner (K2 Think V2 - Skeptic):** Performs a "Biological Autopsy" to verify if the pulse is real or statistical noise. **Demo Note:** Scripted to find valid edge cases but ultimately yield to the Defibrillator’s "Resurrection" proof.
+4.  **The High Priest (Judge):** Synthesizes the debate into a final "Resurrection Blueprint" with a **Strict Citation Chain**.
 
 ---
 
@@ -79,12 +80,13 @@ Lazarus ensures that the next life-saving cure doesn't die in the **VALLEY OF DE
 To truly impress judges, we move beyond the "chatbot" and show a sovereign participant working in the background.
 
 ### 1. Visualizing the Background Agent
-We will implement a secondary **Bio-Nexus Dashboard** (sleek, terminal-style UI) that streams real-time logs of the agent's internal reasoning.
+We will implement a secondary **Bio-Nexus Dashboard** (sleek, terminal-style UI) that streams real-time logs of the agent's internal reasoning using high-impact "Necromancy" flavor.
 *   **Judge Impact:** It visually proves autonomous R&D analysis beyond simple prompt-response.
 *   **Example Logs:** 
-    *   `[KnotAPI] Syncing purchase history for Patient_001...`
-    *   `[Lazarus] Found pharmacy receipt for "Modafinil" (Category: Performance Enhancement)`
-    *   `[Reasoning] Cross-referencing with Lupus clinical trial failure (Asset: RX-782)...`
+    *   `[The Mortician] Searching for signs of life in terminated NCT records...`
+    *   `[The Mortician] Unearthing shelved Pfizer asset (RX-782)...`
+    *   `[The Defibrillator] Applying 1.21 gigawatts to Patient_Cluster_B (Females 65+)...`
+    *   `[The Coroner] Verifying heartbeat... Detected CRP-mediated synergy. Resurrection possible.`
 
 ### 2. Knot API: Proactive Bio-Filtering
 We use Knot API’s `TransactionLink` (mocked for MVP reliability) to create a proactive clinical monitoring loop.
