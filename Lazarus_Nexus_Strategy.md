@@ -15,7 +15,8 @@ Lazarus is engineered to sweep the following high-value tracks:
 * **🏆 Best Overall Hack:** A bulletproof enterprise narrative combined with low-level systems engineering (Go/Redis).
 * **🏥 Best Healthcare Hack:** Addresses drug repurposing and clinical efficiency.
 * **🧬 Regeneron - AI & Tech for Clinical Trials ($1,000):** Purpose-built solution for biostatistics and trial asset recovery.
-* **🧠 K2 Think V2 - IFM:** Using K2 as the **Skeptic Agent** to execute multi-step biological logic validation.
+* **✨ Best Use of Gemini API (MLH Season Prize):** Leveraging **Gemma 4** for massive context extraction and high-fidelity hypothesis generation.
+* **🧠 K2 Think V2 - IFM:** Using K2 as the **Coroner Agent** to execute multi-step biological logic validation.
 * **💬 Photon - Agents in iMessage ($700):** Leveraging Spectrum to move the UX from a dashboard to the executive’s pocket.
 * **⚙️ Eragon - Build What Actually Runs Monday:** A stateful, internal daemon running over real company stacks.
 * **🐳 Dedalus - Best Agent Swarm ($500):** High-concurrency swarm hosted natively on Dedalus Containers.
@@ -25,7 +26,7 @@ Lazarus is engineered to sweep the following high-value tracks:
 ## 3. System Architecture: The Sovereign Backend
 Lazarus utilizes a high-concurrency microservices architecture to ensure continuous execution without state drift.
 
-* **Swarm Orchestrator (Go):** Leverages goroutines for intense parallelization, managing 4-5 agents simultaneously without blocking.
+* **Swarm Orchestrator (Go + OpenClaw):** Leverages goroutines and the **OpenClaw** framework for stateful, intense parallelization, managing 4-5 agents simultaneously without blocking.
 * **Context Persistence (Redis + PostgreSQL + Neo4j):**
     * **Redis:** Real-time "Blackboard" for agent broadcasting via pub/sub.
     * **PostgreSQL:** "Truth Ledger" maintaining a durable event log, patient data, and transaction links.
@@ -49,7 +50,7 @@ Lazarus operates across four distinct data environments to identify and validate
 Lazarus employs an adversarial reasoning loop to force a "survival of the fittest" for hypotheses:
 
 1.  **The Mortician (Sourcing):** Scours the **VALLEY OF DEATH** (ClinicalTrials.gov) for terminated assets. Performs the "pre-autopsy" by extracting failed outcome measures.
-2.  **The Defibrillator (Gemma 4 - Advocate):** Attempts to restart the asset’s heart by identifying hidden efficacy spikes in NHANES laboratory sub-clusters.
+2.  **The Defibrillator (Gemma 4 - Advocate):** Attempts to restart the asset’s heart by identifying hidden efficacy spikes. This is our primary engine for the **Best Use of Gemini API** track, utilizing Gemini's massive 2M+ context window to mine decades of clinical PDFs.
 3.  **The Coroner (K2 Think V2 - Skeptic):** Performs a "Biological Autopsy" to verify if the pulse is real or statistical noise. **Demo Note:** Scripted to find valid edge cases but ultimately yield to the Defibrillator’s "Resurrection" proof.
 4.  **The High Priest (Judge):** Synthesizes the debate into a final "Resurrection Blueprint" with a **Strict Citation Chain**.
 

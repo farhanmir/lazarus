@@ -10,11 +10,19 @@ Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resu
 Lazarus is an autonomous R&D engine designed for HackPrinceton Spring 2026. It mines clinical pipelines, cross-references global biological data, and pushes actionable repurposing blueprints to executives via iMessage.
 
 ### Key Technologies
-- **Sovereign Backend:** Go, Redis, PostgreSQL
+- **Framework:** OpenClaw (Stateful Swarm Orchestration)
+- **Sovereign Backend:** Go, Redis, PostgreSQL, Neo4j
 - **Reasoning:** Gemma 4 (Primary Advocate), IFM K2 Think V2 (Logic Sourcing)
 - **CX:** Photon Spectrum (iMessage)
-- **Data:** Knot API (TransactionLink)
+- **Data:** ClinicalTrials.gov API, Knot API, NHANES
 - **Deployment:** Dedalus Containers
+
+### Target Tracks
+- 🏆 **Best Overall Hack** & **Best Healthcare Hack**
+- ✨ **Best Use of Gemini API** (Powered by The Defibrillator agent)
+- 🧠 **Best Use of K2 Think V2** (Powered by The Coroner agent)
+- 🧪 **Regeneron:** AI & Tech for Clinical Trials
+- 💬 **Photon:** Agents in iMessage
 
 ---
 *Developed for HackPrinceton Spring 2026.*
