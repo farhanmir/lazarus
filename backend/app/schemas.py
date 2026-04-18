@@ -48,6 +48,10 @@ class CandidateResponse(BaseModel):
     scientific_confidence_score: float
     mortician_score: float
     match_reason: str
+    trial_status: str | None = None
+    rescue_angle: str | None = None
+    key_facts: list[str] = Field(default_factory=list)
+    relevance_summary: str | None = None
 
 
 class CandidateSearchResponse(BaseModel):
@@ -367,6 +371,18 @@ class SpectrumWebhookResponse(BaseModel):
 
 PhotonSpectrumWebhookRequest = SpectrumWebhookRequest
 PhotonSpectrumWebhookResponse = SpectrumWebhookResponse
+
+
+class PhotonNotifyRequest(BaseModel):
+    recipient: str
+    message: str
+
+
+class PhotonNotifyResponse(BaseModel):
+    status: str
+    recipient: str
+    message_preview: str
+    queued: bool
 
 
 # --- Effort & Impact Analysis ---

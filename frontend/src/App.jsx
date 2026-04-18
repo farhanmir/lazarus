@@ -1,287 +1,500 @@
-import React, { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import ResetConfirmDialog from './components/app/ResetConfirmDialog'
-import ShellHeader from './components/app/ShellHeader'
-import ShellSidebar from './components/app/ShellSidebar'
-import StatusStrip from './components/app/StatusStrip'
-import TabContent from './components/app/TabContent'
-import { useGraphData } from './hooks/useGraphData'
-import { useAnalysisInsights } from './hooks/useAnalysisInsights'
-import { useRunStatus } from './hooks/useRunStatus'
+import React, { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   evaluateCandidate,
-  fetchAssets,
-  fetchCandidates,
   fetchBlueprintDetail,
-  fetchGraph,
-  startAnalysisJob,
+  fetchCandidates,
+  sendPhotonNotification,
   startBlueprintJob,
   subscribeRunStream,
 } from './services/api'
 
-const emptyGraph = { nodes: [], links: [] }
-
-const TABS = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'graph',     label: 'Graph' },
-  { id: 'agents',    label: 'Agents' },
-  { id: 'strategy',  label: 'Strategy' },
-  { id: 'messages',  label: 'Messages' },
-  { id: 'blueprint', label: 'Blueprint' },
+const PIPELINE_STAGES = [
+  { id: 'openclaw', label: 'Searching Trials (OpenClaw)' },
+  { id: 'gemini', label: 'Ingesting Data (Gemini)' },
+  { id: 'k2', label: 'Reasoning Pivot (K2)' },
+  { id: 'dedalus', label: 'Finalizing Blueprint (Dedalus)' },
+  { id: 'photon', label: 'Sending Alert (Photon)' },
 ]
 
-const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit:    { opacity: 0, y: -6 },
+function stageMap() {
+  return PIPELINE_STAGES.reduce((accumulator, stage) => {
+    accumulator[stage.id] = { status: 'idle', detail: '' }
+    return accumulator
+  }, {})
+}
+
+async function waitForRunCompletion(runId, onTrace) {
+  return new Promise((resolve, reject) => {
+    const subscription = subscribeRunStream(runId, {
+      onMessage: (payload) => {
+        onTrace(payload)
+        if (payload?.run?.status === 'failed') {
+          subscription.close()
+          reject(new Error(payload.run.error_message || 'K2 reasoning failed.'))
+          return
+        }
+        if (payload?.run?.status === 'completed') {
+          subscription.close()
+          resolve(payload)
+        }
+      },
+      onError: () => {
+        subscription.close()
+        reject(new Error('Run stream disconnected while waiting for K2 output.'))
+      },
+    })
+  })
 }
 
 function App() {
-  const [assets, setAssets]               = useState([])
-  const [selectedAssetId, setSelectedAssetId] = useState('')
-  const [graphData, setGraphData]         = useState(emptyGraph)
-  const [selectedNode, setSelectedNode]   = useState(null)
-  const [analysisLoading, setAnalysisLoading] = useState(false)
-  const [blueprintLoading, setBlueprintLoading] = useState(false)
-  const [errorMessage, setErrorMessage]   = useState('')
-  const [analysisResult, setAnalysisResult] = useState(null)
-  const [runTrace, setRunTrace]           = useState(null)
-  const [blueprintResult, setBlueprintResult] = useState(null)
-  const [activeTab, setActiveTab]         = useState('dashboard')
-  const [query, setQuery]                 = useState('')
-  const [diseaseQuery, setDiseaseQuery]   = useState('')
-  const [candidateLoading, setCandidateLoading] = useState(false)
-  const [candidates, setCandidates]       = useState([])
-  const [selectedCandidateAssetId, setSelectedCandidateAssetId] = useState('')
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
-
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-  const deferredGraphData    = useDeferredValue(graphData)
-  const deferredSelectedNode = useDeferredValue(selectedNode)
-  const runStatus = useRunStatus(analysisResult?.run, { analysisLoading, errorMessage })
-  const { details: nodeDetails, legendItems } = useGraphData(deferredGraphData, deferredSelectedNode)
-  const { metrics, liveInsight } = useAnalysisInsights(analysisResult, runTrace)
-
-  const filteredAssets = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    if (!normalized) return assets
-    return assets.filter((asset) =>
-      `${asset.asset_code} ${asset.original_indication} ${asset.internal_name}`.toLowerCase().includes(normalized),
-    )
-  }, [assets, query])
+  const [disease, setDisease] = useState('')
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [reasoningLoading, setReasoningLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [selectedCandidateId, setSelectedCandidateId] = useState('')
+  const [stages, setStages] = useState(stageMap)
+  const [autopsy, setAutopsy] = useState(null)
+  const [rescue, setRescue] = useState(null)
+  const [blueprint, setBlueprint] = useState(null)
+  const [alertMessage, setAlertMessage] = useState('')
+  const [latestRunId, setLatestRunId] = useState('')
+  const [liveTrace, setLiveTrace] = useState(null)
+  const [photonRecipient, setPhotonRecipient] = useState('')
+  const [sendingPhoton, setSendingPhoton] = useState(false)
+  const [photonResult, setPhotonResult] = useState('')
 
   const selectedCandidate = useMemo(
-    () => candidates.find((candidate) => candidate.asset_id === selectedCandidateAssetId) ?? null,
-    [candidates, selectedCandidateAssetId],
+    () => searchResults.find((candidate) => candidate.asset_id === selectedCandidateId) ?? null,
+    [searchResults, selectedCandidateId],
   )
 
-  useEffect(() => {
-    fetchAssets()
-      .then((data) => {
-        setAssets(data)
-        if (data.length) setSelectedAssetId(data[0].id)
-      })
-      .catch(() => setErrorMessage('Unable to load assets from the Lazarus backend.'))
-  }, [])
+  const discoveredCandidates = blueprint?.candidates ?? []
 
-  const resetGraph = () => {
-    setGraphData(emptyGraph)
-    setSelectedNode(null)
-    setAnalysisResult(null)
-    setRunTrace(null)
-    setBlueprintResult(null)
-    setErrorMessage('')
+  const canSearch = useMemo(() => disease.trim().length >= 2 && !searchLoading, [disease, searchLoading])
+  const canReason = useMemo(() => !!selectedCandidate && !reasoningLoading, [selectedCandidate, reasoningLoading])
+
+  const updateStage = (stageId, status, detail = '') => {
+    setStages((previous) => ({
+      ...previous,
+      [stageId]: {
+        status,
+        detail: detail || previous[stageId]?.detail || '',
+      },
+    }))
   }
 
-  const handleFindCandidates = async () => {
-    const disease = diseaseQuery.trim()
-    if (!disease) return
+  const handleSearch = async (event) => {
+    event.preventDefault()
+    const diseaseQuery = disease.trim()
+    if (diseaseQuery.length < 2) return
 
-    setCandidateLoading(true)
-    setErrorMessage('')
+    setSearchLoading(true)
+    setError('')
+    setLiveTrace(null)
+    setAutopsy(null)
+    setRescue(null)
+    setBlueprint(null)
+    setLatestRunId('')
+    setAlertMessage('')
+    setPhotonResult('')
+    setSelectedCandidateId('')
+    setSearchResults([])
+    setStages(stageMap())
+
     try {
-      const result = await fetchCandidates(disease)
-      const nextCandidates = result?.candidates ?? []
-      setCandidates(nextCandidates)
-      setSelectedCandidateAssetId(nextCandidates[0]?.asset_id ?? '')
+      updateStage('openclaw', 'running', 'Scanning terminated and failed studies...')
+      const candidateResult = await fetchCandidates(diseaseQuery, 10)
+      const candidates = candidateResult?.candidates ?? []
 
-      if (!nextCandidates.length) {
-        setErrorMessage(`No candidate drugs found for "${disease}".`)
+      if (!candidates.length) {
+        throw new Error(`No terminated trial candidates found for ${diseaseQuery}.`)
       }
-    } catch (error) {
-      setErrorMessage(error?.response?.data?.detail ?? error.message ?? 'Failed to fetch disease candidates.')
-    } finally {
-      setCandidateLoading(false)
-    }
-  }
 
-  const handleRunAnalysis = async () => {
-    if (!selectedAssetId && !selectedCandidate) return
-    setActiveTab('dashboard')
-    setAnalysisLoading(true)
-    setErrorMessage('')
-    setAnalysisResult(null)
-    setRunTrace(null)
-    setBlueprintResult(null)
-    setGraphData(emptyGraph)
-    setSelectedNode(null)
-    try {
-      const job = selectedCandidate
-        ? await evaluateCandidate({
-            drug: selectedCandidate.drug_name,
-            disease: diseaseQuery.trim() || selectedCandidate.proposed_disease,
-            assetCode: selectedCandidate.asset_code,
-          })
-        : await startAnalysisJob(selectedAssetId, 'manual')
+      setSearchResults(candidates)
+      setSelectedCandidateId(candidates[0].asset_id)
 
-      setAnalysisResult({ run: job.run, asset_code: job.asset_code, hypothesis: null })
-      const graph = await fetchGraph(selectedCandidate?.asset_id ?? selectedAssetId)
-      startTransition(() => {
-        setGraphData(graph)
-        setSelectedNode(graph.nodes.find((n) => n.highlight) ?? graph.nodes[0] ?? null)
-      })
-
-      await new Promise((resolve, reject) => {
-        const subscription = subscribeRunStream(job.run.id, {
-          onMessage: (payload) => {
-            if (payload?.error) { subscription.close(); reject(new Error(payload.error)); return }
-            setAnalysisResult({
-              run:       payload.run,
-              asset_code: payload.asset_code ?? job.asset_code,
-              hypothesis: payload.hypothesis ?? null,
-            })
-            setRunTrace(payload)
-            if (payload.run?.status === 'failed') {
-              subscription.close()
-              reject(new Error(payload.run.error_message || 'Analysis failed to complete.'))
-            }
-            if (payload.run?.status === 'completed') { subscription.close(); resolve(payload) }
+      updateStage(
+        'openclaw',
+        'done',
+        `${candidates.length} failed trials ranked for ${diseaseQuery}.`,
+      )
+    } catch (error_) {
+      const message = error_?.response?.data?.detail || error_?.message || 'Pipeline failed unexpectedly.'
+      setError(message)
+      setStages((previous) => {
+        const runningEntry = Object.entries(previous).find(([, value]) => value.status === 'running')
+        if (!runningEntry) return previous
+        const [failedId, failedStage] = runningEntry
+        return {
+          ...previous,
+          [failedId]: {
+            ...failedStage,
+            status: 'failed',
+            detail: message,
           },
-          onError: () => reject(new Error('Real-time run stream disconnected unexpectedly.')),
-        })
+        }
       })
-    } catch (error) {
-      setErrorMessage(error?.response?.data?.detail ?? error.message ?? 'Analysis failed to complete.')
     } finally {
-      setAnalysisLoading(false)
+      setSearchLoading(false)
     }
   }
 
-  const handleGenerateBlueprint = async () => {
-    const hypothesisId = analysisResult?.hypothesis?.id
-    if (!hypothesisId) return
-    setActiveTab('blueprint')
-    setBlueprintLoading(true)
-    setErrorMessage('')
-    setBlueprintResult(null)
+  const handleReasoning = async () => {
+    if (!selectedCandidate || reasoningLoading) return
+
+    setReasoningLoading(true)
+    setError('')
+    setAutopsy(null)
+    setRescue(null)
+    setBlueprint(null)
+    setAlertMessage('')
+    setPhotonResult('')
+    setLatestRunId('')
+    setLiveTrace(null)
+    setStages(stageMap())
+
     try {
-      const job = await startBlueprintJob(hypothesisId)
-      setBlueprintResult({ blueprint: job.blueprint, payload: null })
+      updateStage('openclaw', 'done', `${selectedCandidate.asset_code}: selected from ranked failed trial list.`)
+      updateStage('gemini', 'running', 'Ingesting the selected trial report and LLM brief...')
+
+      const autopsyPayload = {
+        trial_id: selectedCandidate.asset_code,
+        disease: disease.trim(),
+        drug: selectedCandidate.drug_name,
+        scientific_wall:
+          selectedCandidate.abandonment_reason ||
+          selectedCandidate.relevance_summary ||
+          'Trial failed for non-specific operational or safety reasons.',
+        match_reason: selectedCandidate.match_reason,
+      }
+      setAutopsy(autopsyPayload)
+      updateStage('gemini', 'done', selectedCandidate.relevance_summary || 'Trial evidence ingested and summarized.')
+
+      updateStage('k2', 'running', 'Reasoning over the selected failure mode...')
+      const runJob = await evaluateCandidate({
+        drug: selectedCandidate.drug_name,
+        disease: disease.trim(),
+        assetCode: selectedCandidate.asset_code,
+      })
+      setLatestRunId(runJob.run.id)
+
+      const finalTrace = await waitForRunCompletion(runJob.run.id, setLiveTrace)
+      const hypothesis = finalTrace?.hypothesis
+      if (!hypothesis?.id) {
+        throw new Error('K2 finished without a recoverable hypothesis.')
+      }
+
+      setRescue({
+        run_id: runJob.run.id,
+        hypothesis_id: hypothesis.id,
+        summary: hypothesis.summary,
+        target_disease: hypothesis.target_disease,
+        confidence: hypothesis.final_confidence,
+      })
+      updateStage('k2', 'done', `Pivot proposed for ${hypothesis.target_disease} at confidence ${Number(hypothesis.final_confidence || 0).toFixed(2)}.`)
+
+      updateStage('dedalus', 'running', 'Finalizing the blueprint from the completed reasoning trace...')
+      const blueprintJob = await startBlueprintJob(hypothesis.id)
       let detail = null
       while (!detail || detail.blueprint.generation_status === 'pending') {
-        await sleep(1200)
-        detail = await fetchBlueprintDetail(job.blueprint.id)
-        setBlueprintResult(detail)
+        await new Promise((resolve) => globalThis.setTimeout(resolve, 1000))
+        detail = await fetchBlueprintDetail(blueprintJob.blueprint.id)
       }
-      if (detail.blueprint.generation_status === 'failed') throw new Error('Blueprint generation failed.')
-    } catch (error) {
-      setErrorMessage(error?.response?.data?.detail ?? error.message ?? 'Blueprint generation failed.')
+
+      if (detail.blueprint.generation_status === 'failed') {
+        throw new Error('Dedalus blueprint generation failed.')
+      }
+
+      const finalBlueprint = {
+        id: detail.blueprint.id,
+        title: detail.blueprint.title,
+        executive_summary: detail.payload?.executive_summary || detail.blueprint.executive_summary || '',
+        candidates: searchResults.slice(0, 5),
+        download_url: `/blueprints/${detail.blueprint.id}/download`,
+      }
+      setBlueprint(finalBlueprint)
+      updateStage('dedalus', 'done', `Rescue Blueprint ready with ${finalBlueprint.candidates.length} high-confidence candidates.`)
+
+      updateStage('photon', 'running', 'Dispatching scientist notification...')
+      const text = `Trial Rescued: ${disease.trim()} (Trial ID: ${selectedCandidate.asset_code}). ${finalBlueprint.candidates.length} candidates identified via K2 Reasoning. View Blueprint: ${finalBlueprint.download_url}`
+      setAlertMessage(text)
+      updateStage('photon', 'done', 'Lead researcher alert composed and queued.')
+    } catch (error_) {
+      const message = error_?.response?.data?.detail || error_?.message || 'Pipeline failed unexpectedly.'
+      setError(message)
+      setStages((previous) => {
+        const runningEntry = Object.entries(previous).find(([, value]) => value.status === 'running')
+        if (!runningEntry) return previous
+        const [failedId, failedStage] = runningEntry
+        return {
+          ...previous,
+          [failedId]: {
+            ...failedStage,
+            status: 'failed',
+            detail: message,
+          },
+        }
+      })
     } finally {
-      setBlueprintLoading(false)
+      setReasoningLoading(false)
     }
   }
 
-  const completedSteps = runTrace?.steps?.filter((s) => s.status === 'completed').length ?? 0
-  const totalSteps = 5
+  const handleSendPhoton = async () => {
+    const recipient = photonRecipient.trim()
+    if (!recipient || !alertMessage) return
+
+    setSendingPhoton(true)
+    setPhotonResult('')
+    try {
+      const data = await sendPhotonNotification({ recipient, message: alertMessage })
+      setPhotonResult(`Queued to ${data.recipient}.`)
+      updateStage('photon', 'done', `Alert delivered to ${data.recipient}.`)
+    } catch (error_) {
+      const message = error_?.response?.data?.detail || error_?.message || 'Failed to send Photon alert.'
+      setPhotonResult(message)
+      updateStage('photon', 'failed', message)
+    } finally {
+      setSendingPhoton(false)
+    }
+  }
 
   return (
-    <>
-      <div className="lazarus-shell">
-        <ShellSidebar analysisLoading={analysisLoading} runTrace={runTrace} />
+    <main className="pipeline-root">
+      <div className="pipeline-shell">
+        <nav className="pipeline-nav">
+          <Link to="/" className="pipeline-nav-link">Home</Link>
+          <span className="pipeline-nav-sep">/</span>
+          <span className="pipeline-nav-current">Dashboard</span>
+          {latestRunId && (
+            <>
+              <span className="pipeline-nav-sep">/</span>
+              <Link className="pipeline-nav-link" to={`/agents/${latestRunId}`}>
+                Agent Trace
+              </Link>
+            </>
+          )}
+        </nav>
 
-        <div className="nexus-right">
-          <ShellHeader
-            query={query}
-            setQuery={setQuery}
-            diseaseQuery={diseaseQuery}
-            setDiseaseQuery={setDiseaseQuery}
-            handleFindCandidates={handleFindCandidates}
-            candidateLoading={candidateLoading}
-            candidates={candidates}
-            selectedCandidateAssetId={selectedCandidateAssetId}
-            setSelectedCandidateAssetId={setSelectedCandidateAssetId}
-            selectedAssetId={selectedAssetId}
-            setSelectedAssetId={setSelectedAssetId}
-            filteredAssets={filteredAssets}
-            handleRunAnalysis={handleRunAnalysis}
-            analysisLoading={analysisLoading}
-            handleGenerateBlueprint={handleGenerateBlueprint}
-            analysisResult={analysisResult}
-            blueprintLoading={blueprintLoading}
-            setShowResetConfirm={setShowResetConfirm}
-          />
+        <header className="pipeline-header">
+          <p className="pipeline-kicker">Lazarus Scientific Pipeline</p>
+          <h1>Search failed trials, then choose one to rescue.</h1>
+          <p className="pipeline-subcopy">
+            OpenClaw searches the database for failed trials, LLMs rank the shortlist with rescue angles, then the selected
+            trial is ingested and reasoned over live.
+          </p>
+        </header>
 
-          {/* Tab nav */}
-          <nav className="nexus-tabnav">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`tab-btn${activeTab === tab.id ? ' active' : ''}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-
-          {/* Error banner */}
-          <AnimatePresence>
-            {errorMessage && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="error-banner"
-              >
-                ⚠ {errorMessage}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <StatusStrip runStatus={runStatus} />
-
-          {/* Content area */}
-          <div className="nexus-content">
-            <AnimatePresence mode="wait">
-              <TabContent
-                activeTab={activeTab}
-                pageVariants={pageVariants}
-                runTrace={runTrace}
-                analysisResult={analysisResult}
-                deferredGraphData={deferredGraphData}
-                selectedNode={selectedNode}
-                setSelectedNode={setSelectedNode}
-                legendItems={legendItems}
-                nodeDetails={nodeDetails}
-                metrics={metrics}
-                liveInsight={liveInsight}
-                completedSteps={completedSteps}
-                totalSteps={totalSteps}
-                blueprintLoading={blueprintLoading}
-                blueprintResult={blueprintResult}
-              />
-            </AnimatePresence>
+        <form className="pipeline-search" onSubmit={handleSearch}>
+          <label htmlFor="disease-input">Enter disease to rescue</label>
+          <div className="pipeline-search-row">
+            <input
+              id="disease-input"
+              type="text"
+              value={disease}
+              onChange={(event) => setDisease(event.target.value)}
+              placeholder="Glioblastoma"
+              autoComplete="off"
+            />
+            <button type="submit" disabled={!canSearch}>
+              {searchLoading ? 'Searching...' : 'Search Failed Trials'}
+            </button>
           </div>
-        </div>
-      </div>
+        </form>
 
-      <ResetConfirmDialog
-        showResetConfirm={showResetConfirm}
-        setShowResetConfirm={setShowResetConfirm}
-        resetGraph={resetGraph}
-      />
-    </>
+        {error && <p className="pipeline-error">{error}</p>}
+
+        {searchResults.length > 0 && (
+          <section className="trial-search-results">
+            <div className="section-label-row">
+              <p className="pipeline-kicker">Ranked shortlist</p>
+              <span className="trial-count">{searchResults.length} failed trials found</span>
+            </div>
+            <div className="trial-grid">
+              {searchResults.map((candidate) => {
+                const selected = candidate.asset_id === selectedCandidateId
+                return (
+                  <button
+                    type="button"
+                    key={candidate.asset_id}
+                    className={`trial-card ${selected ? 'selected' : ''}`}
+                    onClick={() => setSelectedCandidateId(candidate.asset_id)}
+                  >
+                    <div className="trial-card-top">
+                      <div>
+                        <div className="trial-code">{candidate.asset_code}</div>
+                        <div className="trial-name">{candidate.drug_name}</div>
+                      </div>
+                      <div className="trial-score">{Number(candidate.scientific_confidence_score).toFixed(2)}</div>
+                    </div>
+                    <div className="trial-meta">{candidate.original_indication} · {candidate.trial_status || 'shelved'}</div>
+                    <p className="trial-summary">{candidate.relevance_summary}</p>
+                    <ul className="trial-facts">
+                      {candidate.key_facts?.slice(0, 3).map((fact) => (
+                        <li key={fact}>{fact}</li>
+                      ))}
+                    </ul>
+                    <div className="trial-rescue-angle">{candidate.rescue_angle}</div>
+                    <div className="trial-action">{selected ? 'Selected trial' : 'Select trial'}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {selectedCandidate && (
+          <section className="selected-trial-panel">
+            <div>
+              <p className="pipeline-kicker">Selected trial</p>
+              <h2>{selectedCandidate.drug_name} · {selectedCandidate.asset_code}</h2>
+              <p className="selected-trial-summary">{selectedCandidate.relevance_summary}</p>
+            </div>
+
+            <div className="selected-trial-grid">
+              <article>
+                <h3>Why it matters</h3>
+                <p>{selectedCandidate.match_reason}</p>
+              </article>
+              <article>
+                <h3>Rescue angle</h3>
+                <p>{selectedCandidate.rescue_angle}</p>
+              </article>
+              <article>
+                <h3>Failure reason</h3>
+                <p>{selectedCandidate.abandonment_reason || 'Not recorded'}</p>
+              </article>
+            </div>
+
+            <button type="button" className="selected-trial-button" onClick={handleReasoning} disabled={!canReason}>
+              {reasoningLoading ? 'Reasoning live...' : 'Start reasoning'}
+            </button>
+          </section>
+        )}
+
+        <section className="pipeline-timeline" aria-label="Lazarus timeline">
+          {PIPELINE_STAGES.map((stage) => {
+            const stageState = stages[stage.id]
+            let stageMarker = ''
+            if (stageState.status === 'done') stageMarker = '✓'
+            if (stageState.status === 'failed') stageMarker = '!'
+            return (
+              <article className={`timeline-row ${stageState.status}`} key={stage.id}>
+                <span className="timeline-check" aria-hidden="true">
+                  {stageMarker}
+                </span>
+                <div className="timeline-copy">
+                  <h2>{stage.label}</h2>
+                  <p>{stageState.detail || 'Waiting for activation.'}</p>
+                </div>
+              </article>
+            )
+          })}
+        </section>
+
+        {(autopsy || rescue || blueprint || alertMessage) && (
+          <section className="pipeline-output">
+            {autopsy && (
+              <article>
+                <h3>Trial Autopsy</h3>
+                <p>
+                  {autopsy.trial_id}: {autopsy.scientific_wall}
+                </p>
+              </article>
+            )}
+
+            {rescue && (
+              <article>
+                <h3>Scientific Rescue Strategy</h3>
+                <p>{rescue.summary}</p>
+              </article>
+            )}
+
+            {blueprint && (
+              <article>
+                <h3>Rescue Blueprint</h3>
+                <p>{blueprint.executive_summary}</p>
+                <ul>
+                  {discoveredCandidates.map((candidate) => (
+                    <li key={candidate.asset_id}>{candidate.drug_name} ({candidate.asset_code})</li>
+                  ))}
+                </ul>
+              </article>
+            )}
+
+            {alertMessage && (
+              <article>
+                <h3>Photon Alert Payload</h3>
+                <p>{alertMessage}</p>
+                <div className="photon-send-row">
+                  <input
+                    type="tel"
+                    value={photonRecipient}
+                    onChange={(event) => setPhotonRecipient(event.target.value)}
+                    placeholder="+1 555 123 4567"
+                    aria-label="Photon recipient phone number"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendPhoton}
+                    disabled={!photonRecipient.trim() || sendingPhoton}
+                  >
+                    {sendingPhoton ? 'Sending...' : 'Send via Photon'}
+                  </button>
+                </div>
+                {photonResult && <p className="photon-send-result">{photonResult}</p>}
+              </article>
+            )}
+
+            {latestRunId && (
+              <article>
+                <h3>Agent Visibility</h3>
+                <p>Open a dedicated run page to inspect each agent output and score.</p>
+                <Link className="trace-link-btn" to={`/agents/${latestRunId}`}>
+                  View Agent Trace
+                </Link>
+              </article>
+            )}
+          </section>
+        )}
+
+        {(liveTrace || reasoningLoading) && (
+          <section className="live-findings-panel">
+            <div className="section-label-row">
+              <p className="pipeline-kicker">Live findings</p>
+              <span className="trial-count">{liveTrace?.run?.status || (reasoningLoading ? 'running' : 'idle')}</span>
+            </div>
+            <div className="live-summary">
+              <article>
+                <h3>Current hypothesis</h3>
+                <p>{liveTrace?.hypothesis?.summary || 'Reasoning has not converged yet.'}</p>
+              </article>
+              <article>
+                <h3>Progress</h3>
+                <p>{liveTrace?.steps?.filter((step) => step.status === 'completed').length ?? 0} steps complete</p>
+              </article>
+            </div>
+
+            <div className="live-steps">
+              {(liveTrace?.steps || []).map((step) => (
+                <article key={step.id} className={`live-step ${step.status}`}>
+                  <div className="live-step-head">
+                    <strong>{step.agent_name}</strong>
+                    <span>{step.status}</span>
+                  </div>
+                  <p>{step.output_summary || step.input_summary || 'Waiting for output...'}</p>
+                </article>
+              ))}
+              {reasoningLoading && (!liveTrace?.steps || liveTrace.steps.length === 0) && (
+                <p className="trace-info">Waiting for the first agent response...</p>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
+    </main>
   )
 }
 

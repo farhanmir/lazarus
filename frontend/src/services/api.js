@@ -167,6 +167,14 @@ export const fetchBlueprintDetail = async (blueprintId) => {
   return data
 }
 
+export const sendPhotonNotification = async ({ recipient, message }) => {
+  const { data } = await api.post('/photon/notify', {
+    recipient,
+    message,
+  })
+  return data
+}
+
 export const getBlueprintDownloadUrl = (blueprintId) =>
   `${api.defaults.baseURL}/blueprints/${blueprintId}/download`
 

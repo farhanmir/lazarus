@@ -16,7 +16,7 @@ Lazarus is engineered to aggressively capture the following prize pools:
 *   **🧬 Regeneron ($1,000):** Strict biological rigor. Graph nodes must cite real PubMed IDs (PMIDs) avoiding "AI Fluff."
 *   **✨ Best Use of Gemini API (MLH):** **The Defibrillator** agent uses Gemini's 2M+ context window to ingest a 500-page FDA clinical briefing in seconds.
 *   **🧠 MBZUAI - K2 Think V2:** **The Coroner** executes a strict 10-step biological autopsy (protein-ligand interaction) producing a verifiable "Thinking Trace".
-*   **⚙️ Eragon - Build What Actually Runs Monday:** An internal agent for the CTO. This is not an external semantic search app; it governs internal company pipelines.
+*   **⚙️ Eragon (Track Context):** This is the judging track context only. The implementation framework is standard **OpenClaw** for internal pipeline automation.
 *   **🐳 Dedalus - Best Agent Swarm ($500):** A natively distributed, multi-VM agent swarm architecture. Each reasoning agent runs on its own dedicated stateful Linux VM, coordinated by the Go Control Plane.
 *   **💬 Photon - Agents in iMessage ($700):** **The High Priest** functions as an active participant in a group chat, defending its P-Value calculations natively in the thread.
 

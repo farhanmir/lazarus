@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -18,9 +20,10 @@ router = APIRouter(prefix="/api", tags=["discovery"])
 
 @router.get("/candidates", response_model=schemas.CandidateSearchResponse)
 def get_candidates(
-    disease: str = Query(..., min_length=2),
-    limit: int = Query(5, ge=1, le=10),
-    db: Session = Depends(get_db),
+    disease: Annotated[str, Query(min_length=2)],
+    *,
+    limit: Annotated[int, Query(ge=1, le=10)] = 10,
+    db: Annotated[Session, Depends(get_db)],
 ):
     return search_candidates(db, disease, limit=limit)
 
@@ -30,7 +33,9 @@ def get_candidates(
     response_model=schemas.EvaluateResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
-def evaluate_candidate(payload: schemas.EvaluateRequest, db: Session = Depends(get_db)):
+def evaluate_candidate(
+    payload: schemas.EvaluateRequest, db: Annotated[Session, Depends(get_db)]
+):
     asset = None
 
     if payload.asset_code:

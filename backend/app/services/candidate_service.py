@@ -9,6 +9,10 @@ from sqlalchemy.orm import Session
 from backend.app import crud, schemas
 from backend.app.agents.advocate import run_advocate
 from backend.app.services.context_service import build_asset_context
+from backend.app.services.llm_service import (
+    dedalus_chat_completion,
+    gemini_chat_completion,
+)
 
 
 def _normalize(text: str) -> str:
@@ -84,6 +88,8 @@ def _build_candidate(asset, disease_query: str) -> schemas.CandidateResponse:
         3,
     )
 
+    trial_brief = _build_trial_brief(context, disease_query, advocate.proposed_disease, advocate.reasoning)
+
     return schemas.CandidateResponse(
         asset_id=asset.id,
         asset_code=asset.asset_code,
@@ -95,7 +101,96 @@ def _build_candidate(asset, disease_query: str) -> schemas.CandidateResponse:
         scientific_confidence_score=scientific_confidence,
         mortician_score=round(mortician_score, 3),
         match_reason=f"{mortician_reason} Advocate suggests {advocate.proposed_disease}.",
+        trial_status=asset.portfolio_status,
+        rescue_angle=trial_brief["rescue_angle"],
+        key_facts=trial_brief["key_facts"],
+        relevance_summary=trial_brief["relevance_summary"],
     )
+
+
+def _build_trial_brief(context, disease_query: str, proposed_disease: str, advocate_reasoning: str) -> dict[str, object]:
+    response_schema = {
+        "type": "object",
+        "properties": {
+            "relevance_summary": {"type": "string"},
+            "rescue_angle": {"type": "string"},
+            "key_facts": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 3,
+                "maxItems": 5,
+            },
+        },
+        "required": ["relevance_summary", "rescue_angle", "key_facts"],
+        "additionalProperties": False,
+    }
+
+    user_prompt = (
+        "Disease query:\n"
+        f"- {disease_query}\n\n"
+        "Failed trial context:\n"
+        f"- asset_code: {context.asset_code}\n"
+        f"- drug_name: {context.internal_name}\n"
+        f"- original_indication: {context.source_disease}\n"
+        f"- target: {context.target}\n"
+        f"- linked_diseases: {', '.join(context.linked_diseases)}\n"
+        f"- adverse_events: {', '.join(context.adverse_events)}\n"
+        f"- failure_reason: {context.business_failure_reason or 'unknown'}\n"
+        f"- advocate_reasoning: {advocate_reasoning}\n"
+        f"- proposed_disease: {proposed_disease}\n\n"
+        "Return a concise ranked trial brief for a scientist."
+    )
+
+    llm_output = gemini_chat_completion(
+        model="gemini-2.5-flash",
+        system_prompt=(
+            "You are a clinical trial search analyst. You rank failed trials for disease rescue. "
+            "Use only the provided database context. Explain why the trial is relevant and how it could be repurposed. "
+            "Return strict JSON."
+        ),
+        user_prompt=user_prompt,
+        response_schema=response_schema,
+    )
+    if llm_output is None:
+        llm_output = dedalus_chat_completion(
+            model="google/gemini-2.5-flash",
+            system_prompt=(
+                "You are a clinical trial search analyst. You rank failed trials for disease rescue. "
+                "Use only the provided database context. Explain why the trial is relevant and how it could be repurposed. "
+                "Return strict JSON."
+            ),
+            user_prompt=user_prompt,
+            response_schema=response_schema,
+            provider="google",
+        )
+
+    if isinstance(llm_output, dict):
+        facts = llm_output.get("key_facts", [])
+        if isinstance(facts, list):
+            key_facts = [str(item) for item in facts[:5] if str(item).strip()]
+        else:
+            key_facts = []
+        return {
+            "relevance_summary": str(llm_output.get("relevance_summary", "")),
+            "rescue_angle": str(llm_output.get("rescue_angle", "")),
+            "key_facts": key_facts,
+        }
+
+    fallback_facts = [
+        f"Original indication: {context.source_disease}",
+        f"Target: {context.target}",
+        f"Failure reason: {context.business_failure_reason or 'not recorded'}",
+    ]
+    return {
+        "relevance_summary": (
+            f"{context.asset_code} is a failed {context.portfolio_status.lower()} asset with {context.target} alignment "
+            f"that could be repurposed for {disease_query}."
+        ),
+        "rescue_angle": (
+            f"Consider {context.internal_name} as a mechanistic bridge into {proposed_disease} based on target overlap."
+        ),
+        "key_facts": fallback_facts,
+    }
 
 
 def search_candidates(
@@ -118,6 +213,9 @@ def search_candidates(
     candidates.sort(key=lambda item: item.scientific_confidence_score, reverse=True)
 
     return schemas.CandidateSearchResponse(
+        disease=disease_query,
+        candidates=candidates[:limit],
+    )
         disease=disease_query,
         candidates=candidates[:limit],
     )
