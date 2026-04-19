@@ -13,10 +13,10 @@ from backend.app.agents.types import (
     JudgeOutput,
     SkepticOutput,
 )
-from backend.app.services.llm_service import gemini_chat_completion
+from backend.app.services.llm_service import openai_chat_completion
 
 
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
+OPENAI_JUDGE_MODEL_NAME = "gpt-4o"
 logger = logging.getLogger(__name__)
 
 
@@ -26,8 +26,8 @@ def run_judge(
     skeptic: SkepticOutput,
     evidence: EvidenceCuratorOutput,
 ) -> JudgeOutput:
-    """Synthesize the final decision: tries Gemini direct, then deterministic."""
-    judge_model = os.getenv("DEDALUS_JUDGE_MODEL", "openai/gpt-5-mini")
+    """Synthesize the final decision: tries OpenAI direct, then deterministic."""
+    judge_model = os.getenv("OPENAI_JUDGE_MODEL", OPENAI_JUDGE_MODEL_NAME)
 
     logger.info("[agent:judge] start asset=%s proposal=%s", context.asset_code, advocate.proposed_disease)
     response_schema = {
@@ -59,24 +59,24 @@ def run_judge(
         f"evidence: {evidence.model_dump_json()}\n"
     )
 
-    # --- Try 1: Gemini direct (no Dedalus credits needed) ---
-    llm_output = gemini_chat_completion(
-        model=GEMINI_MODEL_NAME,
+    # --- Try 1: OpenAI direct ---
+    llm_output = openai_chat_completion(
+        model=judge_model,
         system_prompt=JUDGE_PROMPT,
         user_prompt=user_prompt,
         response_schema=response_schema,
     )
     if llm_output:
         try:
-            logger.info("[agent:judge] resolved via gemini_live asset=%s", context.asset_code)
+            logger.info("[agent:judge] resolved via openai_live asset=%s model=%s", context.asset_code, judge_model)
             return JudgeOutput(
                 final_decision=str(llm_output["final_decision"]),
                 summary=str(llm_output["summary"]),
                 judge_score=float(llm_output["judge_score"]),
                 final_confidence=float(llm_output["final_confidence"]),
                 recommended_next_step=str(llm_output["recommended_next_step"]),
-                model_used=GEMINI_MODEL_NAME,
-                mode="gemini_live",
+                model_used=judge_model,
+                mode="openai_live",
             )
         except (KeyError, TypeError, ValueError):
             pass

@@ -1,6 +1,6 @@
 # Lazarus: Autonomous Clinical R&D Swarm
 
-Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resurrects' them by finding new patient sub-groups where the drug actually works. When it finds a billion-dollar match, it pings the executive's iMessage with a ready-to-sign R&D blueprint.
+Lazarus is an AI-powered drug repurposing platform for shelved or underused pharma assets. It runs a multi-agent reasoning pipeline over an asset, proposes a new indication, stress-tests the idea, gathers supporting evidence, estimates effort and impact, and generates an executive-ready blueprint.
 
 ## Quick Links
 - **[Project Strategy & Vision](docs/Lazarus_Nexus_Strategy.md):** Deep dive into the Lazarus architecture, swarm logic, and the "Bio-Nexus" demo strategy.
@@ -10,9 +10,9 @@ Lazarus is an autonomous AI swarm that monitors failed clinical trials and 'resu
 ## What’s In The Repo
 
 - `backend/`
-  FastAPI backend, Postgres-backed run storage, graph/tracing APIs, blueprint generation, and agent orchestration.
+  FastAPI backend, Postgres-backed run storage, graph/tracing APIs, blueprint generation, portfolio ranking, HITL review queue, and agent orchestration.
 - `frontend/`
-  React + D3 + Tailwind dashboard for live reasoning, graph exploration, and blueprint preview.
+  React + Cytoscape.js + Tailwind dashboard for live reasoning, graph exploration, portfolio ranking, comparison workflows, messaging, and blueprint preview.
 - `openclaw/`
   Optional OpenClaw and local Spectrum/iMessage bridge helpers.
 - `docs/`
@@ -80,10 +80,48 @@ npm run spectrum:local
 - `POST /run-analysis/async`
 - `GET /runs/{run_id}/trace`
 - `GET /runs/{run_id}/stream`
+- `GET /portfolio/ranking`
+- `GET /human-reviews/dashboard`
+- `GET /assets/{asset_id}/hypotheses/compare`
 - `POST /generate-blueprint`
 - `POST /generate-blueprint/async`
 - `GET /spectrum/health`
 - `POST /spectrum/webhook`
+
+## Product Surfaces
+
+- **Live multi-agent dashboard**
+  Watch Advocate, Skeptic, Curator, Judge, and Trial Strategist reason over a drug asset in real time.
+- **Interactive graph**
+  Explore Drug, Target, Disease, Evidence, Hypothesis, and Strategy nodes with Cytoscape-based graph controls.
+- **Portfolio ranking**
+  Rank assets by confidence, impact, effort, risk, and HITL drag.
+- **Human review dashboard**
+  Review and resolve safety-board or portfolio-committee escalations.
+- **Hypothesis comparison**
+  Compare competing indications for the same asset across confidence, coverage, disagreement, and readiness.
+- **Blueprint generation**
+  Generate an executive-ready PDF dossier for the selected hypothesis.
+
+## GitHub Deployment Checklist
+
+Before you push this repository publicly:
+
+1. Rotate any secrets that were ever stored locally or pasted into shells/chat history.
+2. Make sure `.env` is not tracked.
+3. Verify the repo builds cleanly:
+   - `python3 -m compileall backend/app`
+   - `cd frontend && npm run build`
+4. Review `git status` for any local-only files you do not want in the repo.
+5. Commit from the project root and push to your target GitHub remote.
+
+Example:
+
+```bash
+git add .
+git commit -m "Prepare Lazarus for GitHub deployment"
+git push -u origin main
+```
 
 ---
 *Developed for HackPrinceton Spring 2026.*

@@ -60,7 +60,7 @@ function MessagingPanel({ runId }) {
 
   if (!runId) {
     return (
-      <div className="nexus-glass-card flex flex-col items-center justify-center p-8 text-slate-400">
+      <div className="nexus-glass-card flex flex-col items-center justify-center p-8 text-[var(--text-dim)]">
         <MessageCircle className="mb-2 h-8 w-8 opacity-40" />
         <p className="text-sm">Run an analysis first to chat about the results</p>
       </div>
@@ -76,19 +76,19 @@ function MessagingPanel({ runId }) {
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3">
         <Bot className="h-5 w-5 text-cyan-400" />
-        <h3 className="text-sm font-semibold text-slate-200">Follow-Up Assistant</h3>
-        <span className="ml-auto text-xs text-slate-500">{messages.length} messages</span>
+        <h3 className="text-sm font-semibold text-[var(--text-bright)]">Follow-Up Assistant</h3>
+        <span className="ml-auto text-xs text-[var(--text-dim)]">{messages.length} messages</span>
       </div>
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading && (
-          <div className="text-center text-sm text-slate-500">Loading conversation…</div>
+          <div className="text-center text-sm text-[var(--text-dim)]">Loading conversation…</div>
         )}
         {!loading && messages.length === 0 && (
-          <div className="text-center text-sm text-slate-500 mt-12">
+          <div className="mt-12 text-center text-sm text-[var(--text-dim)]">
             <p>Ask anything about this analysis run.</p>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-1 text-xs text-[var(--text-base)]">
               Try: "What did the advocate propose?" or "What are the risks?"
             </p>
           </div>
@@ -110,15 +110,22 @@ function MessagingPanel({ runId }) {
               <div
                 className={`max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-cyan-600/30 text-cyan-50'
-                    : 'bg-white/5 text-slate-300'
+                    ? 'border border-[rgba(31,58,46,0.12)] bg-[rgba(31,58,46,0.94)] text-white shadow-sm'
+                    : 'border border-[rgba(20,23,26,0.08)] bg-[rgba(247,245,240,0.92)] text-[var(--text-bright)] shadow-sm'
                 }`}
               >
                 <p className="whitespace-pre-wrap">{msg.content}</p>
                 {msg.sources_json && Array.isArray(msg.sources_json) && msg.sources_json.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {msg.sources_json.map((src, i) => (
-                      <span key={i} className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-slate-400">
+                      <span
+                        key={i}
+                        className={`rounded px-1.5 py-0.5 text-[10px] ${
+                          msg.role === 'user'
+                            ? 'bg-white/15 text-white/85'
+                            : 'bg-[rgba(20,23,26,0.06)] text-[var(--text-dim)]'
+                        }`}
+                      >
                         {src}
                       </span>
                     ))}
@@ -146,7 +153,7 @@ function MessagingPanel({ runId }) {
             onKeyDown={handleKeyDown}
             placeholder="Ask about this analysis…"
             disabled={sending}
-            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-500/50 disabled:opacity-50"
+            className="flex-1 rounded-lg border border-[rgba(20,23,26,0.10)] bg-[rgba(247,245,240,0.9)] px-3 py-2 text-sm text-[var(--text-bright)] placeholder-[var(--text-dim)] outline-none focus:border-cyan-500/50 disabled:opacity-50"
           />
           <button
             onClick={handleSend}

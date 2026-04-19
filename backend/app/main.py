@@ -16,9 +16,11 @@ from backend.app.api.hypotheses import router as hypotheses_router
 from backend.app.api.memories import router as memories_router
 from backend.app.api.messages import router as messages_router
 from backend.app.api.openclaw import router as openclaw_router
+from backend.app.api.portfolio import router as portfolio_router
 from backend.app.api.photon import router as photon_router
 from backend.app.api.reviews import router as reviews_router
 from backend.app.api.runs import router as runs_router
+from backend.app.api.scan import router as scan_router
 from backend.app.api.spectrum import router as spectrum_router
 from backend.app.api.strategy import router as strategy_router
 from backend.app.db import Base, apply_runtime_migrations, engine
@@ -72,12 +74,14 @@ app.include_router(hypotheses_router)
 app.include_router(blueprints_router)
 app.include_router(graph_router)
 app.include_router(openclaw_router)
+app.include_router(portfolio_router)
 app.include_router(spectrum_router)
 app.include_router(photon_router)
 app.include_router(memories_router)
 app.include_router(reviews_router)
 app.include_router(strategy_router)
 app.include_router(messages_router)
+app.include_router(scan_router)
 
 
 @app.get("/")

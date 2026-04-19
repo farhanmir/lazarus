@@ -15,6 +15,16 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _fit_run_recommendation(value: str | None) -> str | None:
+    """Keep final run recommendation within the DB column limit."""
+    if value is None:
+        return None
+    cleaned = " ".join(value.split())
+    if len(cleaned) <= 64:
+        return cleaned
+    return f"{cleaned[:61].rstrip()}..."
+
+
 def create_asset(db: Session, payload: schemas.AssetCreate) -> models.CompanyAsset:
     asset = models.CompanyAsset(**payload.model_dump())
     db.add(asset)
@@ -89,7 +99,7 @@ def update_run_status(
     if final_confidence is not None:
         run.final_confidence = final_confidence
     if final_recommendation is not None:
-        run.final_recommendation = final_recommendation
+        run.final_recommendation = _fit_run_recommendation(final_recommendation)
     db.add(run)
     db.commit()
     db.refresh(run)
@@ -151,6 +161,15 @@ def get_hypothesis(db: Session, hypothesis_id: UUID) -> models.Hypothesis | None
 
 def list_hypotheses(db: Session) -> list[models.Hypothesis]:
     stmt = select(models.Hypothesis).order_by(models.Hypothesis.created_at.desc())
+    return list(db.scalars(stmt).all())
+
+
+def list_hypotheses_by_asset(db: Session, asset_id: UUID) -> list[models.Hypothesis]:
+    stmt = (
+        select(models.Hypothesis)
+        .where(models.Hypothesis.asset_id == asset_id)
+        .order_by(models.Hypothesis.created_at.desc())
+    )
     return list(db.scalars(stmt).all())
 
 
@@ -337,6 +356,20 @@ def list_human_reviews(db: Session, *, status: str | None = None) -> list[models
     return list(db.scalars(stmt).all())
 
 
+def list_human_reviews_with_context(db: Session, *, status: str | None = None) -> list[models.HumanReview]:
+    stmt = (
+        select(models.HumanReview)
+        .options(
+            selectinload(models.HumanReview.asset),
+            selectinload(models.HumanReview.run),
+        )
+        .order_by(models.HumanReview.created_at.desc())
+    )
+    if status:
+        stmt = stmt.where(models.HumanReview.status == status)
+    return list(db.scalars(stmt).all())
+
+
 def get_human_review(db: Session, review_id: UUID) -> models.HumanReview | None:
     return db.get(models.HumanReview, review_id)
 
@@ -393,6 +426,16 @@ def get_effort_analysis_by_hypothesis(db: Session, hypothesis_id: UUID) -> model
     return db.scalar(stmt)
 
 
+def get_latest_effort_analysis_by_asset(db: Session, asset_id: UUID) -> models.EffortAnalysis | None:
+    stmt = (
+        select(models.EffortAnalysis)
+        .join(models.Hypothesis, models.EffortAnalysis.hypothesis_id == models.Hypothesis.id)
+        .where(models.Hypothesis.asset_id == asset_id)
+        .order_by(models.EffortAnalysis.created_at.desc())
+    )
+    return db.scalar(stmt)
+
+
 # --- Impact Analysis ---
 
 
@@ -430,6 +473,16 @@ def get_impact_analysis_by_hypothesis(db: Session, hypothesis_id: UUID) -> model
     return db.scalar(stmt)
 
 
+def get_latest_impact_analysis_by_asset(db: Session, asset_id: UUID) -> models.ImpactAnalysis | None:
+    stmt = (
+        select(models.ImpactAnalysis)
+        .join(models.Hypothesis, models.ImpactAnalysis.hypothesis_id == models.Hypothesis.id)
+        .where(models.Hypothesis.asset_id == asset_id)
+        .order_by(models.ImpactAnalysis.created_at.desc())
+    )
+    return db.scalar(stmt)
+
+
 # --- Messages ---
 
 
@@ -460,3 +513,87 @@ def list_messages(db: Session, run_id: UUID) -> list[models.Message]:
         .order_by(models.Message.created_at.asc())
     )
     return list(db.scalars(stmt).all())
+
+
+# --- Watchlist ---
+
+
+def create_watchlist(db: Session, disease_query: str) -> models.DiseaseWatchlist:
+    wl = models.DiseaseWatchlist(disease_query=disease_query)
+    db.add(wl)
+    db.commit()
+    db.refresh(wl)
+    return wl
+
+
+def list_watchlists(db: Session) -> list[models.DiseaseWatchlist]:
+    stmt = (
+        select(models.DiseaseWatchlist)
+        .order_by(models.DiseaseWatchlist.created_at.desc())
+    )
+    return list(db.scalars(stmt).all())
+
+
+def get_watchlist(db: Session, watchlist_id: UUID) -> models.DiseaseWatchlist | None:
+    return db.get(models.DiseaseWatchlist, watchlist_id)
+
+
+def complete_watchlist(db: Session, watchlist: models.DiseaseWatchlist) -> models.DiseaseWatchlist:
+    watchlist.status = "completed"
+    watchlist.completed_at = now_utc()
+    db.commit()
+    db.refresh(watchlist)
+    return watchlist
+
+
+def create_watchlist_alert(
+    db: Session,
+    *,
+    watchlist_id: UUID,
+    asset_id: UUID,
+    run_id: UUID,
+    hypothesis_id: UUID,
+    asset_code: str,
+    drug_name: str,
+    original_indication: str,
+    matched_disease: str,
+    final_confidence: float,
+    risk_level: str,
+    summary: str,
+) -> models.WatchlistAlert:
+    alert = models.WatchlistAlert(
+        watchlist_id=watchlist_id,
+        asset_id=asset_id,
+        run_id=run_id,
+        hypothesis_id=hypothesis_id,
+        asset_code=asset_code,
+        drug_name=drug_name,
+        original_indication=original_indication,
+        matched_disease=matched_disease,
+        final_confidence=final_confidence,
+        risk_level=risk_level,
+        summary=summary,
+    )
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+    return alert
+
+
+def list_active_alerts(db: Session) -> list[models.WatchlistAlert]:
+    stmt = (
+        select(models.WatchlistAlert)
+        .where(models.WatchlistAlert.dismissed == False)  # noqa: E712
+        .order_by(models.WatchlistAlert.final_confidence.desc())
+    )
+    return list(db.scalars(stmt).all())
+
+
+def dismiss_alert(db: Session, alert_id: UUID) -> models.WatchlistAlert | None:
+    alert = db.get(models.WatchlistAlert, alert_id)
+    if alert is None:
+        return None
+    alert.dismissed = True
+    db.commit()
+    db.refresh(alert)
+    return alert

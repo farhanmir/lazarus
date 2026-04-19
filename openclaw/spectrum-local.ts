@@ -25,6 +25,38 @@ const localModeEnabled = (process.env.IMESSAGE_LOCAL || "").toLowerCase() === "t
 const localBridgePort = Number(process.env.SPECTRUM_LOCAL_BRIDGE_PORT || "8765");
 const localBridgePath = process.env.SPECTRUM_SEND_PATH || "/messages";
 
+/**
+ * Normalize recipient for the iMessage Kit SDK.
+ *
+ * The SDK's `send()` auto-detects routing based on the `to` value:
+ * - Raw phone number (+1234567890) → uses `buddy` AppleScript (correct)
+ * - 2-part chat ref (iMessage;+1234567890) → extracts recipient, uses `buddy`
+ * - 3-part format (iMessage;-;+1234567890) → treated as unknown chat id, FAILS
+ * - Chat GUID → uses `chat id` AppleScript
+ * - Email → uses `buddy` AppleScript
+ *
+ * This helper strips the legacy 3-part `iMessage;-;` prefix if present,
+ * so the SDK receives a clean phone number it can route correctly.
+ */
+function ensureImessageService(recipient: string): string {
+  const trimmed = recipient.trim();
+
+  // Strip the 3-part iMessage;-;+phone format → raw phone number
+  const threePartMatch = trimmed.match(/^iMessage;-;(.+)$/);
+  if (threePartMatch) {
+    return threePartMatch[1];
+  }
+
+  // SMS;-;+phone → strip to raw phone as well (SDK will route via iMessage buddy)
+  const smsMatch = trimmed.match(/^SMS;-;(.+)$/);
+  if (smsMatch) {
+    return smsMatch[1];
+  }
+
+  // 2-part format (iMessage;+phone), chat GUIDs, emails, raw numbers → pass through
+  return trimmed;
+}
+
 function formatHelp(): string {
   return [
     "Lazarus is ready.",
@@ -142,7 +174,8 @@ async function main(): Promise<void> {
           return;
         }
 
-        await sdk.send(recipient, message);
+        const imessageRecipient = ensureImessageService(recipient);
+        await sdk.send(imessageRecipient, message);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, status: "sent" }));
       } catch (error) {
@@ -176,7 +209,8 @@ async function main(): Promise<void> {
         return;
       }
 
-      const destination = message.chatId || message.sender;
+      const rawDestination = message.chatId || message.sender;
+      const destination = ensureImessageService(rawDestination);
       console.log(`Incoming Spectrum command from ${destination}: ${text}`);
 
       try {

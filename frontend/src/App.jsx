@@ -7,10 +7,15 @@ import BlueprintProgress from './components/BlueprintProgress'
 import BlueprintViewer from './components/BlueprintViewer'
 import ConfidenceGauge from './components/ConfidenceGauge'
 import EffortImpactChart from './components/EffortImpactChart'
+import HumanReviewDashboard from './components/HumanReviewDashboard'
+import HypothesisComparisonPanel from './components/HypothesisComparisonPanel'
 import InteractiveGraph from './components/InteractiveGraph'
 import MessagingPanel from './components/MessagingPanel'
 import MetricsBar from './components/MetricsBar'
+import MultiDiseaseScanPanel from './components/MultiDiseaseScanPanel'
+import WatchlistPanel from './components/WatchlistPanel'
 import NodeDetailsPanel from './components/NodeDetailsPanel'
+import PortfolioRankingPanel from './components/PortfolioRankingPanel'
 import RiskBadge from './components/RiskBadge'
 import { GlobeScene } from './components/GlobeScene'
 import { AgentLogFeed } from './components/AgentLogFeed'
@@ -19,8 +24,12 @@ import { useRunStatus } from './hooks/useRunStatus'
 import {
   fetchAssets,
   fetchBlueprintDetail,
+  fetchHumanReviewDashboard,
   fetchGraph,
+  fetchHypothesisComparison,
+  fetchPortfolioRanking,
   getBlueprintDownloadUrl,
+  resolveHumanReview,
   startAnalysisJob,
   startBlueprintJob,
   subscribeRunStream,
@@ -30,10 +39,15 @@ const emptyGraph = { nodes: [], links: [] }
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'portfolio', label: 'Portfolio' },
   { id: 'graph',     label: 'Graph' },
   { id: 'agents',    label: 'Agents' },
   { id: 'strategy',  label: 'Strategy' },
+  { id: 'compare',   label: 'Compare' },
+  { id: 'reviews',   label: 'Reviews' },
   { id: 'messages',  label: 'Messages' },
+  { id: 'scan',      label: 'Scan' },
+  { id: 'watchlist', label: 'Watchlist' },
   { id: 'blueprint', label: 'Blueprint' },
 ]
 
@@ -57,12 +71,21 @@ function App() {
   const [activeTab, setActiveTab]         = useState('dashboard')
   const [query, setQuery]                 = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [portfolioRanking, setPortfolioRanking] = useState(null)
+  const [portfolioLoading, setPortfolioLoading] = useState(false)
+  const [portfolioError, setPortfolioError] = useState('')
+  const [reviewDashboard, setReviewDashboard] = useState(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const [hypothesisComparison, setHypothesisComparison] = useState(null)
+  const [comparisonLoading, setComparisonLoading] = useState(false)
+  const [comparisonError, setComparisonError] = useState('')
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
   const deferredGraphData    = useDeferredValue(graphData)
   const deferredSelectedNode = useDeferredValue(selectedNode)
   const runStatus = useRunStatus(analysisResult?.run, { analysisLoading, errorMessage })
-  const { details: nodeDetails, legendItems } = useGraphData(deferredGraphData, deferredSelectedNode)
+  const { details: nodeDetails, overview: graphOverview, legendItems } = useGraphData(deferredGraphData, deferredSelectedNode)
 
   const filteredAssets = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -167,6 +190,36 @@ function App() {
       .catch(() => setErrorMessage('Unable to load assets from the Lazarus backend.'))
   }, [])
 
+  useEffect(() => {
+    if (activeTab !== 'portfolio') return
+    setPortfolioLoading(true)
+    setPortfolioError('')
+    fetchPortfolioRanking()
+      .then(setPortfolioRanking)
+      .catch(() => setPortfolioError('Unable to build the portfolio ranking board right now.'))
+      .finally(() => setPortfolioLoading(false))
+  }, [activeTab, analysisResult?.run?.id])
+
+  useEffect(() => {
+    if (activeTab !== 'reviews') return
+    setReviewLoading(true)
+    setReviewError('')
+    fetchHumanReviewDashboard()
+      .then(setReviewDashboard)
+      .catch(() => setReviewError('Unable to load the human review queue right now.'))
+      .finally(() => setReviewLoading(false))
+  }, [activeTab, analysisResult?.run?.id])
+
+  useEffect(() => {
+    if (activeTab !== 'compare' || !selectedAssetId) return
+    setComparisonLoading(true)
+    setComparisonError('')
+    fetchHypothesisComparison(selectedAssetId)
+      .then(setHypothesisComparison)
+      .catch(() => setComparisonError('Unable to compare hypotheses for the selected asset.'))
+      .finally(() => setComparisonLoading(false))
+  }, [activeTab, selectedAssetId, analysisResult?.run?.id])
+
   const resetGraph = () => {
     setGraphData(emptyGraph)
     setSelectedNode(null)
@@ -243,6 +296,16 @@ function App() {
       setErrorMessage(error?.response?.data?.detail ?? error.message ?? 'Blueprint generation failed.')
     } finally {
       setBlueprintLoading(false)
+    }
+  }
+
+  const handleResolveReview = async (reviewId) => {
+    await resolveHumanReview(reviewId, 'Resolved from Lazarus review dashboard.')
+    const data = await fetchHumanReviewDashboard()
+    setReviewDashboard(data)
+    if (activeTab === 'portfolio') {
+      const ranking = await fetchPortfolioRanking()
+      setPortfolioRanking(ranking)
     }
   }
 
@@ -497,6 +560,21 @@ function App() {
               )}
 
               {/* ═══ GRAPH ═══ */}
+              {activeTab === 'portfolio' && (
+                <motion.div key="portfolio" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <PortfolioRankingPanel
+                    ranking={portfolioRanking}
+                    loading={portfolioLoading}
+                    error={portfolioError}
+                    onSelectAsset={(assetId) => {
+                      setSelectedAssetId(assetId)
+                      setActiveTab('compare')
+                    }}
+                  />
+                </motion.div>
+              )}
+
+              {/* ═══ GRAPH ═══ */}
               {activeTab === 'graph' && (
                 <motion.div key="graph" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(280px,0.6fr)', gap: 'var(--space-4)' }}>
@@ -508,7 +586,7 @@ function App() {
                       runStatus={analysisResult?.run?.status ?? 'idle'}
                       legendItems={legendItems}
                     />
-                    <NodeDetailsPanel details={nodeDetails} />
+                    <NodeDetailsPanel details={nodeDetails} overview={graphOverview} />
                   </div>
                 </motion.div>
               )}
@@ -527,10 +605,47 @@ function App() {
                 </motion.div>
               )}
 
+              {/* ═══ COMPARE ═══ */}
+              {activeTab === 'compare' && (
+                <motion.div key="compare" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <HypothesisComparisonPanel
+                    comparison={hypothesisComparison}
+                    loading={comparisonLoading}
+                    error={comparisonError}
+                  />
+                </motion.div>
+              )}
+
+              {/* ═══ REVIEWS ═══ */}
+              {activeTab === 'reviews' && (
+                <motion.div key="reviews" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <HumanReviewDashboard
+                    dashboard={reviewDashboard}
+                    loading={reviewLoading}
+                    error={reviewError}
+                    onResolve={handleResolveReview}
+                  />
+                </motion.div>
+              )}
+
               {/* ═══ MESSAGES ═══ */}
               {activeTab === 'messages' && (
                 <motion.div key="messages" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <MessagingPanel runId={analysisResult?.run?.id} />
+                </motion.div>
+              )}
+
+              {/* ═══ MULTI-DISEASE SCAN ═══ */}
+              {activeTab === 'scan' && (
+                <motion.div key="scan" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <MultiDiseaseScanPanel assets={assets} />
+                </motion.div>
+              )}
+
+              {/* ═══ WATCHLIST ═══ */}
+              {activeTab === 'watchlist' && (
+                <motion.div key="watchlist" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <WatchlistPanel />
                 </motion.div>
               )}
 

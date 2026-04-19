@@ -5,6 +5,7 @@
 .env.*
 !.env.example
 openclaw/.env
+.envrc
 
 # Python
 venv/
@@ -12,6 +13,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+coverage/
+.coverage
 
 # Node
 node_modules/
@@ -19,6 +22,7 @@ frontend/node_modules/
 openclaw/node_modules/
 frontend/dist/
 openclaw/dist/
+dist/
 
 # Local services and generated outputs
 .rocketride/
@@ -26,6 +30,8 @@ artifacts/
 lazarus-blueprint-*.pdf
 *.sqlite
 *.db
+*.log
+*.pid
 
 # Editor / OS noise
 .idea/

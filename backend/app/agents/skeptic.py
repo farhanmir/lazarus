@@ -7,7 +7,8 @@ import os
 
 from backend.app.agents.prompts import SKEPTIC_PROMPT
 from backend.app.agents.types import AdvocateOutput, AssetContext, SkepticOutput
-from backend.app.services.llm_service import dedalus_chat_completion, k2_chat_completion
+from backend.app.services.llm_service import openai_chat_completion
+from backend.app.services.pubmed_service import check_hallucinated_citations
 
 
 OPENAI_SKEPTIC_MODEL_NAME = "gpt-4o-mini"

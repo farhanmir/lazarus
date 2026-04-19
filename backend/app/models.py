@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -222,3 +222,40 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     run: Mapped["AgentRun"] = relationship()
+
+
+class DiseaseWatchlist(Base):
+    """User watchlist: 'alert me if any drug can treat this disease.'"""
+    __tablename__ = "disease_watchlists"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    disease_query: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", server_default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    alerts: Mapped[list["WatchlistAlert"]] = relationship(back_populates="watchlist", cascade="all, delete-orphan")
+
+
+class WatchlistAlert(Base):
+    """Fired when a background scan finds a drug matching a watchlist disease."""
+    __tablename__ = "watchlist_alerts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    watchlist_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("disease_watchlists.id"), nullable=False, index=True)
+    asset_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company_assets.id"), nullable=False)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_runs.id"), nullable=False)
+    hypothesis_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("hypotheses.id"), nullable=False)
+    asset_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    drug_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_indication: Mapped[str] = mapped_column(String(255), nullable=False)
+    matched_disease: Mapped[str] = mapped_column(String(255), nullable=False)
+    final_confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    risk_level: Mapped[str] = mapped_column(String(32), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    watchlist: Mapped["DiseaseWatchlist"] = relationship(back_populates="alerts")
+    asset: Mapped["CompanyAsset"] = relationship()
+    hypothesis: Mapped["Hypothesis"] = relationship()

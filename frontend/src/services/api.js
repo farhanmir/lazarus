@@ -154,8 +154,20 @@ export const fetchBlueprintDetail = async (blueprintId) => {
 export const getBlueprintDownloadUrl = (blueprintId) =>
   `${api.defaults.baseURL}/blueprints/${blueprintId}/download`
 
+export const emailBlueprint = async (blueprintId, recipientEmail) => {
+  const { data } = await api.post(`/blueprints/${blueprintId}/email`, {
+    recipient_email: recipientEmail,
+  })
+  return data
+}
+
 export const fetchEffortImpact = async (runId) => {
   const { data } = await api.get(`/runs/${runId}/effort-impact`)
+  return data
+}
+
+export const fetchPortfolioRanking = async () => {
+  const { data } = await api.get('/portfolio/ranking')
   return data
 }
 
@@ -174,11 +186,98 @@ export const fetchConversation = async (runId) => {
   return data
 }
 
+export const fetchHumanReviewDashboard = async (statusFilter) => {
+  const { data } = await api.get('/human-reviews/dashboard', {
+    params: statusFilter ? { status_filter: statusFilter } : undefined,
+  })
+  return data
+}
+
+export const resolveHumanReview = async (reviewId, resolutionNotes) => {
+  const { data } = await api.post(`/human-reviews/${reviewId}/resolve`, {
+    resolution_notes: resolutionNotes,
+  })
+  return data
+}
+
+export const fetchHypothesisComparison = async (assetId) => {
+  const { data } = await api.get(`/assets/${assetId}/hypotheses/compare`)
+  return data
+}
+
 export const sendMessage = async (runId, question) => {
   const { data } = await api.post(`/runs/${runId}/messages`, {
     run_id: runId,
     question,
   })
+  return data
+}
+
+// --- Multi-Disease Scan ---
+
+export const runMultiDiseaseScan = async (assetId, targetDiseases = []) => {
+  const { data } = await api.post('/scan/multi-disease', {
+    asset_id: assetId,
+    target_diseases: targetDiseases,
+  })
+  return data
+}
+
+export const fetchKnownDiseases = async () => {
+  const { data } = await api.get('/scan/diseases')
+  return data.diseases
+}
+
+export const searchDrugs = async (query) => {
+  if (!query || query.length < 2) return []
+  const { data } = await api.get('/scan/drugs', { params: { q: query } })
+  return data.drugs
+}
+
+export const importDrugAsAsset = async (drug) => {
+  const { data } = await api.post('/scan/import-drug', {
+    chembl_id: drug.chembl_id,
+    drug_name: drug.name,
+    description: drug.description,
+    drug_type: drug.drug_type,
+    max_phase: drug.max_phase,
+  })
+  return data
+}
+
+export const fetchDrugContext = async (drugName, disease = '') => {
+  const { data } = await api.get('/scan/drug-context', {
+    params: { drug_name: drugName, disease },
+  })
+  return data
+}
+
+// --- Disease Watchlist ---
+
+export const createWatchlist = async (diseaseQuery) => {
+  const { data } = await api.post('/watchlist', {
+    disease_query: diseaseQuery,
+  })
+  return data
+}
+
+export const fetchWatchlists = async () => {
+  const { data } = await api.get('/watchlist')
+  return data
+}
+
+export const fetchWatchlist = async (watchlistId) => {
+  const { data } = await api.get(`/watchlist/${watchlistId}`)
+  return data
+}
+
+export const fetchActiveAlerts = async () => {
+  const { data } = await api.get('/alerts')
+  return data
+}
+
+export const dismissAlert = async (alertId) => {
+  const { data } = await api.post(`/alerts/${alertId}/dismiss`)
   return data
 }
 

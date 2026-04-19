@@ -1,0 +1,50 @@
+{
+  "agent": {
+    "model": "openai/gpt-4o"
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "./",
+      "skills": ["lazarus"],
+      "tools": {
+        "profile": "coding"
+      }
+    }
+  },
+  "skills": {
+    "load": {
+      "extraDirs": ["./skills"],
+      "watch": true
+    },
+    "entries": {
+      "lazarus": {
+        "enabled": true,
+        "env": {
+          "LAZARUS_BASE_URL": "http://127.0.0.1:8000"
+        }
+      }
+    }
+  },
+  "hooks": {
+    "enabled": true,
+    "token": "lazarus-openclaw-hook-token",
+    "path": "/hooks",
+    "mappings": {
+      "lazarus-review": {
+        "action": "agent",
+        "template": "Review asset {{asset_code}} using the Lazarus pipeline. Generate a blueprint: {{generate_blueprint}}."
+      },
+      "lazarus-blueprint": {
+        "action": "agent",
+        "template": "Generate a blueprint for asset {{asset_code}} using Lazarus."
+      },
+      "lazarus-search": {
+        "action": "agent",
+        "template": "Search for drug '{{query}}' using the Lazarus drug search API and summarize the results."
+      }
+    }
+  },
+  "gateway": {
+    "port": 18789
+  }
+}

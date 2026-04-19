@@ -7,16 +7,16 @@ import os
 
 from backend.app.agents.prompts import ADVOCATE_PROMPT
 from backend.app.agents.types import AdvocateOutput, AssetContext
-from backend.app.services.llm_service import gemini_chat_completion
+from backend.app.services.llm_service import openai_chat_completion
 
 
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
+OPENAI_ADVOCATE_MODEL_NAME = "gpt-4o"
 logger = logging.getLogger(__name__)
 
 
 def run_advocate(context: AssetContext) -> AdvocateOutput:
-    """Run the Advocate agent: tries Gemini direct, then deterministic fallback."""
-    advocate_model = os.getenv("DEDALUS_ADVOCATE_MODEL", "google/gemini-2.5-flash")
+    """Run the Advocate agent: tries OpenAI direct, then deterministic fallback."""
+    advocate_model = os.getenv("OPENAI_ADVOCATE_MODEL", OPENAI_ADVOCATE_MODEL_NAME)
 
     response_schema = {
         "type": "object",
@@ -39,23 +39,23 @@ def run_advocate(context: AssetContext) -> AdvocateOutput:
         "Return one best repurposed disease."
     )
 
-    # --- Try 1: Gemini direct (no Dedalus credits needed) ---
+    # --- Try 1: OpenAI direct ---
     logger.info("[agent:advocate] start asset=%s", context.asset_code)
-    llm_output = gemini_chat_completion(
-        model=GEMINI_MODEL_NAME,
+    llm_output = openai_chat_completion(
+        model=advocate_model,
         system_prompt=ADVOCATE_PROMPT,
         user_prompt=user_prompt,
         response_schema=response_schema,
     )
     if llm_output:
         try:
-            logger.info("[agent:advocate] resolved via gemini_live asset=%s", context.asset_code)
+            logger.info("[agent:advocate] resolved via openai_live asset=%s model=%s", context.asset_code, advocate_model)
             return AdvocateOutput(
                 proposed_disease=str(llm_output["proposed_disease"]),
                 reasoning=str(llm_output["reasoning"]),
                 confidence=float(llm_output["confidence"]),
-                model_used=GEMINI_MODEL_NAME,
-                mode="gemini_live",
+                model_used=advocate_model,
+                mode="openai_live",
             )
         except (KeyError, TypeError, ValueError):
             pass
@@ -73,6 +73,6 @@ def run_advocate(context: AssetContext) -> AdvocateOutput:
         proposed_disease=proposed_disease,
         reasoning=reasoning,
         confidence=confidence,
-        model_used=advocate_model or GEMINI_MODEL_NAME,
+        model_used=advocate_model,
         mode="deterministic_fallback",
     )

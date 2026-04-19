@@ -1,83 +1,94 @@
-# Lazarus OpenClaw on Dedalus Cloud
+# Lazarus OpenClaw — AI Agent Framework + Spectrum Bridge
 
-This package deploys OpenClaw onto a Dedalus Cloud Services machine and gives
-you a fast path to chat with it through the gateway HTTP API.
+Local OpenClaw integration for Lazarus. OpenClaw is a self-hosted AI agent
+framework that can operate the Lazarus pipeline through skills, tools, and
+webhooks.
 
-Lazarus remains the reasoning backend. OpenClaw becomes the operator layer.
-It also includes a local Spectrum/iMessage bridge for hackathon demos on macOS.
+## Architecture
+
+```
+┌──────────────┐     exec/curl      ┌────────────────────┐
+│   OpenClaw   │ ─────────────────► │  Lazarus Backend   │
+│  Gateway     │                    │  (FastAPI :8000)   │
+│  (:18789)    │ ◄───── webhook ─── │                    │
+└──────────────┘                    └────────────────────┘
+      │                                      │
+      ▼                                      ▼
+  Skills/Tools                         Multi-Agent Pipeline
+  - lazarus skill                      - Advocate → Skeptic
+  - exec tool                          - Evidence → Judge
+  - web_fetch                          - Blueprint generation
+```
+
+OpenClaw talks to Lazarus via HTTP (exec + curl or web_fetch). Lazarus can
+optionally notify OpenClaw back via the webhook client.
 
 ## Files
 
-- `openclaw.ts`: create or reuse a machine, install OpenClaw, configure the
-  gateway, launch it, verify it, and send test chats
-- `chat.ts`: send one message to an existing machine
-- `spectrum-local.ts`: listen for local iMessage commands and forward them to
-  Lazarus through `/spectrum/webhook`
-- `.env.example`: required environment variables
+- `openclaw.json` — OpenClaw gateway configuration
+- `skills/lazarus/SKILL.md` — Lazarus skill (teaches OpenClaw the API)
+- `spectrum-local.ts` — iMessage bridge (separate from OpenClaw)
 
-## Setup
+## Quick Start
+
+### 1. Install OpenClaw
+
+```bash
+npm install -g openclaw@latest
+openclaw onboard --install-daemon
+```
+
+Requires Node 22.16+ or Node 24.
+
+### 2. Start the Gateway
 
 ```bash
 cd openclaw
-cp .env.example .env
-npm install
+npm run openclaw:gateway
+# or directly:
+openclaw gateway --port 18789
 ```
 
-Fill `.env` with:
-
-- `DEDALUS_API_KEY`
-- one provider key for OpenClaw itself such as `GEMINI_API_KEY`
-- optional `OPENCLAW_MACHINE_ID` to reuse an existing machine
-- optional `OPENCLAW_GATEWAY_AUTH_MODE=token` and `OPENCLAW_GATEWAY_TOKEN`
-- optional `LAZARUS_BASE_URL`
-
-## Deploy
+### 3. Make sure Lazarus backend is running
 
 ```bash
-npm run deploy
+cd backend && uvicorn app.main:app --reload --port 8000
 ```
 
-This prints:
+### 4. Talk to OpenClaw
 
-- the Dedalus machine id
-- OpenClaw version
-- a short greeting
-- a Monday-use-case response
-- the Lazarus bridge endpoints it should call next
+OpenClaw will use the `lazarus` skill to interact with the Lazarus API.
+You can ask it to review assets, search drugs, generate blueprints, etc.
 
-## Chat
+## Webhooks
+
+Lazarus can push events to OpenClaw via mapped hooks:
 
 ```bash
-npm run chat -- <machine-id> "What can you do for Lazarus?"
+# Trigger a review
+curl -X POST http://127.0.0.1:18789/hooks/lazarus-review \
+  -H "Authorization: Bearer lazarus-openclaw-hook-token" \
+  -H "Content-Type: application/json" \
+  -d '{"asset_code": "RX-782", "generate_blueprint": "true"}'
+
+# Search for a drug
+curl -X POST http://127.0.0.1:18789/hooks/lazarus-search \
+  -H "Authorization: Bearer lazarus-openclaw-hook-token" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "imatinib"}'
 ```
 
-If `OPENCLAW_MACHINE_ID` is set in `.env`, the machine id argument is optional.
+## Environment Variables
 
-## Local Spectrum / iMessage
+| Variable | Default | Description |
+|---|---|---|
+| `LAZARUS_BASE_URL` | `http://127.0.0.1:8000` | Lazarus backend URL |
+| `OPENCLAW_GATEWAY_URL` | `http://127.0.0.1:18789` | OpenClaw gateway URL |
+| `OPENCLAW_HOOK_TOKEN` | `lazarus-openclaw-hook-token` | Shared webhook token |
 
-```bash
-npm run spectrum:local
-```
+---
 
-This mode:
-
-- requires macOS with Full Disk Access granted to your terminal
-- watches direct iMessage chats through `@photon-ai/imessage-kit`
-- forwards supported commands to `LAZARUS_BASE_URL/spectrum/webhook`
-- replies back into the same conversation
-- exposes a tiny local send bridge so the dashboard can push a summary message
-
-Supported commands:
-
-- `review RX-782`
-- `analyze RX-901`
-- `blueprint RX-782`
-- `help`
-
-Recommended env for local mode:
-
-- `IMESSAGE_LOCAL=true`
-- `LAZARUS_BASE_URL=http://127.0.0.1:8000`
+## Spectrum / iMessage Bridge (separate)
 - `SPECTRUM_BASE_URL=http://127.0.0.1:8765`
 - `SPECTRUM_RECIPIENT=<your phone number or chat id>`
 
@@ -86,34 +97,16 @@ short summary message through the local Spectrum bridge.
 
 ## Lazarus bridge endpoints
 
-OpenClaw should call these Lazarus routes:
+The Spectrum bridge calls these Lazarus routes:
 
+- `POST /spectrum/webhook`
 - `POST /openclaw/review-asset`
 - `POST /openclaw/generate-blueprint`
 
-See:
-
-- `../backend/app/README_OPENCLAW.md`
-- `lazarus-openclaw-example.json`
-
-## Keys needed
-
-For this package:
-
-- `DEDALUS_API_KEY`
-- one provider key for the model OpenClaw should use, for example
-  `GEMINI_API_KEY`
-
-Optional:
-
-- `OPENCLAW_GATEWAY_TOKEN`
-- `OPENCLAW_SHARED_TOKEN` for Lazarus bearer protection
+See `../backend/app/README_OPENCLAW.md` for details.
 
 ## Notes
 
-- OpenClaw is installed under `/home/machine` to avoid root filesystem space
-  issues on Dedalus Cloud machines.
-- The gateway is started through a detached script using `setsid`.
-- The package uses `/v1/chat/completions` as the synchronous verification path.
-- The local Spectrum bridge is intentionally thin: Lazarus still owns the
+- The local Spectrum bridge is intentionally thin: Lazarus owns the
   multi-agent reasoning, graph, and blueprint pipeline.
+- No cloud infrastructure (Dedalus) is required.
