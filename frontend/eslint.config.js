@@ -10,6 +10,14 @@ export default [
     ignores: ['dist', 'node_modules'],
   },
   {
+    files: ['vite.config.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: globals.node,
+    },
+  },
+  {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 'latest',
