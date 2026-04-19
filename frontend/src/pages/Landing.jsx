@@ -95,7 +95,7 @@ export default function Landing() {
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className="ln-nav-brand">
-          <img src="/icon.png" alt="Lazarus" className="ln-nav-logo" />
+          <img src="/logo.png" alt="Lazarus" className="ln-nav-logo" />
           <span>Lazarus</span>
           <span className="ln-nav-sub">R&amp;D / Lab</span>
         </div>
