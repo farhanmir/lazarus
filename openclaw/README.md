@@ -109,4 +109,4 @@ See `../backend/app/README_OPENCLAW.md` for details.
 
 - The local Spectrum bridge is intentionally thin: Lazarus owns the
   multi-agent reasoning, graph, and blueprint pipeline.
-- No cloud infrastructure (Dedalus) is required.
+- No separate cloud agent infrastructure is required.

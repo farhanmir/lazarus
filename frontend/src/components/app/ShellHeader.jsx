@@ -36,7 +36,7 @@ function ShellHeader({
           <span className="system-status-label">Online</span>
         </div>
         <div className="hud-services">
-          {['Postgres', 'Neo4j', 'Dedalus', 'K2 Think', 'Spectrum'].map((service) => (
+          {['Postgres', 'Neo4j', 'OpenAI', 'K2 Think', 'Spectrum'].map((service) => (
             <span key={service} className="hud-service">
               {service}
             </span>

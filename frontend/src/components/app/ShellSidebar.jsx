@@ -8,7 +8,7 @@ function ShellSidebar({ analysisLoading, runTrace }) {
     <aside className="nexus-left">
       <Link to="/" className="nexus-brand" style={{ textDecoration: 'none', display: 'block' }}>
         <span className="brand-title">Lazarus</span>
-        <span className="brand-sub">Bio-R&amp;D Swarm · Dedalus Cluster</span>
+        <span className="brand-sub">Bio-R&amp;D Swarm · Clinical Reasoning Cluster</span>
       </Link>
 
       <div className="globe-wrap">

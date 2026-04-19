@@ -13,7 +13,10 @@ from backend.app.services.openclaw_service import (
     generate_blueprint_for_openclaw,
     review_asset_by_code,
 )
-from backend.app.services.spectrum_service import send_spectrum_reply
+from backend.app.services.spectrum_service import (
+    remember_active_spectrum_recipient,
+    send_spectrum_reply,
+)
 
 router = APIRouter(prefix="/photon", tags=["photon"])
 
@@ -58,6 +61,7 @@ def _maybe_reply_to_sender(
     sender_id = (payload.sender_id or "").strip()
     if not sender_id:
         return
+    remember_active_spectrum_recipient(sender_id)
     send_spectrum_reply(
         recipient=sender_id,
         message=response_text,

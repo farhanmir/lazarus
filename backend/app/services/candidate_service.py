@@ -11,8 +11,8 @@ from backend.app.agents.advocate import run_advocate
 from backend.app.services.context_service import build_asset_context
 from backend.app.services.discovery_service import fetch_lazarus_candidates
 from backend.app.services.llm_service import (
-    dedalus_chat_completion,
     gemini_chat_completion,
+    openai_chat_completion,
 )
 
 
@@ -253,8 +253,8 @@ def _build_trial_brief(
         response_schema=response_schema,
     )
     if llm_output is None:
-        llm_output = dedalus_chat_completion(
-            model="google/gemini-2.5-flash",
+        llm_output = openai_chat_completion(
+            model="gpt-4o-mini",
             system_prompt=(
                 "You are a clinical trial search analyst. You rank failed trials for disease rescue. "
                 "Use only the provided database context. Explain why the trial is relevant and how it could be repurposed. "
@@ -262,7 +262,6 @@ def _build_trial_brief(
             ),
             user_prompt=user_prompt,
             response_schema=response_schema,
-            provider="google",
         )
 
     if isinstance(llm_output, dict):

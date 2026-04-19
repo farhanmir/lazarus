@@ -327,7 +327,7 @@ function App() {
           {/* Brand header */}
           <Link to="/" className="nexus-brand" style={{ textDecoration: 'none', display: 'block' }}>
             <span className="brand-title">Lazarus</span>
-            <span className="brand-sub">Bio-R&amp;D Swarm · Dedalus Cluster</span>
+            <span className="brand-sub">Bio-R&amp;D Swarm · Clinical Reasoning Cluster</span>
           </Link>
 
           {/* Globe */}
@@ -358,7 +358,7 @@ function App() {
                 </span>
               </div>
               <div className="hud-services">
-                {['Postgres', 'Neo4j', 'Dedalus', 'K2 Think', 'Spectrum'].map((s) => (
+                {['Postgres', 'Neo4j', 'OpenAI', 'K2 Think', 'Spectrum'].map((s) => (
                   <span key={s} className="hud-service">{s}</span>
                 ))}
               </div>

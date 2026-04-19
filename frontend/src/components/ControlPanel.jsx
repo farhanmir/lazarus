@@ -43,7 +43,7 @@ function ControlPanel({
           <div className="flex flex-wrap items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
             <span className="hud-dot">Postgres</span>
             <span className="hud-dot">Neo4j</span>
-            <span className="hud-dot">Dedalus</span>
+            <span className="hud-dot">OpenAI</span>
             <span className="hud-dot">K2 Think</span>
             <span className="hud-dot">Spectrum</span>
           </div>

@@ -2,7 +2,7 @@
 
 Lazarus surfaces **failed, terminated, or shelved clinical programs**, runs a **multi-agent reasoning pipeline** (advocate, skeptic, judge, and supporting agents) over structured context, and produces **R&D blueprint artifacts**. It adds **portfolio ranking**, **graph exploration**, **hypothesis comparison**, **human-in-the-loop review**, and optional **Spectrum / Photon** messaging.
 
-It is built as a **live R&D control plane**: Postgres-backed runs and steps, **async evaluate + trace** (WebSocket / polling), **blueprint PDFs**, optional **Photon/Spectrum** alerts, hooks for **OpenClaw / Dedalus** sponsor demos, and a **dual UI** (main dashboard + lab)—so judges see an end-to-end product, not a one-off script.
+It is built as a **live R&D control plane**: Postgres-backed runs and steps, **async evaluate + trace** (WebSocket / polling), **blueprint PDFs**, optional **Photon/Spectrum** alerts, hooks for **OpenClaw** demos, and a **dual UI** (main dashboard + lab)—so judges see an end-to-end product, not a one-off script.
 
 ---
 
@@ -21,7 +21,7 @@ It is built as a **live R&D control plane**: Postgres-backed runs and steps, **a
 |------|------|
 | `backend/app/` | FastAPI app, Postgres, graph APIs, blueprint generation, portfolio ranking, HITL review, agent orchestration |
 | `frontend/` | Vite + React + Cytoscape: live reasoning, graph, portfolio, compare, messaging, lab routes, agent trace |
-| `openclaw/` | Optional Node helpers (local Spectrum bridge, Dedalus-related scripts) |
+| `openclaw/` | Optional Node helpers (local Spectrum bridge and OpenClaw integration) |
 | `docs/` | Architecture and hackathon notes |
 | `docker-compose.yml` | Postgres, Redis, Neo4j for local development |
 
@@ -49,7 +49,6 @@ You must submit to **exactly one** main track. You may also opt into **any numbe
 | **[MLH] Best Use of Gemini API** | Non-trivial Gemini use, visible in demo | `agents/advocate.py`, `agents/judge.py`, `candidate_service.py` (Gemini structured briefs) |
 | **MBZUAI — Best Use of K2 Think V2** | K2 as **core** reasoning, not a throwaway call | `agents/skeptic.py`, reasoning trace UI `/agents/:runId` |
 | **Eragon — Build What Actually Runs Monday (OpenClaw)** | OpenClaw agent doing real work across tools | `openclaw/`, `api/openclaw.py` — optional path; align demo script if you enter this track |
-| **Dedalus — Containers / agent swarm** | Containers + orchestration story | Dedalus routing in `llm_service.py`; `openclaw/lib.ts` VM helpers — **partial** vs original mega-plan |
 | **Photon — Agents in iMessage (Spectrum)** | Spectrum integration, social / messaging depth | `api/photon.py`, `services/spectrum_service.py`; local bridge must call **`POST /photon/spectrum/webhook`** (not `/spectrum/webhook` unless you remount the legacy router) |
 | **Best Overall Hack** | Creativity, utility, charity, avidity across rubric | End-to-end polished demo: query → candidates → run → blueprint → (optional) notify |
 
@@ -65,7 +64,7 @@ Prize wording on Devpost / day-of may differ slightly; always confirm the **offi
 cp .env.example .env
 ```
 
-Fill keys you use (`DATABASE_URL`, `GEMINI_API_KEY`, `K2_API_KEY`, `DEDALUS_API_KEY`, Spectrum vars if messaging).
+Fill keys you use (`DATABASE_URL`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `K2_API_KEY`, Spectrum vars if messaging).
 
 ### 2. Dependencies (Docker)
 

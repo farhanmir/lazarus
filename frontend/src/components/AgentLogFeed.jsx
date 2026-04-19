@@ -20,7 +20,7 @@ const AGENT_META = {
 
 const IDLE_LOG = [
   { color: '#1f3a2e', tag: '[SYSTEM]', text: 'Lazarus Nexus initialized. Awaiting command.' },
-  { color: '#1f3a2e', tag: '[SYSTEM]', text: 'Dedalus cluster online · 3 agents standing by.' },
+  { color: '#1f3a2e', tag: '[SYSTEM]', text: 'Reasoning cluster online · 3 agents standing by.' },
   { color: '#6d7278', tag: '[SYSTEM]', text: 'Select an asset and execute to begin analysis.' },
 ]
 
