@@ -134,7 +134,8 @@ body::after {
 
 .nexus-left.collapsed .nexus-brand,
 .nexus-left.collapsed .globe-wrap,
-.nexus-left.collapsed .agent-log-panel {
+.nexus-left.collapsed .agent-log-panel,
+.nexus-left.collapsed .sidebar-controls {
   display: none;
 }
 
@@ -151,13 +152,27 @@ body::after {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
   padding: 0 var(--space-4);
   cursor: pointer;
   transition: opacity 0.15s;
 }
 .nexus-brand:hover { opacity: 0.75; }
+
+.brand-logo {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 
 /* ─── Sidebar Toggle ─── */
 .sidebar-toggle {
@@ -236,6 +251,65 @@ body::after {
 }
 
 /* ─── Agent Log ─── */
+/* ─── Sidebar Controls ─── */
+.sidebar-controls {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--border-soft);
+  background: rgba(20, 23, 26, 0.02);
+}
+
+.sidebar-search {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 6px 10px;
+  outline: none;
+  border-radius: 2px;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.sidebar-search:focus {
+  border-color: var(--accent-soft);
+}
+.sidebar-search::placeholder {
+  color: var(--text-dim);
+}
+
+.sidebar-asset-select {
+  width: 100%;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.sidebar-run-btn {
+  flex: 1;
+}
+
+/* ─── Blueprint Generate Row ─── */
+.blueprint-generate-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.blueprint-generate-hint {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
 .agent-log-panel {
   flex: 1;
   display: flex;
