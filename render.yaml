@@ -13,7 +13,7 @@ services:
       - key: DEPLOY_TARGET
         value: render
       - key: CORS_ORIGINS
-        value: https://frontend-tau-drab-27.vercel.app
+        value: https://frontend-tau-drab-27.vercel.app,https://lazarus.surf,https://www.lazarus.surf
       - key: DATABASE_URL
         sync: false
       - key: DEDALUS_API_KEY
