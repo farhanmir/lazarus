@@ -90,15 +90,9 @@ function App() {
   const [photonResult, setPhotonResult] = useState('')
   const [showTrace, setShowTrace] = useState(false)
   const [outputTab, setOutputTab] = useState('output')
-  const liveStepsRef = useRef(null)
   const traceDrawerRef = useRef(null)
   const traceCloseRef = useRef(null)
 
-  useEffect(() => {
-    if (liveStepsRef.current) {
-      liveStepsRef.current.scrollTop = liveStepsRef.current.scrollHeight
-    }
-  }, [liveTrace?.steps?.length])
 
   useEffect(() => {
     if (showTrace && traceCloseRef.current) {
@@ -586,11 +580,7 @@ function App() {
                       </article>
                     </div>
 
-                    <div className="stream-feed-wrap">
-                      <div className="stream-feed-gradient" aria-hidden="true">
-                        <span className="stream-feed-direction">↑ older</span>
-                      </div>
-                      <div className="live-steps" ref={liveStepsRef}>
+                    <div className="live-steps">
                         {(liveTrace?.steps || []).map((step) => (
                           <article key={step.id} className={`live-step ${step.status}`}>
                             <div className="live-step-head">
@@ -605,7 +595,6 @@ function App() {
                         {reasoningLoading && (!liveTrace?.steps || liveTrace.steps.length === 0) && (
                           <p className="trace-info" style={{ marginTop: 'auto' }}>Waiting for the first agent response...</p>
                         )}
-                      </div>
                     </div>
                   </>
                 )}

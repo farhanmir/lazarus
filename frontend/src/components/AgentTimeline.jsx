@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef, useMemo, useState } from 'react'
+import React, { memo, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 const AGENT_COLORS = {
@@ -101,18 +101,12 @@ function renderParsedOutput(parsed, raw) {
 
 function AgentTimeline({ steps = [] }) {
   const [expandedId, setExpandedId] = useState(null)
-  const listRef = useRef(null)
 
   const normalizedSteps = useMemo(
     () => steps.map(s => ({ ...s, parsedOutput: parseOutput(s) })),
     [steps],
   )
 
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight
-    }
-  }, [normalizedSteps.length])
 
   return (
     <div className="term-panel">
@@ -133,11 +127,7 @@ function AgentTimeline({ steps = [] }) {
           &gt; AWAITING RUN · NO STEPS LOGGED
         </div>
       ) : (
-        <div className="stream-feed-wrap">
-          <div className="stream-feed-gradient" aria-hidden="true">
-            <span className="stream-feed-direction">↑ older</span>
-          </div>
-          <div className="timeline-list" ref={listRef} style={{ padding: 'var(--space-3)' }}>
+        <div className="timeline-list" style={{ padding: 'var(--space-3)' }}>
           {normalizedSteps.map((step, index) => {
             const color  = AGENT_COLORS[step.agent_name] ?? '#1f3a2e'
             const label  = AGENT_LABELS[step.agent_name] ?? step.agent_name.toUpperCase()
@@ -219,7 +209,6 @@ function AgentTimeline({ steps = [] }) {
             )
           })}
           </div>
-        </div>
       )}
     </div>
   )
