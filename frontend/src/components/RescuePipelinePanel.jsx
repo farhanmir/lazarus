@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { getApiBase, runRescuePipeline } from '../services/api'
-import './rescue-home.css'
+import { fetchCandidates, getApiBase, runRescuePipeline } from '../services/api'
+import '../pages/rescue-home.css'
 
 function stageClass(status) {
   if (status === 'complete') return 'rescue-stage--ok'
@@ -10,14 +10,63 @@ function stageClass(status) {
   return 'rescue-stage--skip'
 }
 
-export default function RescueHome() {
+function pct(n) {
+  if (n == null || Number.isNaN(Number(n))) return '—'
+  const v = Number(n) <= 1 ? Number(n) * 100 : Number(n)
+  return `${Math.round(v)}%`
+}
+
+export default function RescuePipelinePanel() {
   const [disease, setDisease] = useState('')
   const [recipient, setRecipient] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
 
+  const [candidates, setCandidates] = useState([])
+  const [candidateLoading, setCandidateLoading] = useState(false)
+  const [candidateError, setCandidateError] = useState('')
+
   const apiBase = useMemo(() => getApiBase(), [])
+
+  useEffect(() => {
+    const q = disease.trim()
+    if (q.length < 2) {
+      setCandidates([])
+      setCandidateError('')
+      setCandidateLoading(false)
+      return
+    }
+
+    setCandidateError('')
+    const timer = setTimeout(async () => {
+      const query = disease.trim()
+      if (query.length < 2) return
+      setCandidateLoading(true)
+      try {
+        const data = await fetchCandidates(query, 8)
+        if (disease.trim() !== query) return
+        setCandidates(Array.isArray(data?.candidates) ? data.candidates : [])
+      } catch (err) {
+        if (disease.trim() !== query) return
+        const network =
+          err?.code === 'ERR_NETWORK' ||
+          err?.message === 'Network Error' ||
+          String(err?.message || '').toLowerCase().includes('network')
+        setCandidateError(
+          err?.response?.data?.detail ||
+            (network ? 'Cannot reach candidates API (same fix as pipeline: proxy / backend).' : null) ||
+            err?.message ||
+            'Candidate search failed.',
+        )
+        setCandidates([])
+      } finally {
+        if (disease.trim() === query) setCandidateLoading(false)
+      }
+    }, 380)
+
+    return () => clearTimeout(timer)
+  }, [disease])
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -57,33 +106,77 @@ export default function RescueHome() {
     result?.blueprint_download_path != null
       ? apiBase
         ? `${apiBase.replace(/\/$/, '')}${result.blueprint_download_path}`
-        : `${typeof window !== 'undefined' ? window.location.origin : ''}${result.blueprint_download_path}`
+        : `${typeof globalThis.window !== 'undefined' ? globalThis.window.location.origin : ''}${result.blueprint_download_path}`
       : null
 
   return (
-    <div className="rescue-root">
+    <div className="rescue-root rescue-root--embedded">
       <header className="rescue-header">
-        <h1>Lazarus</h1>
-        <p className="rescue-tagline">Enter a disease to rescue. We read the obituaries so you do not have to.</p>
+        <h1>Trial rescue</h1>
+        <p className="rescue-tagline">
+          Same URL as the operator shell — portfolio match + CT.gov pipeline in one place.
+        </p>
       </header>
 
       <form className="rescue-form" onSubmit={onSubmit}>
-        <label className="rescue-label" htmlFor="disease">
+        <label className="rescue-label" htmlFor="rescue-disease">
           Disease to rescue
         </label>
         <input
-          id="disease"
+          id="rescue-disease"
           className="rescue-input"
           placeholder="e.g. Glioblastoma"
           value={disease}
           onChange={(e) => setDisease(e.target.value)}
           autoComplete="off"
         />
-        <label className="rescue-label rescue-label--muted" htmlFor="recipient">
+
+        {disease.trim().length >= 2 ? (
+          <div className="rescue-search-panel" aria-live="polite">
+            <div className="rescue-search-head">
+              <span className="rescue-search-title">Portfolio matches</span>
+              {candidateLoading ? (
+                <span className="rescue-search-meta">Searching shelved assets…</span>
+              ) : null}
+            </div>
+            <p className="rescue-search-hint">
+              Same `/api/candidates` search as the header workflow — ranked shelved assets for this disease. Rescue
+              run below is trial-registry autopsy.
+            </p>
+            {candidateError ? <p className="rescue-search-error">{candidateError}</p> : null}
+            {!candidateLoading && !candidateError && candidates.length === 0 ? (
+              <p className="rescue-search-empty">
+                No portfolio hits for this wording yet. You can still run the pipeline — it pulls terminated trials
+                from ClinicalTrials.gov.
+              </p>
+            ) : null}
+            {candidates.length > 0 ? (
+              <ul className="rescue-candidate-list">
+                {candidates.map((c) => (
+                  <li key={c.asset_id} className="rescue-candidate-card">
+                    <div className="rescue-candidate-top">
+                      <span className="rescue-candidate-drug">{c.drug_name || '—'}</span>
+                      <span className="rescue-candidate-code">{c.asset_code}</span>
+                      <span className="rescue-candidate-score" title="Scientific confidence">
+                        {pct(c.scientific_confidence_score)}
+                      </span>
+                    </div>
+                    {c.match_reason ? <p className="rescue-candidate-reason">{c.match_reason}</p> : null}
+                    {c.proposed_disease ? (
+                      <p className="rescue-candidate-meta">Pivot read: {c.proposed_disease}</p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+
+        <label className="rescue-label rescue-label--muted" htmlFor="rescue-recipient">
           Photon recipient (optional)
         </label>
         <input
-          id="recipient"
+          id="rescue-recipient"
           className="rescue-input rescue-input--sm"
           placeholder="Spectrum handle or +1… (else we only draft the text)"
           value={recipient}
@@ -143,7 +236,7 @@ export default function RescueHome() {
       ) : null}
 
       <nav className="rescue-nav">
-        <Link to="/dashboard">Full dashboard</Link>
+        <Link to="/dashboard">Dashboard tab (agents / graph)</Link>
         <span className="rescue-nav-sep">·</span>
         <Link to="/welcome">Marketing splash</Link>
       </nav>

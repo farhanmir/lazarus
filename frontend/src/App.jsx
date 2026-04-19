@@ -1,5 +1,5 @@
-import React, { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import AgentProgressBar from './components/AgentProgressBar'
 import AgentTimeline from './components/AgentTimeline'
@@ -16,6 +16,7 @@ import MultiDiseaseScanPanel from './components/MultiDiseaseScanPanel'
 import WatchlistPanel from './components/WatchlistPanel'
 import NodeDetailsPanel from './components/NodeDetailsPanel'
 import PortfolioRankingPanel from './components/PortfolioRankingPanel'
+import RescuePipelinePanel from './components/RescuePipelinePanel'
 import RiskBadge from './components/RiskBadge'
 import { GlobeScene } from './components/GlobeScene'
 import { AgentLogFeed } from './components/AgentLogFeed'
@@ -38,6 +39,7 @@ import {
 const emptyGraph = { nodes: [], links: [] }
 
 const TABS = [
+  { id: 'rescue', label: 'Rescue' },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'graph',     label: 'Graph' },
@@ -50,6 +52,8 @@ const TABS = [
   { id: 'watchlist', label: 'Watchlist' },
   { id: 'blueprint', label: 'Blueprint' },
 ]
+
+const TAB_IDS = new Set(TABS.map((t) => t.id))
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -68,7 +72,11 @@ function App() {
   const [analysisResult, setAnalysisResult] = useState(null)
   const [runTrace, setRunTrace]           = useState(null)
   const [blueprintResult, setBlueprintResult] = useState(null)
-  const [activeTab, setActiveTab]         = useState('dashboard')
+  const [activeTab, setActiveTab]         = useState(() => {
+    if (globalThis.window === undefined) return 'dashboard'
+    const t = new URLSearchParams(globalThis.window.location.search).get('tab')
+    return t && TAB_IDS.has(t) ? t : 'dashboard'
+  })
   const [query, setQuery]                 = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [portfolioRanking, setPortfolioRanking] = useState(null)
@@ -80,6 +88,23 @@ function App() {
   const [hypothesisComparison, setHypothesisComparison] = useState(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
   const [comparisonError, setComparisonError] = useState('')
+
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const selectTab = useCallback(
+    (id) => {
+      if (!TAB_IDS.has(id)) return
+      setActiveTab(id)
+      setSearchParams(id === 'dashboard' ? {} : { tab: id }, { replace: true })
+    },
+    [setSearchParams],
+  )
+
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    const next = t && TAB_IDS.has(t) ? t : 'dashboard'
+    setActiveTab((cur) => (cur === next ? cur : next))
+  }, [searchParams])
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
   const deferredGraphData    = useDeferredValue(graphData)
@@ -231,7 +256,7 @@ function App() {
 
   const handleRunAnalysis = async () => {
     if (!selectedAssetId) return
-    setActiveTab('dashboard')
+    selectTab('dashboard')
     setAnalysisLoading(true)
     setErrorMessage('')
     setAnalysisResult(null)
@@ -278,7 +303,7 @@ function App() {
   const handleGenerateBlueprint = async () => {
     const hypothesisId = analysisResult?.hypothesis?.id
     if (!hypothesisId) return
-    setActiveTab('blueprint')
+    selectTab('blueprint')
     setBlueprintLoading(true)
     setErrorMessage('')
     setBlueprintResult(null)
@@ -325,7 +350,7 @@ function App() {
         {/* ══════════════ LEFT PANEL ══════════════ */}
         <aside className="nexus-left">
           {/* Brand header */}
-          <Link to="/" className="nexus-brand" style={{ textDecoration: 'none', display: 'block' }}>
+          <Link to="/dashboard?tab=rescue" className="nexus-brand" style={{ textDecoration: 'none', display: 'block' }}>
             <span className="brand-title">Lazarus</span>
             <span className="brand-sub">Bio-R&amp;D Swarm · Clinical Reasoning Cluster</span>
           </Link>
@@ -443,7 +468,7 @@ function App() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => selectTab(tab.id)}
                 className={`tab-btn${activeTab === tab.id ? ' active' : ''}`}
               >
                 {tab.label}
@@ -485,6 +510,13 @@ function App() {
           {/* Content area */}
           <div className="nexus-content">
             <AnimatePresence mode="wait">
+              {/* ═══ RESCUE PIPELINE (same /dashboard shell) ═══ */}
+              {activeTab === 'rescue' && (
+                <motion.div key="rescue" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <RescuePipelinePanel />
+                </motion.div>
+              )}
+
               {/* ═══ DASHBOARD ═══ */}
               {activeTab === 'dashboard' && (
                 <motion.div key="dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
@@ -568,7 +600,7 @@ function App() {
                     error={portfolioError}
                     onSelectAsset={(assetId) => {
                       setSelectedAssetId(assetId)
-                      setActiveTab('compare')
+                      selectTab('compare')
                     }}
                   />
                 </motion.div>

@@ -33,9 +33,10 @@ export const fetchAssets = async () => {
   return data
 }
 
-export const fetchCandidates = async (disease, limit = 5) => {
+export const fetchCandidates = async (disease, limit = 5, config = {}) => {
   const { data } = await api.get('/api/candidates', {
     params: { disease, limit },
+    ...config,
   })
   return data
 }

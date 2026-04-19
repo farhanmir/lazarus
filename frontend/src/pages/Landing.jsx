@@ -102,7 +102,7 @@ export default function Landing() {
         <div className="ln-nav-links">
           <button type="button" className="ln-nav-scroll" onClick={() => scrollTo('method')}>Method</button>
           <button type="button" className="ln-nav-scroll" onClick={() => scrollTo('agents')}>The Swarm</button>
-          <Link to="/" className="ln-nav-scroll">Rescue</Link>
+          <Link to="/dashboard?tab=rescue" className="ln-nav-scroll">Rescue</Link>
           <Link to="/dashboard" className="ln-nav-cta">Dashboard</Link>
         </div>
       </motion.nav>

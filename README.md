@@ -179,7 +179,7 @@ Other modules under `backend/app/api/` (`graph`, `hypotheses`, `spectrum`, …) 
 
 ## Demo narrative (2 minutes)
 
-1. **Query** — disease rescue from `/` (rescue home) or shelved-asset work from `/dashboard`.
+1. **Query** — disease rescue from `/dashboard?tab=rescue` (Rescue tab) or shelved-asset work from the Dashboard tab on `/dashboard`.
 2. **Discovery** — ranked failed-trial / shelved-asset candidates (`/api/candidates`).
 3. **Reasoning** — async evaluate → live trace (Gemini + K2 + judge visible in UI).
 4. **Blueprint** — generate and show download path.
