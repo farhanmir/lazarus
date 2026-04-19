@@ -5,12 +5,7 @@ import App from './App'
 import Landing from './pages/Landing'
 import RescueHome from './pages/RescueHome'
 import AgentTrace from './pages/AgentTrace'
-import LabLayout from './lab/LabLayout'
-import LabLanding from './lab/pages/LabLanding'
-import LabAnalyze from './lab/pages/LabAnalyze'
-import LabRun from './lab/pages/LabRun'
 import './styles.css'
-import './lab/lab.css'
 
 function Root() {
   return (
@@ -20,11 +15,6 @@ function Root() {
         <Route path="/welcome" element={<Landing />} />
         <Route path="/dashboard" element={<App />} />
         <Route path="/agents/:runId" element={<AgentTrace />} />
-        <Route path="/lab" element={<LabLayout />}>
-          <Route index element={<LabLanding />} />
-          <Route path="analyze" element={<LabAnalyze />} />
-          <Route path="run/:runId" element={<LabRun />} />
-        </Route>
       </Routes>
     </BrowserRouter>
   )

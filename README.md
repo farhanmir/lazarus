@@ -171,7 +171,7 @@ These routes exist on the running app today:
 | `POST` | `/photon/notify` | Manual notify via Spectrum |
 | `POST` | `/photon/spectrum/webhook` | Inbound Spectrum webhook |
 
-**Also implemented but not mounted by default:** `GET /assets`, `POST /assets`, etc. in [`backend/app/api/assets.py`](backend/app/api/assets.py). The **Lab** UI calls `/assets`; register `assets_router` in `main.py` next to the other routers so `/lab` works without 404.
+**Assets API:** `GET /assets`, `POST /assets`, etc. live in [`backend/app/api/assets.py`](backend/app/api/assets.py) and are mounted from `main.py` for the dashboard.
 
 Other modules under `backend/app/api/` (`graph`, `hypotheses`, `spectrum`, …) are **not** mounted until explicitly wired.
 
@@ -179,7 +179,7 @@ Other modules under `backend/app/api/` (`graph`, `hypotheses`, `spectrum`, …) 
 
 ## Demo narrative (2 minutes)
 
-1. **Query** — disease or drug-and-disease context for rescue (`/dashboard` or `/lab`).
+1. **Query** — disease rescue from `/` (rescue home) or shelved-asset work from `/dashboard`.
 2. **Discovery** — ranked failed-trial / shelved-asset candidates (`/api/candidates`).
 3. **Reasoning** — async evaluate → live trace (Gemini + K2 + judge visible in UI).
 4. **Blueprint** — generate and show download path.

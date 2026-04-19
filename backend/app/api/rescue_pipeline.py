@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
@@ -9,6 +10,8 @@ from fastapi.responses import FileResponse
 
 from backend.app import schemas
 from backend.app.services.rescue_pipeline_service import RESCUE_ARTIFACTS_DIR, run_rescue_pipeline
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["rescue-pipeline"])
 
@@ -20,7 +23,14 @@ router = APIRouter(prefix="/api", tags=["rescue-pipeline"])
 )
 def post_rescue_pipeline(payload: schemas.RescuePipelineRequest) -> schemas.RescuePipelineResponse:
     """Run discovery → Gemini autopsy → K2 strategy → PDF → optional Photon."""
-    return run_rescue_pipeline(payload.disease, recipient=payload.recipient)
+    try:
+        return run_rescue_pipeline(payload.disease, recipient=payload.recipient)
+    except Exception as exc:
+        logger.exception("rescue pipeline failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Rescue pipeline failed. Check server logs.",
+        ) from exc
 
 
 @router.get("/rescue-artifacts/{artifact_id}/pdf")

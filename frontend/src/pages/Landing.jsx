@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import HeroScene from '../lab/three/HeroScene'
+import HeroScene from '../components/three/HeroScene'
 import './landing.css'
 
 const AGENTS = [

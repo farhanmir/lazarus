@@ -265,7 +265,9 @@ def _fetch_ctgov_failed_studies(
     """Registry pull; optional demo cache skips HTTP for hackathon Wi-Fi."""
     if _discovery_demo_cache_enabled():
         return _discovery_demo_studies_raw()
-    return _fetch_ctgov_failed_studies_live(disease, page_size, max_pages)
+    return _fetch_ctgov_failed_studies_live(
+        disease, page_size=page_size, max_pages=max_pages
+    )
 
 
 def _extract_study_fields(study: dict) -> dict[str, object]:

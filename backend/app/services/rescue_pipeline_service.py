@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import random
+from datetime import date, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -16,6 +17,22 @@ from backend.app.services.pdf_service import render_pdf_from_html
 from backend.app.services.spectrum_service import send_spectrum_reply
 
 logger = logging.getLogger(__name__)
+
+
+def _json_safe(value: object) -> object:
+    """Recursively make values JSON-serializable (FastAPI response + nested stage.data)."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return str(value)
+
 
 RESCUE_ARTIFACTS_DIR = (
     Path(__file__).resolve().parent.parent.parent.parent / "artifacts" / "rescue"
@@ -93,12 +110,14 @@ def _stage(
     *,
     data: dict | None = None,
 ) -> schemas.RescueStagePayload:
+    raw = data or {}
+    safe = _json_safe(raw)
     return schemas.RescueStagePayload(
         id=stage_id,
         label=label,
         status=status,
         humor=HUMOR.get(stage_id, ""),
-        data=data or {},
+        data=safe if isinstance(safe, dict) else {},
     )
 
 
@@ -357,7 +376,11 @@ def run_rescue_pipeline(
     )
 
     photon_result: dict = {"status": "skipped", "reason": "No recipient configured."}
-    target_recipient = (recipient or "").strip() or os.getenv("SPECTRUM_RECIPIENT", "").strip()
+    target_recipient = (recipient or "").strip()
+    if not target_recipient and os.getenv(
+        "RESCUE_PIPELINE_USE_SPECTRUM_ENV_RECIPIENT", ""
+    ).strip().lower() in {"1", "true", "yes", "on"}:
+        target_recipient = os.getenv("SPECTRUM_RECIPIENT", "").strip()
     if target_recipient:
         try:
             photon_result = send_spectrum_reply(
@@ -374,7 +397,10 @@ def run_rescue_pipeline(
     else:
         photon_result = {
             "status": "skipped",
-            "reason": "Pass recipient in request body or set SPECTRUM_RECIPIENT.",
+            "reason": (
+                "No recipient in request. Optional field left blank — draft only. "
+                "Set RESCUE_PIPELINE_USE_SPECTRUM_ENV_RECIPIENT=1 to also use SPECTRUM_RECIPIENT."
+            ),
             "draft_message": message,
         }
 
@@ -391,11 +417,12 @@ def run_rescue_pipeline(
         ),
     )
 
+    photon_safe = _json_safe(photon_result)
     return schemas.RescuePipelineResponse(
         disease=disease_clean,
         stages=stages,
         artifact_id=artifact_id,
         blueprint_download_path=download_path,
-        photon_status=photon_result,
+        photon_status=photon_safe if isinstance(photon_safe, dict) else {},
         footnote=footnote,
     )

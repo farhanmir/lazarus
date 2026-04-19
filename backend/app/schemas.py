@@ -419,7 +419,11 @@ class RescuePipelineRequest(BaseModel):
     recipient: str | None = Field(
         default=None,
         max_length=120,
-        description="Optional Spectrum / iMessage recipient for Photon stage.",
+        description=(
+            "Optional Spectrum / iMessage recipient for Photon stage. "
+            "If omitted, outbound send is skipped unless RESCUE_PIPELINE_USE_SPECTRUM_ENV_RECIPIENT=1 "
+            "(then SPECTRUM_RECIPIENT is used)."
+        ),
     )
 
 

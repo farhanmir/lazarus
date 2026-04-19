@@ -15,6 +15,19 @@ OPENAI_CHAT_PATH = "/v1/chat/completions"
 logger = logging.getLogger(__name__)
 
 
+def _gemini_response_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Gemini REST often rejects JSON Schema `additionalProperties`; strip recursively."""
+    if isinstance(schema, dict):
+        return {
+            k: _gemini_response_schema(v)
+            for k, v in schema.items()
+            if k != "additionalProperties"
+        }
+    if isinstance(schema, list):
+        return [_gemini_response_schema(x) for x in schema]
+    return schema
+
+
 def gemini_chat_completion(
     *,
     model: str = "gemini-2.5-flash",
@@ -37,7 +50,7 @@ def gemini_chat_completion(
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "generationConfig": {
             "responseMimeType": "application/json",
-            "responseSchema": response_schema,
+            "responseSchema": _gemini_response_schema(response_schema),
         },
     }
 
@@ -56,7 +69,24 @@ def gemini_chat_completion(
         logger.info("[llm] gemini start model=%s", model)
         with request.urlopen(req, timeout=60) as response:
             body = json.loads(response.read().decode("utf-8"))
-    except (error.URLError, error.HTTPError, TimeoutError, json.JSONDecodeError):
+    except error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace")[:4000]
+        except Exception:
+            pass
+        if detail:
+            logger.error(
+                "[llm] gemini HTTP %s model=%s body=%s",
+                exc.code,
+                model,
+                detail,
+            )
+        logger.exception(
+            "[llm] gemini failed model=%s after %.2fs", model, time.monotonic() - started
+        )
+        return None
+    except (error.URLError, TimeoutError, json.JSONDecodeError):
         logger.exception("[llm] gemini failed model=%s after %.2fs", model, time.monotonic() - started)
         return None
     finally:

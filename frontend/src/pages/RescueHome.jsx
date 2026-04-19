@@ -143,11 +143,9 @@ export default function RescueHome() {
       ) : null}
 
       <nav className="rescue-nav">
-        <Link to="/dashboard">Advanced dashboard</Link>
+        <Link to="/dashboard">Full dashboard</Link>
         <span className="rescue-nav-sep">·</span>
-        <Link to="/lab">Lab</Link>
-        <span className="rescue-nav-sep">·</span>
-        <Link to="/welcome">Splash / story</Link>
+        <Link to="/welcome">Marketing splash</Link>
       </nav>
     </div>
   )
