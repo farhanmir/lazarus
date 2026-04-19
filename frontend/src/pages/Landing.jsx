@@ -80,6 +80,10 @@ const fade = {
   }),
 }
 
+function scrollTo(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 export default function Landing() {
   return (
     <div className="landing-root">
@@ -96,8 +100,8 @@ export default function Landing() {
           <span className="ln-nav-sub">R&amp;D / Lab</span>
         </div>
         <div className="ln-nav-links">
-          <a href="#method">Method</a>
-          <a href="#agents">The Swarm</a>
+          <button type="button" className="ln-nav-scroll" onClick={() => scrollTo('method')}>Method</button>
+          <button type="button" className="ln-nav-scroll" onClick={() => scrollTo('agents')}>The Swarm</button>
           <Link to="/dashboard" className="ln-nav-cta">Dashboard</Link>
         </div>
       </motion.nav>
@@ -151,9 +155,9 @@ export default function Landing() {
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </Link>
-            <a href="#method" className="ln-btn ln-btn-outline">
+            <button type="button" className="ln-btn ln-btn-outline" onClick={() => scrollTo('method')}>
               The Method
-            </a>
+            </button>
           </motion.div>
         </div>
 

@@ -6,6 +6,15 @@
    Scoped under .landing-root
    ============================================================ */
 
+.landing-root,
+.landing-root * {
+  scroll-behavior: smooth;
+}
+
+html:has(.landing-root) {
+  scroll-behavior: smooth;
+}
+
 .landing-root {
   --ln-bg:         oklch(0.97 0.008 85);
   --ln-bg-alt:     oklch(0.93 0.012 85);
@@ -129,6 +138,20 @@
   position: relative;
 }
 .ln-nav-links a:hover { color: var(--ln-ink); }
+
+.ln-nav-scroll {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--ln-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--ln-muted);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.ln-nav-scroll:hover { color: var(--ln-ink); }
 
 .ln-nav-cta {
   padding: 8px 20px;
