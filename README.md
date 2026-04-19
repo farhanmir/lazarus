@@ -388,13 +388,13 @@ A minimal zero-to-prod path is included:
 Built in 36 hours by:
 
 | | Name | Links |
-|---|---|---|---|
+|---|---|---|
 | 🧬 | **Dimural Murat** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
 | 🧠 | **__________________________** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
 | ⚗️ | **__________________________** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
 | 🚀 | **__________________________** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
 
-> _Teammates: feel free to fill in your name, role, and links above._
+> _Teammates: feel free to fill in your name and links above._
 
 ---
 
