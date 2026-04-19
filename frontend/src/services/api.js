@@ -41,13 +41,6 @@ export const fetchCandidates = async (disease, limit = 5, config = {}) => {
   return data
 }
 
-export const runRescuePipeline = async ({ disease, recipient }) => {
-  const body = { disease }
-  if (recipient) body.recipient = recipient
-  const { data } = await api.post('/api/rescue-pipeline', body, { timeout: 180_000 })
-  return data
-}
-
 export const evaluateCandidate = async ({ drug, disease, assetCode }) => {
   const { data } = await api.post('/api/evaluate', {
     drug,

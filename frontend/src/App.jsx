@@ -2,7 +2,7 @@
  * Operator dashboard shell.
  *
  * Owns top-level run state (selected asset, analysis result, live trace,
- * blueprint) and composes the eight tabs: Rescue, Dashboard, Graph, Analysis,
+ * blueprint) and composes the tabs: Dashboard, Graph, Watchlist, Analysis,
  * Portfolio, Research, Ops, Blueprint. Live agent traces arrive over the
  * WebSocket stream in `services/api.js` and render into the panels below.
  */
@@ -24,7 +24,6 @@ import MultiDiseaseScanPanel from './components/MultiDiseaseScanPanel'
 import WatchlistPanel from './components/WatchlistPanel'
 import NodeDetailsPanel from './components/NodeDetailsPanel'
 import PortfolioRankingPanel from './components/PortfolioRankingPanel'
-import RescuePipelinePanel from './components/RescuePipelinePanel'
 import RiskBadge from './components/RiskBadge'
 import { GlobeScene } from './components/GlobeScene'
 import { AgentLogFeed } from './components/AgentLogFeed'
@@ -47,7 +46,6 @@ import {
 const emptyGraph = { nodes: [], links: [] }
 
 const TABS = [
-  { id: 'rescue',    label: 'Rescue' },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'graph',     label: 'Graph' },
   { id: 'watchlist', label: 'Watchlist' },
@@ -511,13 +509,6 @@ function App() {
           {/* Content area */}
           <div className="nexus-content">
             <AnimatePresence mode="wait">
-              {/* ═══ RESCUE PIPELINE (same /dashboard shell) ═══ */}
-              {activeTab === 'rescue' && (
-                <motion.div key="rescue" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <RescuePipelinePanel />
-                </motion.div>
-              )}
-
               {/* ═══ DASHBOARD ═══ */}
               {activeTab === 'dashboard' && (
                 <motion.div key="dashboard" role="tabpanel" id="panel-dashboard" aria-labelledby="tab-dashboard" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
