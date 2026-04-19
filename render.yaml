@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: lazarus-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: DEPLOY_TARGET
+        value: render
+      - key: CORS_ORIGINS
+        value: https://frontend-tau-drab-27.vercel.app
+      - key: DATABASE_URL
+        sync: false
+      - key: DEDALUS_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: K2_API_KEY
+        sync: false
