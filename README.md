@@ -1,46 +1,73 @@
 # Lazarus: Autonomous Clinical R&D Swarm
 
-Lazarus is an AI-powered drug repurposing platform for shelved or underused pharma assets. It runs a multi-agent reasoning pipeline over an asset, proposes a new indication, stress-tests the idea, gathers supporting evidence, estimates effort and impact, and generates an executive-ready blueprint.
+Lazarus surfaces **failed, terminated, or shelved clinical programs**, runs a **multi-agent reasoning pipeline** (advocate, skeptic, judge, and supporting agents) over structured context, and produces **R&D blueprint artifacts**. It adds **portfolio ranking**, **graph exploration**, **hypothesis comparison**, **human-in-the-loop review**, and optional **Spectrum / Photon** messaging.
 
-## Quick Links
-- **[Project Strategy & Vision](docs/Lazarus_Nexus_Strategy.md):** Deep dive into the Lazarus architecture, swarm logic, and the "Bio-Nexus" demo strategy.
-- **[Implementation Plan](docs/2026-04-17-lazarus-implementation.md):** The phased roadmap.
-- **[HackPrinceton 2026 Guide](docs/HackPrinceton_2026_Guide.md):** Reference for official event tracks, prizes, and sponsor requirements.
+It is built as a **live R&D control plane**: Postgres-backed runs and steps, **async evaluate + trace** (WebSocket / polling), **blueprint PDFs**, optional **Photon/Spectrum** alerts, hooks for **OpenClaw / Dedalus** sponsor demos, and a **dual UI** (main dashboard + lab)—so judges see an end-to-end product, not a one-off script.
 
-## What’s In The Repo
+---
 
-- `backend/`
-  FastAPI backend, Postgres-backed run storage, graph/tracing APIs, blueprint generation, portfolio ranking, HITL review queue, and agent orchestration.
-- `frontend/`
-  React + Cytoscape.js + Tailwind dashboard for live reasoning, graph exploration, portfolio ranking, comparison workflows, messaging, and blueprint preview.
-- `openclaw/`
-  Optional OpenClaw and local Spectrum/iMessage bridge helpers.
-- `docs/`
-  Hackathon architecture, team contracts, and strategy documents.
-- `artifacts/`
-  Generated local outputs. Ignored from Git.
+## Quick links
 
-## HackPrinceton Prize Tracks
+- [Project strategy](docs/Lazarus_Nexus_Strategy.md)
+- [Implementation roadmap (aspirational in places)](docs/2026-04-17-lazarus-implementation.md)
+- [HackPrinceton guide (local copy)](docs/HackPrinceton_2026_Guide.md)
+- [Team contracts (interfaces; not all wired yet)](CONTRACTS.md)
 
-- 🏆 **Best Business and Enterprise / Overall Hack:** Deterministic, category-defining **Sovereign R&D Participant**.
-- 🧪 **Regeneron ($1,000):** Strict biological rigor. Graph nodes must cite real PubMed IDs (PMIDs).
-- ✨ **Best Use of Gemini API (MLH):** **The Defibrillator** ingests 500-page FDA briefings into the 2M window.
-- 🧠 **Best Use of K2 Think V2:** **The Coroner** exposes a precise 10-step biological "Thinking Trace".
-- ⚙️ **Eragon:** An **Internal R&D Sovereign** that governs internal pipelines.
-- 🐳 **Dedalus ($500):** A **Natively Distributed Agent Swarm** where each reasoning agent runs on its own independent, stateful Linux VM, coordinated via a centralized FastAPI Control Plane.
-- 💬 **Photon ($700):** **Interactive iMessage group-chat** where the agent defends P-Values natively.
+---
 
-## Quick Start
+## What is in the repo
 
-### 1. Copy environment config
+| Path | Role |
+|------|------|
+| `backend/app/` | FastAPI app, Postgres, graph APIs, blueprint generation, portfolio ranking, HITL review, agent orchestration |
+| `frontend/` | Vite + React + Cytoscape: live reasoning, graph, portfolio, compare, messaging, lab routes, agent trace |
+| `openclaw/` | Optional Node helpers (local Spectrum bridge, Dedalus-related scripts) |
+| `docs/` | Architecture and hackathon notes |
+| `docker-compose.yml` | Postgres, Redis, Neo4j for local development |
+
+---
+
+## HackPrinceton Spring 2026 — tracks (official structure)
+
+You must submit to **exactly one** main track. You may also opt into **any number** of sponsor / special tracks (each may send judges during round 1). **Best Overall** is automatic consideration for all submissions.
+
+### Main tracks (choose one)
+
+| Main track | Angle for Lazarus |
+|------------|-------------------|
+| **Best Healthcare Hack** | Failed-trial rescue, patient-relevant repurposing, clinical rigor story |
+| **Best Business and Enterprise Hack** | Sovereign R&D / portfolio analytics / executive-ready blueprint |
+| **Best Sustainability Hack** | Only if you explicitly tie rescue to environmental or sustainability outcomes |
+| **Best Entertainment and Media Hack** | Unlikely primary fit unless you reframe the demo |
+| **Best Education Hack** | Unlikely primary fit unless you reframe the demo |
+
+### Special tracks your team is targeting (evidence checklist)
+
+| Sponsor / track | What judges need to see in Lazarus | Code / demo pointers |
+|-----------------|-----------------------------------|------------------------|
+| **Regeneron — AI & Tech for Clinical Trials** | Real trial logic, serious clinical workflow, evidence discipline | `discovery_service.py` (ClinicalTrials.gov, PubMed, openFDA heuristics), run trace + hypothesis |
+| **[MLH] Best Use of Gemini API** | Non-trivial Gemini use, visible in demo | `agents/advocate.py`, `agents/judge.py`, `candidate_service.py` (Gemini structured briefs) |
+| **MBZUAI — Best Use of K2 Think V2** | K2 as **core** reasoning, not a throwaway call | `agents/skeptic.py`, reasoning trace UI `/agents/:runId` |
+| **Eragon — Build What Actually Runs Monday (OpenClaw)** | OpenClaw agent doing real work across tools | `openclaw/`, `api/openclaw.py` — optional path; align demo script if you enter this track |
+| **Dedalus — Containers / agent swarm** | Containers + orchestration story | Dedalus routing in `llm_service.py`; `openclaw/lib.ts` VM helpers — **partial** vs original mega-plan |
+| **Photon — Agents in iMessage (Spectrum)** | Spectrum integration, social / messaging depth | `api/photon.py`, `services/spectrum_service.py`; local bridge must call **`POST /photon/spectrum/webhook`** (not `/spectrum/webhook` unless you remount the legacy router) |
+| **Best Overall Hack** | Creativity, utility, charity, avidity across rubric | End-to-end polished demo: query → candidates → run → blueprint → (optional) notify |
+
+Prize wording on Devpost / day-of may differ slightly; always confirm the **official** sponsor PDFs and Discord.
+
+---
+
+## Quick start
+
+### 1. Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Fill in the keys you actually use.
+Fill keys you use (`DATABASE_URL`, `GEMINI_API_KEY`, `K2_API_KEY`, `DEDALUS_API_KEY`, Spectrum vars if messaging).
 
-### 2. Start Services
+### 2. Dependencies (Docker)
 
 ```bash
 docker compose up -d
@@ -50,7 +77,7 @@ docker compose up -d
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python -m backend.app.seed
 uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
@@ -64,7 +91,7 @@ npm install
 npm run dev
 ```
 
-### 5. Optional local Spectrum/iMessage bridge
+### 5. Optional: local Spectrum bridge
 
 ```bash
 cd openclaw
@@ -72,21 +99,19 @@ npm install
 npm run spectrum:local
 ```
 
-## Helpful Endpoints
+## Helpful endpoints
 
 - `GET /`
-- `GET /assets`
-- `POST /run-analysis`
-- `POST /run-analysis/async`
-- `GET /runs/{run_id}/trace`
-- `GET /runs/{run_id}/stream`
-- `GET /portfolio/ranking`
-- `GET /human-reviews/dashboard`
-- `GET /assets/{asset_id}/hypotheses/compare`
-- `POST /generate-blueprint`
-- `POST /generate-blueprint/async`
-- `GET /spectrum/health`
-- `POST /spectrum/webhook`
+- `GET /assets`, `GET /assets/{id}/patient-data`
+- `GET /api/candidates`, `POST /api/evaluate`
+- `POST /run-analysis`, `POST /run-analysis/async`
+- `GET /runs/{run_id}/trace`, WebSocket `/runs/{run_id}/stream`
+- `GET /portfolio/ranking`, `GET /human-reviews/dashboard`, `GET /assets/{asset_id}/hypotheses/compare`
+- `POST /generate-blueprint`, `POST /generate-blueprint/async`
+- `GET /photon/health`, `POST /photon/notify`, `POST /photon/spectrum/webhook`
+- `GET /spectrum/health`, `POST /spectrum/webhook` (legacy Spectrum router, if mounted)
+
+Local Spectrum bridge: set webhook to **`{LAZARUS_BASE_URL}/photon/spectrum/webhook`** (see `openclaw/spectrum-local.ts`).
 
 ## Product Surfaces
 
@@ -124,4 +149,39 @@ git push -u origin main
 ```
 
 ---
-*Developed for HackPrinceton Spring 2026.*
+
+## HTTP API (mounted in `backend/app/main.py`)
+
+These routes exist on the running app today:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/` | Health |
+| `GET` | `/api/candidates` | Ranked rescue candidates (`disease` query param today; optional `drug` filter planned) |
+| `POST` | `/api/evaluate` | Start async evaluation run for a drug / asset |
+| `POST` | `/run-analysis`, `/run-analysis/async` | Reasoning pipeline |
+| `GET` | `/runs/{run_id}`, `/runs/{run_id}/trace`, `WS /runs/{run_id}/stream` | Run status and trace |
+| `POST` | `/generate-blueprint`, `/generate-blueprint/async` | Blueprint generation |
+| `GET` | `/blueprints/{id}`, `/blueprints/{id}/detail`, download routes | Blueprints |
+| *varies* | `/openclaw/*` | Token-gated tool endpoints for OpenClaw / Eragon demos |
+| `GET` | `/photon/health` | Photon / Spectrum bridge health |
+| `POST` | `/photon/notify` | Manual notify via Spectrum |
+| `POST` | `/photon/spectrum/webhook` | Inbound Spectrum webhook |
+
+**Also implemented but not mounted by default:** `GET /assets`, `POST /assets`, etc. in [`backend/app/api/assets.py`](backend/app/api/assets.py). The **Lab** UI calls `/assets`; register `assets_router` in `main.py` next to the other routers so `/lab` works without 404.
+
+Other modules under `backend/app/api/` (`graph`, `hypotheses`, `spectrum`, …) are **not** mounted until explicitly wired.
+
+---
+
+## Demo narrative (2 minutes)
+
+1. **Query** — disease or drug-and-disease context for rescue (`/dashboard` or `/lab`).
+2. **Discovery** — ranked failed-trial / shelved-asset candidates (`/api/candidates`).
+3. **Reasoning** — async evaluate → live trace (Gemini + K2 + judge visible in UI).
+4. **Blueprint** — generate and show download path.
+5. **Optional Photon** — only if Spectrum env and bridge are configured; otherwise skip and say “production would notify here.”
+
+---
+
+*HackPrinceton Spring 2026.*

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from backend.app import crud, schemas
 from backend.app.agents.advocate import run_advocate
 from backend.app.services.context_service import build_asset_context
+from backend.app.services.discovery_service import fetch_lazarus_candidates
 from backend.app.services.llm_service import (
     dedalus_chat_completion,
     gemini_chat_completion,
@@ -31,6 +32,58 @@ def _overlap_score(left: str, right: str) -> float:
         return 0.0
     overlap = left_tokens & right_tokens
     return len(overlap) / max(len(right_tokens), 1)
+
+
+def _build_search_blob(asset, context) -> str:
+    return " ".join(
+        [
+            asset.asset_code or "",
+            asset.internal_name or "",
+            asset.original_indication or "",
+            context.source_disease or "",
+            " ".join(context.linked_diseases or []),
+            context.target or "",
+            " ".join(context.adverse_events or []),
+            context.business_failure_reason or "",
+        ]
+    )
+
+
+def _query_relevance_score(asset, context, disease_query: str) -> float:
+    query_norm = _normalize(disease_query)
+    if not query_norm:
+        return 0.0
+
+    source_norm = _normalize(context.source_disease)
+    linked_norms = [_normalize(item) for item in context.linked_diseases]
+    blob = _build_search_blob(asset, context)
+    blob_norm = _normalize(blob)
+
+    if query_norm == source_norm:
+        return 1.0
+    if query_norm in linked_norms:
+        return 0.92
+
+    source_overlap = _overlap_score(context.source_disease, disease_query)
+    linked_overlap = max(
+        (_overlap_score(item, disease_query) for item in context.linked_diseases),
+        default=0.0,
+    )
+    blob_overlap = _overlap_score(blob, disease_query)
+
+    substring_bonus = 0.35 if query_norm in blob_norm else 0.0
+
+    query_tokens = _token_set(disease_query)
+    blob_tokens = _token_set(blob)
+    prefix_hits = sum(
+        1
+        for token in query_tokens
+        if any(blob_token.startswith(token) for blob_token in blob_tokens)
+    )
+    prefix_bonus = min(0.2, prefix_hits * 0.06)
+
+    score = max(source_overlap * 0.9, linked_overlap, blob_overlap * 0.8)
+    return min(1.0, score + substring_bonus + prefix_bonus)
 
 
 def _mortician_scan(context, disease_query: str) -> tuple[float, str]:
@@ -88,7 +141,9 @@ def _build_candidate(asset, disease_query: str) -> schemas.CandidateResponse:
         3,
     )
 
-    trial_brief = _build_trial_brief(context, disease_query, advocate.proposed_disease, advocate.reasoning)
+    trial_brief = _build_trial_brief(
+        context, disease_query, advocate.proposed_disease, advocate.reasoning
+    )
 
     return schemas.CandidateResponse(
         asset_id=asset.id,
@@ -108,7 +163,53 @@ def _build_candidate(asset, disease_query: str) -> schemas.CandidateResponse:
     )
 
 
-def _build_trial_brief(context, disease_query: str, proposed_disease: str, advocate_reasoning: str) -> dict[str, object]:
+def _build_candidate_fast(asset, disease_query: str) -> schemas.CandidateResponse:
+    """Fast deterministic candidate formatter for search results (no LLM calls)."""
+    context = build_asset_context(asset)
+    mortician_score, mortician_reason = _mortician_scan(context, disease_query)
+
+    proposed_disease = (
+        context.linked_diseases[0]
+        if context.linked_diseases
+        else context.source_disease
+    )
+    proposed_alignment = max(
+        _overlap_score(proposed_disease, disease_query),
+        1.0 if _normalize(proposed_disease) == _normalize(disease_query) else 0.0,
+    )
+    scientific_confidence = round(
+        max(0.05, min(0.99, (mortician_score * 0.8) + (proposed_alignment * 0.2))), 3
+    )
+
+    key_facts = [
+        f"Source indication: {context.source_disease}",
+        f"Target pathway: {context.target}",
+        f"Primary failure note: {context.business_failure_reason or 'not recorded'}",
+    ]
+    relevance_summary = f"{asset.asset_code} is ranked using live ClinicalTrials.gov evidence and deterministic Lazarus filters for {disease_query}."
+    rescue_angle = f"Test {asset.internal_name} toward {proposed_disease} if pathway overlap and non-toxicity hold in deeper review."
+
+    return schemas.CandidateResponse(
+        asset_id=asset.id,
+        asset_code=asset.asset_code,
+        drug_name=asset.internal_name,
+        disease_query=disease_query,
+        original_indication=asset.original_indication,
+        proposed_disease=proposed_disease,
+        abandonment_reason=asset.business_failure_reason,
+        scientific_confidence_score=scientific_confidence,
+        mortician_score=round(mortician_score, 3),
+        match_reason=f"{mortician_reason} Deterministic shortlist formatting applied.",
+        trial_status=asset.portfolio_status,
+        rescue_angle=rescue_angle,
+        key_facts=key_facts,
+        relevance_summary=relevance_summary,
+    )
+
+
+def _build_trial_brief(
+    context, disease_query: str, proposed_disease: str, advocate_reasoning: str
+) -> dict[str, object]:
     response_schema = {
         "type": "object",
         "properties": {
@@ -200,16 +301,44 @@ def search_candidates(
     if not assets:
         return schemas.CandidateSearchResponse(disease=disease_query, candidates=[])
 
+    discovery_signals = fetch_lazarus_candidates(
+        db,
+        disease_query,
+        limit=max(limit * 3, 10),
+    )
+    if not discovery_signals:
+        return schemas.CandidateSearchResponse(disease=disease_query, candidates=[])
+
+    allowed_asset_ids = set(discovery_signals.keys())
+
     preliminary = []
     for asset in assets:
+        if allowed_asset_ids and asset.id not in allowed_asset_ids:
+            continue
+
         context = build_asset_context(asset)
-        score, reason = _mortician_scan(context, disease_query)
-        preliminary.append((score, reason, asset))
+        mortician_score, reason = _mortician_scan(context, disease_query)
+        relevance_score = _query_relevance_score(asset, context, disease_query)
+        discovery_score = (
+            discovery_signals.get(asset.id).score
+            if asset.id in discovery_signals
+            else 0.0
+        )
+        combined_score = max(mortician_score * 0.7, relevance_score, discovery_score)
+
+        # Require either lexical relevance or a strong mechanistic match to avoid random-looking results.
+        if relevance_score < 0.14 and mortician_score < 0.55 and discovery_score < 0.45:
+            continue
+
+        preliminary.append((combined_score, reason, asset))
+
+    if not preliminary:
+        return schemas.CandidateSearchResponse(disease=disease_query, candidates=[])
 
     preliminary.sort(key=lambda item: item[0], reverse=True)
     shortlist = [item[2] for item in preliminary[: max(limit * 2, limit)]]
 
-    candidates = [_build_candidate(asset, disease_query) for asset in shortlist]
+    candidates = [_build_candidate_fast(asset, disease_query) for asset in shortlist]
     candidates.sort(key=lambda item: item.scientific_confidence_score, reverse=True)
 
     return schemas.CandidateSearchResponse(
