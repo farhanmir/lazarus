@@ -186,6 +186,31 @@ class HumanReviewResponse(ORMModel):
     resolved_at: datetime | None = None
 
 
+class HumanReviewDashboardItem(BaseModel):
+    id: UUID
+    run_id: UUID
+    asset_id: UUID
+    asset_code: str
+    asset_name: str
+    original_indication: str
+    review_type: str
+    status: str
+    reason: str
+    recommended_reviewer: str | None = None
+    run_status: str | None = None
+    created_at: datetime
+    resolved_at: datetime | None = None
+
+
+class HumanReviewDashboardSummary(BaseModel):
+    total: int
+    pending: int
+    resolved: int
+    safety_board: int
+    portfolio_committee: int
+    items: list[HumanReviewDashboardItem]
+
+
 class BlueprintCreate(BaseModel):
     hypothesis_id: UUID
 
@@ -307,6 +332,10 @@ class BlueprintJobResponse(BaseModel):
     download_url: str
 
 
+class BlueprintEmailRequest(BaseModel):
+    recipient_email: str
+
+
 class BlueprintDetailResponse(BaseModel):
     blueprint: BlueprintResponse
     payload: BlueprintPayload | None = None
@@ -416,6 +445,61 @@ class EffortImpactSummary(BaseModel):
     investment_readiness_score: float
 
 
+class PortfolioAssetSummary(BaseModel):
+    asset_id: UUID
+    asset_code: str
+    internal_name: str
+    original_indication: str
+    portfolio_status: str
+    owner_company: str | None = None
+    latest_run_id: UUID | None = None
+    latest_run_status: str | None = None
+    latest_hypothesis_id: UUID | None = None
+    proposed_indication: str | None = None
+    final_confidence: float | None = None
+    final_recommendation: str | None = None
+    risk_level: str | None = None
+    priority_level: str | None = None
+    requires_hitl: bool = False
+    open_review_count: int = 0
+    effort_score: float | None = None
+    impact_score: float | None = None
+    investment_readiness_score: float | None = None
+    portfolio_rank_score: float = 0.0
+
+
+class PortfolioRankingResponse(BaseModel):
+    generated_at: datetime
+    items: list[PortfolioAssetSummary]
+
+
+class HypothesisComparisonItem(BaseModel):
+    hypothesis_id: UUID
+    run_id: UUID
+    asset_id: UUID
+    asset_code: str
+    source_disease: str
+    target_disease: str
+    summary: str
+    final_confidence: float | None = None
+    final_recommendation: str | None = None
+    recommended_action: str | None = None
+    priority_level: str | None = None
+    disagreement_score: float | None = None
+    evidence_coverage_score: float | None = None
+    requires_hitl: bool
+    effort_score: float | None = None
+    impact_score: float | None = None
+    investment_readiness_score: float | None = None
+    created_at: datetime
+
+
+class HypothesisComparisonResponse(BaseModel):
+    asset_id: UUID
+    asset_code: str
+    items: list[HypothesisComparisonItem]
+
+
 # --- Messages (Follow-Up Assistant) ---
 
 
@@ -436,3 +520,84 @@ class MessageResponse(ORMModel):
 class ConversationResponse(BaseModel):
     run_id: UUID
     messages: list[MessageResponse]
+
+
+# --- Import Drug from Search ---
+
+
+class ImportDrugRequest(BaseModel):
+    chembl_id: str
+    drug_name: str
+    description: str | None = None
+    drug_type: str | None = None
+    max_phase: str | None = None
+
+
+# --- Multi-Disease Scan ---
+
+
+class MultiDiseaseScanRequest(BaseModel):
+    asset_id: UUID
+    target_diseases: list[str] = Field(
+        default_factory=list,
+        description="Diseases to test. If empty, uses all linked diseases from the context map.",
+    )
+
+
+class MultiDiseaseHypothesisResult(BaseModel):
+    target_disease: str
+    run_id: UUID
+    hypothesis_id: UUID
+    final_confidence: float
+    risk_level: str
+    final_decision: str
+    summary: str
+    recommended_action: str | None = None
+    priority_level: str | None = None
+    effort_score: float | None = None
+    impact_score: float | None = None
+
+
+class MultiDiseaseScanResponse(BaseModel):
+    asset_id: UUID
+    asset_code: str
+    drug_name: str
+    total_diseases_tested: int
+    results: list[MultiDiseaseHypothesisResult]
+
+
+# --- Disease Watchlist ---
+
+
+class WatchlistCreateRequest(BaseModel):
+    disease_query: str = Field(description="e.g. 'cancer', 'pulmonary fibrosis', 'lupus'")
+
+
+class WatchlistAlertResponse(ORMModel):
+    id: UUID
+    watchlist_id: UUID
+    asset_id: UUID
+    asset_code: str
+    drug_name: str
+    original_indication: str
+    matched_disease: str
+    final_confidence: float
+    risk_level: str
+    summary: str
+    dismissed: bool
+    created_at: datetime
+
+
+class WatchlistResponse(ORMModel):
+    id: UUID
+    disease_query: str
+    status: str
+    created_at: datetime
+    completed_at: datetime | None = None
+    alerts: list[WatchlistAlertResponse] = Field(default_factory=list)
+
+
+class WatchlistListResponse(BaseModel):
+    items: list[WatchlistResponse]
+    active_count: int
+    total_alerts: int

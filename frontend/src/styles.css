@@ -39,7 +39,7 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 
-  --left-w: 268px;
+  --left-w: clamp(340px, 29vw, 520px);
   --header-h: 52px;
   --tab-h: 40px;
 }
@@ -101,7 +101,7 @@ body::after {
 /* ─── Shell Layout ─── */
 .lazarus-shell {
   display: grid;
-  grid-template-columns: var(--left-w) 1fr;
+  grid-template-columns: minmax(340px, var(--left-w)) 1fr;
   height: 100vh;
   overflow: hidden;
   position: relative;
@@ -115,6 +115,7 @@ body::after {
   background: var(--bg-deep);
   border-right: 1px solid var(--border);
   overflow: hidden;
+  min-width: 340px;
 }
 
 .nexus-brand {
@@ -221,6 +222,7 @@ body::after {
 
 .log-entry {
   display: flex;
+  align-items: flex-start;
   gap: var(--space-2);
   padding: 4px var(--space-3);
   font-family: var(--font-mono);
@@ -234,7 +236,7 @@ body::after {
 }
 
 .log-tag {
-  flex-shrink: 0;
+  flex: 0 0 86px;
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -243,6 +245,10 @@ body::after {
 
 .log-text {
   color: var(--text-base);
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 

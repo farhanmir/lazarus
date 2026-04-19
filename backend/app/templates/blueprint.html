@@ -2,11 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>{{ payload.asset_code }} Blueprint</title>
-    <link rel="stylesheet" href="blueprint.css" />
+    <title>{{ payload.asset_code }} — Executive Blueprint</title>
   </head>
   <body>
     <main class="page">
+
+      <!-- ── Cover Hero ── -->
       <header class="hero">
         <div class="hero-copy">
           <p class="eyebrow">Lazarus Executive Blueprint</p>
@@ -18,29 +19,38 @@
             <span>{{ payload.recommendation }}</span>
             <span>Priority: {{ payload.priority_level }}</span>
             <span>Risk: {{ payload.risk_level }}</span>
+            <span>{{ payload.phase or "Phase TBD" }}</span>
           </div>
         </div>
         <div class="score-card">
           <span class="score-label">Confidence</span>
-          <span class="score-value">
-            {% if payload.confidence_score <= 1 %}
-            {{ "%.1f"|format(payload.confidence_score * 100) }}%
-            {% else %}
-            {{ "%.1f"|format(payload.confidence_score) }}%
-            {% endif %}
-          </span>
+          {% set conf_pct = payload.confidence_score * 100 if payload.confidence_score <= 1 else payload.confidence_score %}
+          <svg class="confidence-gauge" viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 15 55 A 35 35 0 0 1 85 55" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="6" stroke-linecap="round"/>
+            <path d="M 15 55 A 35 35 0 0 1 85 55" fill="none" stroke="url(#gaugeGrad)" stroke-width="6" stroke-linecap="round"
+                  stroke-dasharray="{{ conf_pct * 1.1 }} 200"/>
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ef4444"/>
+                <stop offset="50%" stop-color="#eab308"/>
+                <stop offset="100%" stop-color="#22c55e"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="score-value">{{ "%.1f"|format(conf_pct) }}%</span>
           <span class="score-reco">{{ payload.recommendation }}</span>
         </div>
       </header>
 
+      <!-- ── Meta Strip ── -->
       <section class="meta-strip">
         <article class="meta-chip">
           <span class="meta-label">Owner</span>
-          <strong>{{ payload.owner_company or "Internal portfolio" }}</strong>
+          <strong>{{ payload.owner_company or "Internal Portfolio" }}</strong>
         </article>
         <article class="meta-chip">
           <span class="meta-label">Phase</span>
-          <strong>{{ payload.phase or "Not specified" }}</strong>
+          <strong>{{ payload.phase or "Not Specified" }}</strong>
         </article>
         <article class="meta-chip">
           <span class="meta-label">Failure Reason</span>
@@ -48,12 +58,19 @@
         </article>
         <article class="meta-chip">
           <span class="meta-label">Generated</span>
-          <strong>{{ payload.generated_at.strftime("%b %d, %Y %H:%M UTC") }}</strong>
+          <strong>{{ payload.generated_at.strftime("%b %d, %Y · %H:%M UTC") }}</strong>
         </article>
       </section>
 
+      <!-- ── §1 Executive Summary & Decision ── -->
+      <div class="section-header">
+        <span class="section-number">1</span>
+        <span class="section-title">Executive Summary & Decision</span>
+        <span class="section-divider"></span>
+      </div>
+
       <section class="grid grid-primary">
-        <article class="card">
+        <article class="card card-highlight">
           <h2>Executive Summary</h2>
           <p>{{ payload.executive_summary }}</p>
         </article>
@@ -80,6 +97,63 @@
         </article>
       </section>
 
+      <!-- ── §2 Scoring & Analysis ── -->
+      <div class="section-header">
+        <span class="section-number">2</span>
+        <span class="section-title">Agent Scoring & Analysis</span>
+        <span class="section-divider"></span>
+      </div>
+
+      <section class="grid grid-primary">
+        <article class="card score-bar-section">
+          <h2>Score Breakdown</h2>
+          {% set advocate_pct = ((payload.advocate_score or 0) * 100) if (payload.advocate_score or 0) <= 1 else (payload.advocate_score or 0) %}
+          {% set skeptic_pct = ((payload.skeptic_score or 0) * 100) if (payload.skeptic_score or 0) <= 1 else (payload.skeptic_score or 0) %}
+          {% set judge_pct = ((payload.judge_score or 0) * 100) if (payload.judge_score or 0) <= 1 else (payload.judge_score or 0) %}
+          <div class="score-bars">
+            <div class="score-bar-row">
+              <span class="score-bar-label">Advocate</span>
+              <div class="score-bar-track">
+                <div class="score-bar-fill score-bar-fill-advocate" style="width: {{ "%.1f"|format(advocate_pct) }}%"></div>
+              </div>
+              <span class="score-bar-value">{{ "%.1f"|format(advocate_pct) }}%</span>
+            </div>
+            <div class="score-bar-row">
+              <span class="score-bar-label">Skeptic</span>
+              <div class="score-bar-track">
+                <div class="score-bar-fill score-bar-fill-skeptic" style="width: {{ "%.1f"|format(skeptic_pct) }}%"></div>
+              </div>
+              <span class="score-bar-value">{{ "%.1f"|format(skeptic_pct) }}%</span>
+            </div>
+            <div class="score-bar-row">
+              <span class="score-bar-label">Judge</span>
+              <div class="score-bar-track">
+                <div class="score-bar-fill score-bar-fill-judge" style="width: {{ "%.1f"|format(judge_pct) }}%"></div>
+              </div>
+              <span class="score-bar-value">{{ "%.1f"|format(judge_pct) }}%</span>
+            </div>
+            <div class="score-bar-row">
+              <span class="score-bar-label">Final</span>
+              <div class="score-bar-track">
+                <div class="score-bar-fill score-bar-fill-final" style="width: {{ "%.1f"|format(conf_pct) }}%"></div>
+              </div>
+              <span class="score-bar-value">{{ "%.1f"|format(conf_pct) }}%</span>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <h2>Technical Summary</h2>
+          <p>{{ payload.technical_summary }}</p>
+        </article>
+      </section>
+
+      <!-- ── §3 Program Context & Business Rationale ── -->
+      <div class="section-header">
+        <span class="section-number">3</span>
+        <span class="section-title">Program Context & Business Rationale</span>
+        <span class="section-divider"></span>
+      </div>
+
       <section class="grid">
         <article class="card">
           <h2>Program Context</h2>
@@ -94,11 +168,19 @@
         <article class="card">
           <h2>Business Rationale</h2>
           <p>{{ payload.business_rationale }}</p>
+          <p class="strategy-rationale">{{ payload.recommended_action }}</p>
         </article>
       </section>
 
+      <!-- ── §4 Supporting Evidence ── -->
+      <div class="section-header">
+        <span class="section-number">4</span>
+        <span class="section-title">Supporting Evidence</span>
+        <span class="section-divider"></span>
+      </div>
+
       <section class="card">
-        <h2>Supporting Evidence</h2>
+        <h2>Evidence Citations ({{ payload.supporting_evidence | length }})</h2>
         <div class="evidence-list">
           {% for item in payload.supporting_evidence %}
           <article class="evidence-item">
@@ -112,56 +194,40 @@
         </div>
       </section>
 
+      <!-- ── §5 Risk Assessment & Next Steps ── -->
+      <div class="section-header">
+        <span class="section-number">5</span>
+        <span class="section-title">Risk Assessment & Next Steps</span>
+        <span class="section-divider"></span>
+      </div>
+
       <section class="grid">
         <article class="card">
           <h2>Risk Summary</h2>
           <p>{{ payload.risk_summary }}</p>
         </article>
         <article class="card">
-          <h2>Next Recommended Action</h2>
+          <h2>Recommended Next Steps</h2>
           <ul class="meta-list">
-            <li><strong>Recommended Next Action:</strong> {{ payload.recommended_action }}</li>
+            <li><strong>Action:</strong> {{ payload.recommended_action }}</li>
             <li><strong>Target Cohort:</strong> {{ payload.suggested_patient_cohort }}</li>
             <li><strong>Trial Focus:</strong> {{ payload.trial_focus }}</li>
             <li><strong>Priority:</strong> {{ payload.priority_level }}</li>
           </ul>
-          <p class="strategy-rationale">{{ payload.business_rationale }}</p>
         </article>
       </section>
 
-      <section class="grid">
-        <article class="card">
-          <h2>Scoring Breakdown</h2>
-          <div class="score-grid">
-            <div class="score-item">
-              <span>Advocate</span>
-              <strong>{{ "%.2f"|format(payload.advocate_score or 0) }}</strong>
-            </div>
-            <div class="score-item">
-              <span>Skeptic</span>
-              <strong>{{ "%.2f"|format(payload.skeptic_score or 0) }}</strong>
-            </div>
-            <div class="score-item">
-              <span>Judge</span>
-              <strong>{{ "%.2f"|format(payload.judge_score or 0) }}</strong>
-            </div>
-            <div class="score-item">
-              <span>Final</span>
-              <strong>
-                {% if payload.confidence_score <= 1 %}
-                {{ "%.1f"|format(payload.confidence_score * 100) }}%
-                {% else %}
-                {{ "%.1f"|format(payload.confidence_score) }}%
-                {% endif %}
-              </strong>
-            </div>
-          </div>
-        </article>
-        <article class="card">
-          <h2>Technical Summary</h2>
-          <p>{{ payload.technical_summary }}</p>
-        </article>
-      </section>
+      <!-- ── Disclaimer ── -->
+      <div class="disclaimer">
+        <strong>Disclaimer:</strong> This blueprint is generated by Lazarus, an AI-powered drug repurposing analysis platform.
+        All findings are computational hypotheses and require independent validation by qualified medical professionals
+        before any clinical or regulatory action. This document does not constitute medical or investment advice.
+      </div>
+
+      <p class="generation-stamp">
+        Generated {{ payload.generated_at.strftime("%Y-%m-%d %H:%M:%S UTC") }} · Lazarus v2.0 · {{ payload.asset_code }}
+      </p>
+
     </main>
   </body>
-  </html>
+</html>

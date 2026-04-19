@@ -5,7 +5,7 @@ import { IMessageSDK } from "@photon-ai/imessage-kit";
 loadEnv({ path: resolve(process.cwd(), "../.env") });
 loadEnv({ path: resolve(process.cwd(), ".env"), override: false });
 const lazarusBaseUrl = (process.env.LAZARUS_BASE_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-const webhookUrl = `${lazarusBaseUrl}/spectrum/webhook`;
+const webhookUrl = `${lazarusBaseUrl}/photon/spectrum/webhook`;
 const localModeEnabled = (process.env.IMESSAGE_LOCAL || "").toLowerCase() === "true";
 const localBridgePort = Number(process.env.SPECTRUM_LOCAL_BRIDGE_PORT || "8765");
 const localBridgePath = process.env.SPECTRUM_SEND_PATH || "/messages";
@@ -164,3 +164,4 @@ main().catch((error) => {
     console.error("Spectrum local bridge failed to start:", error);
     process.exit(1);
 });
+

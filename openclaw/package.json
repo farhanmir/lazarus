@@ -4,14 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "deploy": "tsx openclaw.ts",
-    "chat": "tsx chat.ts",
-    "spectrum:local": "tsx spectrum-local.ts"
+    "spectrum:local": "tsx spectrum-local.ts",
+    "openclaw:gateway": "openclaw gateway --port 18789",
+    "openclaw:onboard": "openclaw onboard --install-daemon",
+    "openclaw:review": "openclaw hooks agent --message 'List all Lazarus portfolio assets and give a status summary'"
   },
   "dependencies": {
     "@photon-ai/imessage-kit": "^2.1.2",
     "better-sqlite3": "^12.4.1",
-    "dedalus-labs": "^0.1.0-alpha.8",
     "dotenv": "^16.6.1"
   },
   "devDependencies": {

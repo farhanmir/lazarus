@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from threading import Thread
 from uuid import UUID
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 
@@ -175,8 +180,12 @@ def _execute_reasoning_pipeline(
     base_context = build_asset_context(asset)
     prior_memories = crud.list_asset_memories(db, asset.id, limit=4)
     context = retrieve_evidence_context(base_context, prior_memories=prior_memories)
+    pipeline_start = time.monotonic()
+    logger.info("[pipeline] start run_id=%s asset=%s run_type=%s", run.id, asset.asset_code, run.run_type)
     try:
+        t0 = time.monotonic()
         advocate = run_advocate(context)
+        logger.info("[pipeline] advocate completed in %.2fs", time.monotonic() - t0)
         _log_agent_step(
             db,
             run_id=run.id,
@@ -188,7 +197,17 @@ def _execute_reasoning_pipeline(
             citations_json={"model_used": advocate.model_used, "mode": advocate.mode},
         )
 
-        skeptic = run_skeptic(context, advocate)
+        # --- Run Skeptic + Parallel Evidence concurrently ---
+        t0 = time.monotonic()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            skeptic_future = executor.submit(run_skeptic, context, advocate)
+            # Parallel evidence needs skeptic, so we pass a lambda that waits for it
+            pe_future = executor.submit(
+                lambda: run_parallel_evidence_branches(context, advocate, skeptic_future.result())
+            )
+            skeptic = skeptic_future.result()
+            parallel_evidence = pe_future.result()
+        logger.info("[pipeline] skeptic + parallel_evidence completed in %.2fs (concurrent)", time.monotonic() - t0)
         _log_agent_step(
             db,
             run_id=run.id,
@@ -203,8 +222,6 @@ def _execute_reasoning_pipeline(
                 "contraindications": skeptic.contraindications,
             },
         )
-
-        parallel_evidence = run_parallel_evidence_branches(context, advocate, skeptic)
         _log_agent_step(
             db,
             run_id=run.id,
@@ -227,7 +244,9 @@ def _execute_reasoning_pipeline(
         )
 
         curated_context = merge_parallel_evidence_into_context(context, parallel_evidence)
+        t0 = time.monotonic()
         evidence = run_evidence_curator(curated_context, advocate, skeptic)
+        logger.info("[pipeline] evidence_curator completed in %.2fs", time.monotonic() - t0)
         _log_agent_step(
             db,
             run_id=run.id,
@@ -243,6 +262,13 @@ def _execute_reasoning_pipeline(
         )
 
         assessment = build_reasoning_assessment(advocate, skeptic, evidence, parallel_evidence)
+        logger.info(
+            "[pipeline] assessment disagreement=%.2f coverage=%.2f should_iterate=%s requires_hitl=%s",
+            assessment.disagreement_score,
+            assessment.evidence_coverage_score,
+            assessment.should_iterate,
+            assessment.requires_hitl,
+        )
         _log_agent_step(
             db,
             run_id=run.id,
@@ -257,19 +283,14 @@ def _execute_reasoning_pipeline(
             },
         )
 
-        turn_count = 0
-        max_turns = 3
-
-        while assessment.should_iterate and turn_count < max_turns:
-            turn_count += 1
-            
+        if assessment.should_iterate:
             advocate = revise_advocate_output(context, advocate, assessment, parallel_evidence)
             _log_agent_step(
                 db,
                 run_id=run.id,
                 agent_name="advocate_iteration",
                 step_order=6,
-                input_summary=f"[Turn {turn_count}] Revise Advocate output using disagreement and parallel branch feedback.",
+                input_summary="[Turn 2] Revise Advocate output using disagreement and parallel branch feedback.",
                 output_summary=advocate.model_dump_json(),
                 score=advocate.confidence,
                 citations_json={"iteration_reason": assessment.rationale},
@@ -281,7 +302,7 @@ def _execute_reasoning_pipeline(
                 run_id=run.id,
                 agent_name="skeptic_iteration",
                 step_order=7,
-                input_summary=f"[Turn {turn_count}] Re-test revised Advocate proposal {advocate.proposed_disease}.",
+                input_summary=f"[Turn 2] Re-test revised Advocate proposal {advocate.proposed_disease}.",
                 output_summary=skeptic.model_dump_json(),
                 score=skeptic.skeptic_score,
                 citations_json={"mode": skeptic.mode, "contraindications": skeptic.contraindications},
@@ -293,7 +314,7 @@ def _execute_reasoning_pipeline(
                 run_id=run.id,
                 agent_name="evidence_iteration",
                 step_order=8,
-                input_summary=f"[Turn {turn_count}] Refresh evidence package after the iterative Advocate/Skeptic loop.",
+                input_summary="[Turn 2] Refresh evidence package after the iterative Advocate/Skeptic loop.",
                 output_summary=evidence.model_dump_json(),
                 score=evidence.evidence_score,
                 citations_json=[item.model_dump() for item in evidence.evidence],
@@ -305,7 +326,7 @@ def _execute_reasoning_pipeline(
                 run_id=run.id,
                 agent_name="assessment_iteration",
                 step_order=9,
-                input_summary=f"[Turn {turn_count}] Recompute disagreement and coverage after the iterative pass.",
+                input_summary="[Turn 2] Recompute disagreement and coverage after the iterative pass.",
                 output_summary=assessment.model_dump_json(),
                 score=assessment.evidence_coverage_score,
                 citations_json={
@@ -314,23 +335,8 @@ def _execute_reasoning_pipeline(
                 },
             )
 
-            if assessment.should_iterate and turn_count >= max_turns:
-                skeptic.risk_level = "High"
-                assessment.should_iterate = False
-                assessment.rationale += f" [SYSTEM OVERRIDE: Infinite Argument Deadlock reached after {max_turns} turns. Forcing termination and auto-flagging as High Risk.]"
-                _log_agent_step(
-                    db,
-                    run_id=run.id,
-                    agent_name="circuit_breaker",
-                    step_order=9,
-                    input_summary="Infinite Argument Deadlock Detected.",
-                    output_summary='{"action": "TERMINATE_LOOP", "risk_override": "High"}',
-                    score=0.0,
-                    citations_json={"reason": "max_turns exceeded"},
-                )
-                break
-
         judge = run_judge(context, advocate, skeptic, evidence)
+        logger.info("[pipeline] judge completed in %.2fs", time.monotonic() - t0)
         _log_agent_step(
             db,
             run_id=run.id,
@@ -350,7 +356,9 @@ def _execute_reasoning_pipeline(
             judge,
         )
         trial_started_at = now_utc()
+        t0 = time.monotonic()
         trial_strategist = generate_trial_strategy(trial_strategist_input)
+        logger.info("[pipeline] trial_strategist completed in %.2fs", time.monotonic() - t0)
         trial_completed_at = now_utc()
         execution_time = round((trial_completed_at - trial_started_at).total_seconds(), 4)
         hitl = build_hitl_decision(context, assessment, skeptic)
@@ -519,6 +527,16 @@ def _execute_reasoning_pipeline(
                     recommended_action=trial_strategist.recommended_action,
                 )
 
+        total_duration = time.monotonic() - pipeline_start
+        logger.info(
+            "[pipeline] completed run_id=%s asset=%s total_duration=%.2fs final_decision=%s final_confidence=%.2f",
+            run.id,
+            context.asset_code,
+            total_duration,
+            judge.final_decision,
+            judge.final_confidence,
+        )
+
         reasoning_result = ReasoningResult(
             run_id=run.id,
             hypothesis_id=hypothesis.id,
@@ -561,7 +579,9 @@ def _execute_reasoning_pipeline(
             final_confidence=judge.final_confidence,
             final_decision=judge.final_decision,
         )
+
     except Exception as exc:
+        logger.exception("[pipeline] failed run_id=%s asset=%s after %.2fs", run.id, asset.asset_code, time.monotonic() - pipeline_start)
         crud.update_run_status(db, run, status="failed", error_message=str(exc))
         raise
 

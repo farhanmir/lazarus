@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from backend.app import crud
 from backend.app.agents.types import FollowUpAnswer
+from backend.app.services.llm_service import openai_chat_completion
 
 
 def _gather_run_context(db: Session, run_id: UUID) -> dict[str, str]:
@@ -171,22 +173,89 @@ def _search_context(context: dict[str, str], agents: list[str], question: str) -
     return results
 
 
-def answer_follow_up(db: Session, run_id: UUID, question: str) -> FollowUpAnswer:
-    """Answer a user question grounded in the run's agent outputs."""
-    context = _gather_run_context(db, run_id)
-    hypotheses = _gather_hypothesis_context(db, run_id)
+FOLLOW_UP_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "answer": {"type": "string"},
+        "sources": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+    },
+    "required": ["answer", "sources"],
+    "additionalProperties": False,
+}
 
-    relevant_agents = _find_relevant_agents(question)
-    snippets = _search_context(context, relevant_agents, question)
 
-    if not snippets and not hypotheses:
-        return FollowUpAnswer(
-            question=question,
-            answer="No analysis data found for this run. Please run the analysis pipeline first.",
-            sources=[],
+def _build_llm_prompt(question: str, snippets: list[tuple[str, str]], hypotheses: list[dict]) -> tuple[str, list[str]]:
+    source_ids: list[str] = []
+    sections: list[str] = []
+
+    for agent_name, snippet in snippets:
+        source_id = f"agent:{agent_name}"
+        source_ids.append(source_id)
+        readable = _format_snippet(agent_name, snippet)
+        sections.append(f"[{source_id}]\n{readable}")
+
+    for h in hypotheses:
+        source_id = f"hypothesis:{h['id']}"
+        source_ids.append(source_id)
+        sections.append(
+            "\n".join(
+                [
+                    f"[{source_id}]",
+                    f"Hypothesis: {h['source_disease']} -> {h['target_disease']}",
+                    f"Summary: {h['summary'] or 'No summary recorded.'}",
+                    f"Final Confidence: {h['final_confidence']}",
+                    f"Recommended Action: {h['recommended_action']}",
+                    f"Priority Level: {h['priority_level']}",
+                ]
+            )
         )
 
-    # Build a grounded answer from the available data
+    prompt = "\n\n".join(
+        [
+            "Question:",
+            question,
+            "",
+            "Grounding Context:",
+            "\n\n".join(sections) if sections else "No context found.",
+        ]
+    )
+    return prompt, source_ids
+
+
+def _answer_with_openai(question: str, snippets: list[tuple[str, str]], hypotheses: list[dict]) -> FollowUpAnswer | None:
+    model = os.getenv("OPENAI_FOLLOW_UP_MODEL", os.getenv("OPENAI_SKEPTIC_MODEL", "gpt-4o-mini"))
+    prompt, allowed_sources = _build_llm_prompt(question, snippets, hypotheses)
+    response = openai_chat_completion(
+        model=model,
+        system_prompt=(
+            "You are the Lazarus Follow-Up Assistant. Answer the user's question using only the provided run "
+            "context. Be concise, natural, and specific. Do not mention data that is not present in the context. "
+            "If the answer is unavailable, say so plainly. Return only grounded citations from the provided source IDs."
+        ),
+        user_prompt=prompt,
+        response_schema=FOLLOW_UP_RESPONSE_SCHEMA,
+    )
+    if not response or not response.get("answer"):
+        return None
+
+    filtered_sources = [
+        source for source in response.get("sources", [])
+        if source in allowed_sources
+    ]
+    return FollowUpAnswer(
+        question=question,
+        answer=response["answer"].strip(),
+        sources=filtered_sources,
+        model_used=model,
+        mode="grounded_llm",
+    )
+
+
+def _deterministic_answer(question: str, snippets: list[tuple[str, str]], hypotheses: list[dict]) -> FollowUpAnswer:
+    """Deterministic fallback when the LLM path is unavailable."""
     answer_parts = []
     sources = []
 
@@ -214,3 +283,25 @@ def answer_follow_up(db: Session, run_id: UUID, question: str) -> FollowUpAnswer
         answer=answer,
         sources=sources,
     )
+
+
+def answer_follow_up(db: Session, run_id: UUID, question: str) -> FollowUpAnswer:
+    """Answer a user question grounded in the run's agent outputs."""
+    context = _gather_run_context(db, run_id)
+    hypotheses = _gather_hypothesis_context(db, run_id)
+
+    relevant_agents = _find_relevant_agents(question)
+    snippets = _search_context(context, relevant_agents, question)
+
+    if not snippets and not hypotheses:
+        return FollowUpAnswer(
+            question=question,
+            answer="No analysis data found for this run. Please run the analysis pipeline first.",
+            sources=[],
+        )
+
+    llm_answer = _answer_with_openai(question, snippets, hypotheses)
+    if llm_answer is not None:
+        return llm_answer
+
+    return _deterministic_answer(question, snippets, hypotheses)

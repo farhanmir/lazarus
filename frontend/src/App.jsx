@@ -1,662 +1,713 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react'
+import React, { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import AgentProgressBar from './components/AgentProgressBar'
 import AgentTimeline from './components/AgentTimeline'
+import BlueprintProgress from './components/BlueprintProgress'
+import BlueprintViewer from './components/BlueprintViewer'
+import ConfidenceGauge from './components/ConfidenceGauge'
+import EffortImpactChart from './components/EffortImpactChart'
+import HumanReviewDashboard from './components/HumanReviewDashboard'
+import HypothesisComparisonPanel from './components/HypothesisComparisonPanel'
+import InteractiveGraph from './components/InteractiveGraph'
+import MessagingPanel from './components/MessagingPanel'
+import MetricsBar from './components/MetricsBar'
+import MultiDiseaseScanPanel from './components/MultiDiseaseScanPanel'
+import WatchlistPanel from './components/WatchlistPanel'
+import NodeDetailsPanel from './components/NodeDetailsPanel'
+import PortfolioRankingPanel from './components/PortfolioRankingPanel'
+import RiskBadge from './components/RiskBadge'
+import { GlobeScene } from './components/GlobeScene'
+import { AgentLogFeed } from './components/AgentLogFeed'
+import { useGraphData } from './hooks/useGraphData'
+import { useRunStatus } from './hooks/useRunStatus'
 import {
-  evaluateCandidate,
+  fetchAssets,
   fetchBlueprintDetail,
-  fetchCandidates,
-  sendPhotonNotification,
+  fetchHumanReviewDashboard,
+  fetchGraph,
+  fetchHypothesisComparison,
+  fetchPortfolioRanking,
+  getBlueprintDownloadUrl,
+  resolveHumanReview,
+  startAnalysisJob,
   startBlueprintJob,
   subscribeRunStream,
 } from './services/api'
 
-function readableOutput(raw) {
-  if (!raw) return 'Waiting for output...'
-  try {
-    const p = JSON.parse(raw)
-    if (p.proposed_disease && p.confidence != null)
-      return `Proposed: ${p.proposed_disease} · confidence ${(p.confidence * 100).toFixed(0)}%`
-    if (p.risk_level)
-      return `Risk: ${p.risk_level}${p.verdict ? ' · ' + p.verdict : ''}${p.reasoning ? '\n' + p.reasoning : ''}`
-    if (p.final_decision && p.final_confidence != null)
-      return `Verdict: ${p.final_decision} · confidence ${(p.final_confidence * 100).toFixed(0)}%${p.rationale ? '\n' + p.rationale : ''}`
-    if (p.recommended_action)
-      return `Action: ${p.recommended_action}${p.rationale ? '\n' + p.rationale : ''}`
-    if (p.evidence_summary)
-      return p.evidence_summary
-    const stringPairs = Object.entries(p)
-      .filter(([, v]) => typeof v === 'string' && v.length > 0)
-      .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
-    return stringPairs.length > 0 ? stringPairs.join('\n') : raw
-  } catch {
-    return raw
-  }
-}
+const emptyGraph = { nodes: [], links: [] }
 
-const PIPELINE_STAGES = [
-  { id: 'openclaw', label: 'Searching Trials (OpenClaw)' },
-  { id: 'gemini', label: 'Ingesting Data (Gemini)' },
-  { id: 'k2', label: 'Reasoning Pivot (K2)' },
-  { id: 'dedalus', label: 'Finalizing Blueprint (Dedalus)' },
-  { id: 'photon', label: 'Sending Alert (Photon)' },
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'graph',     label: 'Graph' },
+  { id: 'agents',    label: 'Agents' },
+  { id: 'strategy',  label: 'Strategy' },
+  { id: 'compare',   label: 'Compare' },
+  { id: 'reviews',   label: 'Reviews' },
+  { id: 'messages',  label: 'Messages' },
+  { id: 'scan',      label: 'Scan' },
+  { id: 'watchlist', label: 'Watchlist' },
+  { id: 'blueprint', label: 'Blueprint' },
 ]
 
-function stageMap() {
-  return PIPELINE_STAGES.reduce((accumulator, stage) => {
-    accumulator[stage.id] = { status: 'idle', detail: '' }
-    return accumulator
-  }, {})
-}
-
-async function waitForRunCompletion(runId, onTrace) {
-  return new Promise((resolve, reject) => {
-    const subscription = subscribeRunStream(runId, {
-      onMessage: (payload) => {
-        onTrace(payload)
-        if (payload?.run?.status === 'failed') {
-          subscription.close()
-          reject(new Error(payload.run.error_message || 'K2 reasoning failed.'))
-          return
-        }
-        if (payload?.run?.status === 'completed') {
-          subscription.close()
-          resolve(payload)
-        }
-      },
-      onError: () => {
-        subscription.close()
-        reject(new Error('Run stream disconnected while waiting for K2 output.'))
-      },
-    })
-  })
+const pageVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  exit:    { opacity: 0, y: -6 },
 }
 
 function App() {
-  const [disease, setDisease] = useState('')
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [reasoningLoading, setReasoningLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [selectedCandidateId, setSelectedCandidateId] = useState('')
-  const [stages, setStages] = useState(stageMap)
-  const [autopsy, setAutopsy] = useState(null)
-  const [rescue, setRescue] = useState(null)
-  const [blueprint, setBlueprint] = useState(null)
-  const [alertMessage, setAlertMessage] = useState('')
-  const [latestRunId, setLatestRunId] = useState('')
-  const [liveTrace, setLiveTrace] = useState(null)
-  const [photonRecipient, setPhotonRecipient] = useState('')
-  const [sendingPhoton, setSendingPhoton] = useState(false)
-  const [photonResult, setPhotonResult] = useState('')
-  const [showTrace, setShowTrace] = useState(false)
-  const [outputTab, setOutputTab] = useState('output')
-  const traceDrawerRef = useRef(null)
-  const traceCloseRef = useRef(null)
+  const [assets, setAssets]               = useState([])
+  const [selectedAssetId, setSelectedAssetId] = useState('')
+  const [graphData, setGraphData]         = useState(emptyGraph)
+  const [selectedNode, setSelectedNode]   = useState(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [blueprintLoading, setBlueprintLoading] = useState(false)
+  const [errorMessage, setErrorMessage]   = useState('')
+  const [analysisResult, setAnalysisResult] = useState(null)
+  const [runTrace, setRunTrace]           = useState(null)
+  const [blueprintResult, setBlueprintResult] = useState(null)
+  const [activeTab, setActiveTab]         = useState('dashboard')
+  const [query, setQuery]                 = useState('')
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [portfolioRanking, setPortfolioRanking] = useState(null)
+  const [portfolioLoading, setPortfolioLoading] = useState(false)
+  const [portfolioError, setPortfolioError] = useState('')
+  const [reviewDashboard, setReviewDashboard] = useState(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const [hypothesisComparison, setHypothesisComparison] = useState(null)
+  const [comparisonLoading, setComparisonLoading] = useState(false)
+  const [comparisonError, setComparisonError] = useState('')
 
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+  const deferredGraphData    = useDeferredValue(graphData)
+  const deferredSelectedNode = useDeferredValue(selectedNode)
+  const runStatus = useRunStatus(analysisResult?.run, { analysisLoading, errorMessage })
+  const { details: nodeDetails, overview: graphOverview, legendItems } = useGraphData(deferredGraphData, deferredSelectedNode)
+
+  const filteredAssets = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    if (!normalized) return assets
+    return assets.filter((asset) =>
+      `${asset.asset_code} ${asset.original_indication} ${asset.internal_name}`.toLowerCase().includes(normalized),
+    )
+  }, [assets, query])
+
+  const metrics = useMemo(() => {
+    const skepticStep    = runTrace?.steps?.find((s) => s.agent_name === 'skeptic')
+    const strategistStep = runTrace?.steps?.find((s) => s.agent_name === 'trial_strategist')
+    let riskLevel     = 'Awaiting review'
+    let priorityLevel = analysisResult?.hypothesis?.priority_level ?? 'Awaiting strategy'
+
+    try {
+      const p = skepticStep?.output_summary ? JSON.parse(skepticStep.output_summary) : null
+      if (p?.risk_level) riskLevel = p.risk_level
+    } catch { /* non-JSON payload */ }
+
+    try {
+      const p = strategistStep?.output_summary ? JSON.parse(strategistStep.output_summary) : null
+      if (p?.priority_level) priorityLevel = p.priority_level
+    } catch { /* non-JSON payload */ }
+
+    const confidence = analysisResult?.run?.final_confidence
+    const formattedConfidence =
+      typeof confidence === 'number'
+        ? `${(confidence <= 1 ? confidence * 100 : confidence).toFixed(1)}%`
+        : 'Awaiting score'
+
+    return [
+      {
+        key:  'hypothesis',
+        value: analysisResult?.hypothesis
+          ? `${analysisResult.hypothesis.source_disease} → ${analysisResult.hypothesis.target_disease}`
+          : 'Awaiting analysis',
+        caption: 'Active mechanistic repurposing candidate',
+      },
+      {
+        key:  'confidence',
+        value: formattedConfidence,
+        caption: analysisResult?.run?.final_recommendation ?? 'No decision yet',
+      },
+      {
+        key:  'risk',
+        value: riskLevel,
+        caption: 'Derived from skeptical review and safety pressure tests',
+      },
+      {
+        key:  'priority',
+        value: priorityLevel,
+        caption: 'Trial strategist recommendation for next-stage focus',
+      },
+    ]
+  }, [
+    analysisResult?.hypothesis,
+    analysisResult?.run?.final_confidence,
+    analysisResult?.run?.final_recommendation,
+    runTrace?.steps,
+  ])
+
+  const liveInsight = useMemo(() => {
+    const skepticStep    = runTrace?.steps?.find((s) => s.agent_name.includes('skeptic'))
+    const strategistStep = runTrace?.steps?.find((s) => s.agent_name === 'trial_strategist')
+    let riskLevel     = 'Unknown'
+    let priorityLevel = analysisResult?.hypothesis?.priority_level ?? 'Pending'
+
+    try {
+      const p = skepticStep?.output_summary ? JSON.parse(skepticStep.output_summary) : null
+      if (p?.risk_level) riskLevel = p.risk_level
+    } catch { /* ignore */ }
+
+    try {
+      const p = strategistStep?.output_summary ? JSON.parse(strategistStep.output_summary) : null
+      if (p?.priority_level) priorityLevel = p.priority_level
+    } catch { /* ignore */ }
+
+    const runtimeMs =
+      analysisResult?.run?.started_at && analysisResult?.run?.completed_at
+        ? new Date(analysisResult.run.completed_at) - new Date(analysisResult.run.started_at)
+        : null
+
+    return {
+      riskLevel,
+      priorityLevel,
+      runtimeLabel: runtimeMs !== null ? `${(runtimeMs / 1000).toFixed(1)}s` : 'LIVE',
+    }
+  }, [
+    analysisResult?.hypothesis?.priority_level,
+    analysisResult?.run?.completed_at,
+    analysisResult?.run?.started_at,
+    runTrace?.steps,
+  ])
 
   useEffect(() => {
-    if (showTrace && traceCloseRef.current) {
-      traceCloseRef.current.focus()
-    }
-  }, [showTrace])
+    fetchAssets()
+      .then((data) => {
+        setAssets(data)
+        if (data.length) setSelectedAssetId(data[0].id)
+      })
+      .catch(() => setErrorMessage('Unable to load assets from the Lazarus backend.'))
+  }, [])
 
-  function handleTraceKeyDown(e) {
-    if (e.key === 'Escape') {
-      setShowTrace(false)
-      return
-    }
-    if (e.key !== 'Tab' || !traceDrawerRef.current) return
-    const focusable = traceDrawerRef.current.querySelectorAll(
-      'button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )
-    if (!focusable.length) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (e.shiftKey) {
-      if (document.activeElement === first) { e.preventDefault(); last.focus() }
-    } else {
-      if (document.activeElement === last) { e.preventDefault(); first.focus() }
-    }
+  useEffect(() => {
+    if (activeTab !== 'portfolio') return
+    setPortfolioLoading(true)
+    setPortfolioError('')
+    fetchPortfolioRanking()
+      .then(setPortfolioRanking)
+      .catch(() => setPortfolioError('Unable to build the portfolio ranking board right now.'))
+      .finally(() => setPortfolioLoading(false))
+  }, [activeTab, analysisResult?.run?.id])
+
+  useEffect(() => {
+    if (activeTab !== 'reviews') return
+    setReviewLoading(true)
+    setReviewError('')
+    fetchHumanReviewDashboard()
+      .then(setReviewDashboard)
+      .catch(() => setReviewError('Unable to load the human review queue right now.'))
+      .finally(() => setReviewLoading(false))
+  }, [activeTab, analysisResult?.run?.id])
+
+  useEffect(() => {
+    if (activeTab !== 'compare' || !selectedAssetId) return
+    setComparisonLoading(true)
+    setComparisonError('')
+    fetchHypothesisComparison(selectedAssetId)
+      .then(setHypothesisComparison)
+      .catch(() => setComparisonError('Unable to compare hypotheses for the selected asset.'))
+      .finally(() => setComparisonLoading(false))
+  }, [activeTab, selectedAssetId, analysisResult?.run?.id])
+
+  const resetGraph = () => {
+    setGraphData(emptyGraph)
+    setSelectedNode(null)
+    setAnalysisResult(null)
+    setRunTrace(null)
+    setBlueprintResult(null)
+    setErrorMessage('')
   }
 
-  const selectedCandidate = useMemo(
-    () => searchResults.find((candidate) => candidate.asset_id === selectedCandidateId) ?? null,
-    [searchResults, selectedCandidateId],
-  )
-
-  const discoveredCandidates = blueprint?.candidates ?? []
-
-  const canSearch = useMemo(() => disease.trim().length >= 2 && !searchLoading, [disease, searchLoading])
-  const canReason = useMemo(() => !!selectedCandidate && !reasoningLoading, [selectedCandidate, reasoningLoading])
-
-  const updateStage = (stageId, status, detail = '') => {
-    setStages((previous) => ({
-      ...previous,
-      [stageId]: {
-        status,
-        detail: detail || previous[stageId]?.detail || '',
-      },
-    }))
-  }
-
-  const handleSearch = async (event) => {
-    event.preventDefault()
-    const diseaseQuery = disease.trim()
-    if (diseaseQuery.length < 2) return
-
-    setSearchLoading(true)
-    setError('')
-    setLiveTrace(null)
-    setAutopsy(null)
-    setRescue(null)
-    setBlueprint(null)
-    setLatestRunId('')
-    setAlertMessage('')
-    setPhotonResult('')
-    setSelectedCandidateId('')
-    setSearchResults([])
-    setStages(stageMap())
-
+  const handleRunAnalysis = async () => {
+    if (!selectedAssetId) return
+    setActiveTab('dashboard')
+    setAnalysisLoading(true)
+    setErrorMessage('')
+    setAnalysisResult(null)
+    setRunTrace(null)
+    setBlueprintResult(null)
+    setGraphData(emptyGraph)
+    setSelectedNode(null)
     try {
-      updateStage('openclaw', 'running', 'Scanning terminated and failed studies...')
-      const candidateResult = await fetchCandidates(diseaseQuery, 10)
-      const candidates = candidateResult?.candidates ?? []
+      const job = await startAnalysisJob(selectedAssetId, 'manual')
+      setAnalysisResult({ run: job.run, asset_code: job.asset_code, hypothesis: null })
+      const graph = await fetchGraph(selectedAssetId)
+      startTransition(() => {
+        setGraphData(graph)
+        setSelectedNode(graph.nodes.find((n) => n.highlight) ?? graph.nodes[0] ?? null)
+      })
 
-      if (!candidates.length) {
-        throw new Error(`No terminated trial candidates found for ${diseaseQuery}.`)
-      }
-
-      setSearchResults(candidates)
-      setSelectedCandidateId(candidates[0].asset_id)
-
-      updateStage(
-        'openclaw',
-        'done',
-        `${candidates.length} failed trials ranked for ${diseaseQuery}.`,
-      )
-    } catch (error_) {
-      const message = error_?.response?.data?.detail || error_?.message || 'Pipeline failed unexpectedly.'
-      setError(message)
-      setStages((previous) => {
-        const runningEntry = Object.entries(previous).find(([, value]) => value.status === 'running')
-        if (!runningEntry) return previous
-        const [failedId, failedStage] = runningEntry
-        return {
-          ...previous,
-          [failedId]: {
-            ...failedStage,
-            status: 'failed',
-            detail: message,
+      await new Promise((resolve, reject) => {
+        const subscription = subscribeRunStream(job.run.id, {
+          onMessage: (payload) => {
+            if (payload?.error) { subscription.close(); reject(new Error(payload.error)); return }
+            setAnalysisResult((cur) => ({
+              ...cur,
+              run:       payload.run,
+              asset_code: payload.asset_code ?? cur?.asset_code ?? job.asset_code,
+              hypothesis: payload.hypothesis ?? null,
+            }))
+            setRunTrace(payload)
+            if (payload.run?.status === 'failed') {
+              subscription.close()
+              reject(new Error(payload.run.error_message || 'Analysis failed to complete.'))
+            }
+            if (payload.run?.status === 'completed') { subscription.close(); resolve(payload) }
           },
-        }
+          onError: () => reject(new Error('Real-time run stream disconnected unexpectedly.')),
+        })
       })
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.detail ?? error.message ?? 'Analysis failed to complete.')
     } finally {
-      setSearchLoading(false)
+      setAnalysisLoading(false)
     }
   }
 
-  const handleReasoning = async () => {
-    if (!selectedCandidate || reasoningLoading) return
-
-    setReasoningLoading(true)
-    setError('')
-    setAutopsy(null)
-    setRescue(null)
-    setBlueprint(null)
-    setAlertMessage('')
-    setPhotonResult('')
-    setLatestRunId('')
-    setLiveTrace(null)
-    setStages(stageMap())
-
+  const handleGenerateBlueprint = async () => {
+    const hypothesisId = analysisResult?.hypothesis?.id
+    if (!hypothesisId) return
+    setActiveTab('blueprint')
+    setBlueprintLoading(true)
+    setErrorMessage('')
+    setBlueprintResult(null)
     try {
-      updateStage('openclaw', 'done', `${selectedCandidate.asset_code}: selected from ranked failed trial list.`)
-      updateStage('gemini', 'running', 'Ingesting the selected trial report and LLM brief...')
-
-      const autopsyPayload = {
-        trial_id: selectedCandidate.asset_code,
-        disease: disease.trim(),
-        drug: selectedCandidate.drug_name,
-        scientific_wall:
-          selectedCandidate.abandonment_reason ||
-          selectedCandidate.relevance_summary ||
-          'Trial failed for non-specific operational or safety reasons.',
-        match_reason: selectedCandidate.match_reason,
-      }
-      setAutopsy(autopsyPayload)
-      updateStage('gemini', 'done', selectedCandidate.relevance_summary || 'Trial evidence ingested and summarized.')
-
-      updateStage('k2', 'running', 'Reasoning over the selected failure mode...')
-      const runJob = await evaluateCandidate({
-        drug: selectedCandidate.drug_name,
-        disease: disease.trim(),
-        assetCode: selectedCandidate.asset_code,
-      })
-      setLatestRunId(runJob.run.id)
-
-      const finalTrace = await waitForRunCompletion(runJob.run.id, setLiveTrace)
-      const hypothesis = finalTrace?.hypothesis
-      if (!hypothesis?.id) {
-        throw new Error('K2 finished without a recoverable hypothesis.')
-      }
-
-      setRescue({
-        run_id: runJob.run.id,
-        hypothesis_id: hypothesis.id,
-        summary: hypothesis.summary,
-        target_disease: hypothesis.target_disease,
-        confidence: hypothesis.final_confidence,
-      })
-      updateStage('k2', 'done', `Pivot proposed for ${hypothesis.target_disease} at confidence ${Number(hypothesis.final_confidence || 0).toFixed(2)}.`)
-
-      updateStage('dedalus', 'running', 'Finalizing the blueprint from the completed reasoning trace...')
-      const blueprintJob = await startBlueprintJob(hypothesis.id)
+      const job = await startBlueprintJob(hypothesisId)
+      setBlueprintResult({ blueprint: job.blueprint, payload: null })
       let detail = null
-      let pollCount = 0
       while (!detail || detail.blueprint.generation_status === 'pending') {
-        if (pollCount >= 90) throw new Error('Dedalus blueprint generation timed out after 90s.')
-        await new Promise((resolve) => globalThis.setTimeout(resolve, 1000))
-        detail = await fetchBlueprintDetail(blueprintJob.blueprint.id)
-        pollCount++
+        await sleep(1200)
+        detail = await fetchBlueprintDetail(job.blueprint.id)
+        setBlueprintResult(detail)
       }
-
-      if (detail.blueprint.generation_status === 'failed') {
-        throw new Error('Dedalus blueprint generation failed.')
-      }
-
-      const finalBlueprint = {
-        id: detail.blueprint.id,
-        title: detail.blueprint.title,
-        executive_summary: detail.payload?.executive_summary || detail.blueprint.executive_summary || '',
-        candidates: searchResults.slice(0, 5),
-        download_url: `/blueprints/${detail.blueprint.id}/download`,
-      }
-      setBlueprint(finalBlueprint)
-      updateStage('dedalus', 'done', `Rescue Blueprint ready with ${finalBlueprint.candidates.length} high-confidence candidates.`)
-
-      updateStage('photon', 'running', 'Dispatching scientist notification...')
-      const text = `Trial Rescued: ${disease.trim()} (Trial ID: ${selectedCandidate.asset_code}). ${finalBlueprint.candidates.length} candidates identified via K2 Reasoning. View Blueprint: ${finalBlueprint.download_url}`
-      setAlertMessage(text)
-      updateStage('photon', 'done', 'Lead researcher alert composed and queued.')
-    } catch (error_) {
-      const message = error_?.response?.data?.detail || error_?.message || 'Pipeline failed unexpectedly.'
-      setError(message)
-      setStages((previous) => {
-        const runningEntry = Object.entries(previous).find(([, value]) => value.status === 'running')
-        if (!runningEntry) return previous
-        const [failedId, failedStage] = runningEntry
-        return {
-          ...previous,
-          [failedId]: {
-            ...failedStage,
-            status: 'failed',
-            detail: message,
-          },
-        }
-      })
+      if (detail.blueprint.generation_status === 'failed') throw new Error('Blueprint generation failed.')
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.detail ?? error.message ?? 'Blueprint generation failed.')
     } finally {
-      setReasoningLoading(false)
+      setBlueprintLoading(false)
     }
   }
 
-  const handleSendPhoton = async () => {
-    const recipient = photonRecipient.trim()
-    if (!recipient || !alertMessage) return
-
-    setSendingPhoton(true)
-    setPhotonResult('')
-    try {
-      const data = await sendPhotonNotification({ recipient, message: alertMessage })
-      setPhotonResult(`Queued to ${data.recipient}.`)
-      updateStage('photon', 'done', `Alert delivered to ${data.recipient}.`)
-    } catch (error_) {
-      const message = error_?.response?.data?.detail || error_?.message || 'Failed to send Photon alert.'
-      setPhotonResult(message)
-      updateStage('photon', 'failed', message)
-    } finally {
-      setSendingPhoton(false)
+  const handleResolveReview = async (reviewId) => {
+    await resolveHumanReview(reviewId, 'Resolved from Lazarus review dashboard.')
+    const data = await fetchHumanReviewDashboard()
+    setReviewDashboard(data)
+    if (activeTab === 'portfolio') {
+      const ranking = await fetchPortfolioRanking()
+      setPortfolioRanking(ranking)
     }
   }
+
+  const completedSteps = runTrace?.steps?.filter((s) => s.status === 'completed').length ?? 0
+  const totalSteps = 5
+
+  // Derive status dot class
+  const dotClass =
+    runStatus.tone === 'green' ? 'status-dot-strip dot-done' :
+    runStatus.tone === 'blue'  ? 'status-dot-strip dot-running' :
+    runStatus.tone === 'red'   ? 'status-dot-strip dot-error' :
+    'status-dot-strip dot-idle'
 
   return (
-    <main className="pipeline-root">
-      <div className="pipeline-shell">
-        <nav className="pipeline-nav">
-          <Link to="/" className="pipeline-nav-home" aria-label="Back to home">
-            <img src="/logo.png" alt="" className="pipeline-nav-icon" />
+    <>
+      <div className="lazarus-shell">
+        {/* ══════════════ LEFT PANEL ══════════════ */}
+        <aside className="nexus-left">
+          {/* Brand header */}
+          <Link to="/" className="nexus-brand" style={{ textDecoration: 'none', display: 'block' }}>
+            <span className="brand-title">Lazarus</span>
+            <span className="brand-sub">Bio-R&amp;D Swarm · Dedalus Cluster</span>
           </Link>
-          <span className="pipeline-nav-sep">/</span>
-          <span className="pipeline-nav-current">Dashboard</span>
-          {latestRunId && (
-            <>
-              <span className="pipeline-nav-sep">/</span>
-              <button
-                type="button"
-                className="pipeline-nav-link pipeline-nav-btn"
-                onClick={() => setShowTrace(true)}
-              >
-                Agent Trace
-              </button>
-            </>
-          )}
-        </nav>
 
-        <header className="pipeline-header">
-          <p className="pipeline-kicker">Lazarus Scientific Pipeline</p>
-          <h1>Search failed trials, then choose one to rescue.</h1>
-          <p className="pipeline-subcopy">
-            OpenClaw searches the database for failed trials, LLMs rank the shortlist with rescue angles, then the selected
-            trial is ingested and reasoned over live.
-          </p>
-        </header>
-
-        <form className="pipeline-search" onSubmit={handleSearch}>
-          <label htmlFor="disease-input">Enter disease to rescue</label>
-          <div className="pipeline-search-row">
-            <input
-              id="disease-input"
-              type="text"
-              value={disease}
-              onChange={(event) => setDisease(event.target.value)}
-              placeholder="Glioblastoma"
-              autoComplete="off"
-            />
-            <button type="submit" disabled={!canSearch}>
-              {searchLoading ? 'Searching...' : 'Search Failed Trials'}
-            </button>
+          {/* Globe */}
+          <div className="globe-wrap">
+            <GlobeScene isRunning={analysisLoading} />
+            <div className="globe-status">
+              <span className={`globe-status-dot${analysisLoading ? ' running' : ''}`} />
+              <span>{analysisLoading ? 'PROCESSING' : 'STANDBY'}</span>
+            </div>
           </div>
-        </form>
 
-        {error && <p className="pipeline-error">{error}</p>}
+          {/* Agent log feed */}
+          <div className="agent-log-panel">
+            <div className="panel-label">Agent Stream</div>
+            <AgentLogFeed steps={runTrace?.steps ?? []} isRunning={analysisLoading} />
+          </div>
+        </aside>
 
-        {searchResults.length > 0 && (
-          <section className="trial-search-results">
-            <div className="section-label-row">
-              <p className="pipeline-kicker">Ranked shortlist</p>
-              <span className="trial-count">{searchResults.length} failed trials found</span>
-            </div>
-            <div className="trial-grid">
-              {searchResults.map((candidate) => {
-                const selected = candidate.asset_id === selectedCandidateId
-                return (
-                  <button
-                    type="button"
-                    key={candidate.asset_id}
-                    className={`trial-card ${selected ? 'selected' : ''}`}
-                    onClick={() => setSelectedCandidateId(candidate.asset_id)}
-                  >
-                    <div className="trial-card-top">
-                      <div>
-                        <div className="trial-code">{candidate.asset_code}</div>
-                        <div className="trial-name">{candidate.drug_name}</div>
-                      </div>
-                      <div className="trial-score">{Number(candidate.scientific_confidence_score).toFixed(2)}</div>
-                    </div>
-                    <div className="trial-meta">{candidate.original_indication} · {candidate.trial_status || 'shelved'}</div>
-                    <p className="trial-summary">{candidate.relevance_summary}</p>
-                    <ul className="trial-facts">
-                      {candidate.key_facts?.slice(0, 3).map((fact) => (
-                        <li key={fact}>{fact}</li>
-                      ))}
-                    </ul>
-                    <div className="trial-rescue-angle">{candidate.rescue_angle}</div>
-                    <div className="trial-action">{selected ? 'Selected trial' : 'Select trial'}</div>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
-        {selectedCandidate && (
-          <section className="selected-trial-panel">
-            <div>
-              <p className="pipeline-kicker">Selected trial</p>
-              <h2>{selectedCandidate.drug_name} · {selectedCandidate.asset_code}</h2>
-              <p className="selected-trial-summary">{selectedCandidate.relevance_summary}</p>
-            </div>
-
-            <div className="selected-trial-grid">
-              <article>
-                <h3>Why it matters</h3>
-                <p>{selectedCandidate.match_reason}</p>
-              </article>
-              <article>
-                <h3>Rescue angle</h3>
-                <p>{selectedCandidate.rescue_angle}</p>
-              </article>
-              <article>
-                <h3>Failure reason</h3>
-                <p>{selectedCandidate.abandonment_reason || 'Not recorded'}</p>
-              </article>
-            </div>
-
-            <button type="button" className="selected-trial-button" onClick={handleReasoning} disabled={!canReason}>
-              {reasoningLoading ? 'Reasoning live...' : 'Start reasoning'}
-            </button>
-          </section>
-        )}
-
-        <section className="pipeline-timeline" aria-label="Lazarus timeline">
-          {PIPELINE_STAGES.map((stage, index) => {
-            const stageState = stages[stage.id]
-            let stageMarker = String(index + 1).padStart(2, '0')
-            if (stageState.status === 'done') stageMarker = '✓'
-            if (stageState.status === 'running') stageMarker = '›'
-            if (stageState.status === 'failed') stageMarker = '✗'
-            return (
-              <article className={`timeline-row ${stageState.status}`} key={stage.id}>
-                <span className="timeline-check" aria-hidden="true">
-                  {stageMarker}
+        {/* ══════════════ RIGHT PANEL ══════════════ */}
+        <div className="nexus-right">
+          {/* Header */}
+          <header className="nexus-header">
+            <div className="header-left">
+              <div className="system-status">
+                <span className="status-blink" />
+                <span style={{ fontSize: '10px', letterSpacing: '0.06em', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
+                  Online
                 </span>
-                <div className="timeline-copy">
-                  <h2>{stage.label}</h2>
-                  <p>{stageState.detail || 'Waiting for activation.'}</p>
-                </div>
-              </article>
-            )
-          })}
-        </section>
+              </div>
+              <div className="hud-services">
+                {['Postgres', 'Neo4j', 'Dedalus', 'K2 Think', 'Spectrum'].map((s) => (
+                  <span key={s} className="hud-service">{s}</span>
+                ))}
+              </div>
+            </div>
 
-        {(autopsy || rescue || blueprint || alertMessage || liveTrace || reasoningLoading) && (
-          <div className="output-tabs-wrap">
-            <div className="output-tabs" role="tablist" aria-label="Pipeline output views">
+            <div className="header-right">
+              {/* Search */}
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search compounds…"
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-bright)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '9px',
+                  letterSpacing: '0.06em',
+                  padding: '5px 8px',
+                  outline: 'none',
+                  borderRadius: '2px',
+                  width: '130px',
+                }}
+              />
+
+              {/* Asset selector */}
+              <select
+                value={selectedAssetId}
+                onChange={(e) => setSelectedAssetId(e.target.value)}
+                className="term-select"
+              >
+                <option value="">— SELECT ASSET —</option>
+                {filteredAssets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.asset_code} · {asset.internal_name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Execute */}
               <button
                 type="button"
-                role="tab"
-                id="tab-output"
-                aria-selected={outputTab === 'output'}
-                aria-controls="panel-output"
-                className={`output-tab${outputTab === 'output' ? ' active' : ''}`}
-                onClick={() => setOutputTab('output')}
+                onClick={handleRunAnalysis}
+                disabled={!selectedAssetId || analysisLoading}
+                className={`term-btn term-btn-execute${analysisLoading ? ' running' : ''}`}
               >
-                Pipeline Output
+                {analysisLoading ? 'Running…' : 'Run Analysis'}
               </button>
+
+              {/* Blueprint */}
               <button
                 type="button"
-                role="tab"
-                id="tab-live"
-                aria-selected={outputTab === 'live'}
-                aria-controls="panel-live"
-                className={`output-tab${outputTab === 'live' ? ' active' : ''}`}
-                onClick={() => setOutputTab('live')}
+                onClick={handleGenerateBlueprint}
+                disabled={!analysisResult?.hypothesis?.id || blueprintLoading}
+                className="term-btn"
               >
-                Live Findings
-                {(reasoningLoading || liveTrace?.run?.status === 'running') && (
-                  <span className="live-tab-dot" aria-hidden="true" />
-                )}
+                {blueprintLoading ? 'Generating…' : 'Blueprint'}
               </button>
-              {latestRunId && (
+
+              {/* Reset */}
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(true)}
+                className="term-btn term-btn-ghost"
+              >
+                Reset
+              </button>
+
+              {/* Run ID chip */}
+              {analysisResult?.run && (
+                <div className="run-id-chip">
+                  <span style={{ color: 'var(--accent)', fontSize: '8px' }}>●</span>
+                  <span>{analysisResult.run.id?.slice(0, 8)}</span>
+                </div>
+              )}
+            </div>
+          </header>
+
+          {/* Tab nav */}
+          <nav className="nexus-tabnav">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`tab-btn${activeTab === tab.id ? ' active' : ''}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Error banner */}
+          <AnimatePresence>
+            {errorMessage && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="error-banner"
+              >
+                ⚠ {errorMessage}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Status strip */}
+          <div className="nexus-status-strip">
+            <div className="status-info">
+              <span className={dotClass} />
+              <span className="status-label">{runStatus.label}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span className="status-desc">{runStatus.description}</span>
+            </div>
+            <div className="progress-track">
+              <motion.div
+                className="progress-fill"
+                animate={{ width: `${runStatus.progress}%` }}
+                transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+              />
+            </div>
+          </div>
+
+          {/* Content area */}
+          <div className="nexus-content">
+            <AnimatePresence mode="wait">
+              {/* ═══ DASHBOARD ═══ */}
+              {activeTab === 'dashboard' && (
+                <motion.div key="dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    <AgentProgressBar steps={runTrace?.steps ?? []} runStatus={analysisResult?.run?.status ?? 'idle'} />
+                    <MetricsBar metrics={metrics} />
+
+                    {/* Decision feed + confidence row */}
+                    <div className="dash-grid">
+                      <div className="dash-main">
+                        <div className="term-panel">
+                          <div className="term-panel-header">
+                            <span className="term-panel-title">Live Decision</span>
+                            <span style={{ fontSize: '7.5px', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
+                              {liveInsight.runtimeLabel}
+                              {analysisResult?.run?.status === 'running' ? ' · STREAMING' : ''}
+                            </span>
+                          </div>
+                          <div className="decision-feed">
+                            {analysisResult?.run?.final_recommendation ? (
+                              <>
+                                <div className="decision-line">
+                                  <span className="decision-highlight">VERDICT · </span>
+                                  {analysisResult.run.final_recommendation}
+                                </div>
+                                <div className="decision-line" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                  <RiskBadge label={liveInsight.riskLevel} />
+                                  <RiskBadge label={liveInsight.priorityLevel} prefix="Priority" />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="decision-empty">
+                                &gt; AWAITING FINAL RECOMMENDATION
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Mini pipeline progress dots */}
+                        <div className="term-panel" style={{ marginTop: 'var(--space-4)' }}>
+                          <div className="term-panel-header">
+                            <span className="term-panel-title">Pipeline Progress</span>
+                            <span style={{ fontSize: '7.5px', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
+                              {completedSteps}/{totalSteps}
+                            </span>
+                          </div>
+                          <div style={{ padding: 'var(--space-3)', display: 'flex', gap: 'var(--space-2)' }}>
+                            {Array.from({ length: totalSteps }, (_, i) => (
+                              <motion.div
+                                key={i}
+                                style={{
+                                  height: 3,
+                                  flex: 1,
+                                  borderRadius: 2,
+                                  background: i < completedSteps ? 'var(--accent)' : 'rgba(20,23,26,0.1)',
+                                  boxShadow: 'none',
+                                }}
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: 1 }}
+                                transition={{ duration: 0.3, delay: i * 0.07 }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="dash-side">
+                        <ConfidenceGauge value={analysisResult?.run?.final_confidence} />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ═══ GRAPH ═══ */}
+              {activeTab === 'portfolio' && (
+                <motion.div key="portfolio" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <PortfolioRankingPanel
+                    ranking={portfolioRanking}
+                    loading={portfolioLoading}
+                    error={portfolioError}
+                    onSelectAsset={(assetId) => {
+                      setSelectedAssetId(assetId)
+                      setActiveTab('compare')
+                    }}
+                  />
+                </motion.div>
+              )}
+
+              {/* ═══ GRAPH ═══ */}
+              {activeTab === 'graph' && (
+                <motion.div key="graph" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(280px,0.6fr)', gap: 'var(--space-4)' }}>
+                    <InteractiveGraph
+                      graphData={deferredGraphData}
+                      selectedNode={selectedNode}
+                      setSelectedNode={setSelectedNode}
+                      steps={runTrace?.steps ?? []}
+                      runStatus={analysisResult?.run?.status ?? 'idle'}
+                      legendItems={legendItems}
+                    />
+                    <NodeDetailsPanel details={nodeDetails} overview={graphOverview} />
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ═══ AGENTS ═══ */}
+              {activeTab === 'agents' && (
+                <motion.div key="agents" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <AgentTimeline steps={runTrace?.steps ?? []} />
+                </motion.div>
+              )}
+
+              {/* ═══ STRATEGY ═══ */}
+              {activeTab === 'strategy' && (
+                <motion.div key="strategy" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <EffortImpactChart runId={analysisResult?.run?.id} />
+                </motion.div>
+              )}
+
+              {/* ═══ COMPARE ═══ */}
+              {activeTab === 'compare' && (
+                <motion.div key="compare" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <HypothesisComparisonPanel
+                    comparison={hypothesisComparison}
+                    loading={comparisonLoading}
+                    error={comparisonError}
+                  />
+                </motion.div>
+              )}
+
+              {/* ═══ REVIEWS ═══ */}
+              {activeTab === 'reviews' && (
+                <motion.div key="reviews" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <HumanReviewDashboard
+                    dashboard={reviewDashboard}
+                    loading={reviewLoading}
+                    error={reviewError}
+                    onResolve={handleResolveReview}
+                  />
+                </motion.div>
+              )}
+
+              {/* ═══ MESSAGES ═══ */}
+              {activeTab === 'messages' && (
+                <motion.div key="messages" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <MessagingPanel runId={analysisResult?.run?.id} />
+                </motion.div>
+              )}
+
+              {/* ═══ MULTI-DISEASE SCAN ═══ */}
+              {activeTab === 'scan' && (
+                <motion.div key="scan" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <MultiDiseaseScanPanel assets={assets} />
+                </motion.div>
+              )}
+
+              {/* ═══ WATCHLIST ═══ */}
+              {activeTab === 'watchlist' && (
+                <motion.div key="watchlist" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <WatchlistPanel />
+                </motion.div>
+              )}
+
+              {/* ═══ BLUEPRINT ═══ */}
+              {activeTab === 'blueprint' && (
+                <motion.div key="blueprint" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    <BlueprintProgress loading={blueprintLoading} ready={Boolean(blueprintResult?.blueprint?.id)} />
+                    <BlueprintViewer
+                      blueprintResult={blueprintResult}
+                      blueprintLoading={blueprintLoading}
+                      downloadUrl={blueprintResult?.blueprint?.id ? getBlueprintDownloadUrl(blueprintResult.blueprint.id) : undefined}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════ RESET CONFIRM ══════════════ */}
+      <AnimatePresence>
+        {showResetConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="reset-overlay"
+          >
+            <motion.div
+              initial={{ y: 16, opacity: 0, scale: 0.96 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 8, opacity: 0, scale: 0.97 }}
+              className="reset-dialog"
+            >
+              <div className="reset-title">Confirm reset</div>
+              <div className="reset-msg">
+                Clear graph, run context, and blueprint preview. This cannot be undone.
+              </div>
+              <div className="reset-actions">
                 <button
                   type="button"
-                  role="tab"
-                  id="tab-trace"
-                  aria-selected={outputTab === 'trace'}
-                  aria-controls="panel-trace"
-                  className={`output-tab${outputTab === 'trace' ? ' active' : ''}`}
-                  onClick={() => setOutputTab('trace')}
+                  onClick={() => setShowResetConfirm(false)}
+                  className="term-btn term-btn-ghost"
                 >
-                  Agent Trace
+                  CANCEL
                 </button>
-              )}
-            </div>
-
-            {outputTab === 'output' && (autopsy || rescue || blueprint || alertMessage) && (
-              <section className="pipeline-output" role="tabpanel" id="panel-output" aria-labelledby="tab-output">
-                {autopsy && (
-                  <article>
-                    <h3>Trial Autopsy</h3>
-                    <p>
-                      {autopsy.trial_id}: {autopsy.scientific_wall}
-                    </p>
-                  </article>
-                )}
-
-                {rescue && (
-                  <article>
-                    <h3>Scientific Rescue Strategy</h3>
-                    <p>{rescue.summary}</p>
-                  </article>
-                )}
-
-                {blueprint && (
-                  <article>
-                    <h3>Rescue Blueprint</h3>
-                    <p>{blueprint.executive_summary}</p>
-                    <ul>
-                      {discoveredCandidates.map((candidate) => (
-                        <li key={candidate.asset_id}>{candidate.drug_name} ({candidate.asset_code})</li>
-                      ))}
-                    </ul>
-                  </article>
-                )}
-
-                {alertMessage && (
-                  <article>
-                    <h3>Photon Alert Payload</h3>
-                    <p>{alertMessage}</p>
-                    <div className="photon-send-row">
-                      <input
-                        type="tel"
-                        value={photonRecipient}
-                        onChange={(event) => setPhotonRecipient(event.target.value)}
-                        placeholder="+1 555 123 4567"
-                        aria-label="Photon recipient phone number"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSendPhoton}
-                        disabled={!photonRecipient.trim() || sendingPhoton}
-                      >
-                        {sendingPhoton ? 'Sending...' : 'Send via Photon'}
-                      </button>
-                    </div>
-                    {photonResult && <p className="photon-send-result">{photonResult}</p>}
-                  </article>
-                )}
-              </section>
-            )}
-
-            {outputTab === 'live' && (
-              <section className="live-findings-panel" role="tabpanel" id="panel-live" aria-labelledby="tab-live">
-                {!liveTrace && !reasoningLoading && (
-                  <p className="trace-info" style={{ padding: '20px 0' }}>No live run data yet. Start reasoning to see live findings.</p>
-                )}
-                {(liveTrace || reasoningLoading) && (
-                  <>
-                    <div className="live-summary">
-                      <article>
-                        <h3>Current hypothesis</h3>
-                        <p>{liveTrace?.hypothesis?.summary || 'Reasoning has not converged yet.'}</p>
-                      </article>
-                      <article>
-                        <h3>Progress</h3>
-                        <p>
-                          {liveTrace?.steps?.filter((step) => step.status === 'completed').length ?? 0}
-                          {' '}of {liveTrace?.steps?.length ?? 0} steps complete
-                        </p>
-                      </article>
-                      <article>
-                        <h3>Status</h3>
-                        <p>{liveTrace?.run?.status || (reasoningLoading ? 'running' : 'idle')}</p>
-                      </article>
-                    </div>
-
-                    <div className="live-steps">
-                        {(liveTrace?.steps || []).map((step) => (
-                          <article key={step.id} className={`live-step ${step.status}`}>
-                            <div className="live-step-head">
-                              <strong>{step.agent_name.replace(/_/g, ' ').toUpperCase()}</strong>
-                              <span>{step.status}</span>
-                            </div>
-                            <p style={{ whiteSpace: 'pre-line' }}>
-                              {readableOutput(step.output_summary || step.input_summary)}
-                            </p>
-                          </article>
-                        ))}
-                        {reasoningLoading && (!liveTrace?.steps || liveTrace.steps.length === 0) && (
-                          <p className="trace-info" style={{ marginTop: 'auto' }}>Waiting for the first agent response...</p>
-                        )}
-                    </div>
-                  </>
-                )}
-              </section>
-            )}
-
-            {outputTab === 'trace' && latestRunId && (
-              <section className="pipeline-output" role="tabpanel" id="panel-trace" aria-labelledby="tab-trace">
-                <AgentTimeline steps={liveTrace?.steps ?? []} />
-              </section>
-            )}
-          </div>
-        )}
-
-        {showTrace && (
-          <div
-            className="trace-overlay"
-            onClick={(e) => e.target === e.currentTarget && setShowTrace(false)}
-            onKeyDown={handleTraceKeyDown}
-          >
-            <div
-              className="trace-drawer"
-              ref={traceDrawerRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="trace-drawer-title"
-            >
-              <div className="trace-drawer-header">
-                <div>
-                  <p className="pipeline-kicker">Agent Trace</p>
-                  <h2 id="trace-drawer-title" style={{ margin: '4px 0 0', fontSize: '18px' }}>Run {latestRunId?.slice(0, 8)}</h2>
-                </div>
-                <button type="button" className="trace-drawer-close" ref={traceCloseRef} onClick={() => setShowTrace(false)}>
-                  ✕ Close
+                <button
+                  type="button"
+                  onClick={() => { setShowResetConfirm(false); resetGraph() }}
+                  className="term-btn"
+                  style={{ borderColor: 'rgba(155,61,61,0.5)', color: 'var(--red)' }}
+                >
+                  Reset
                 </button>
               </div>
-
-              {liveTrace?.run && (
-                <div className="trace-run-meta" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                  <article>
-                    <h2>Status</h2>
-                    <p>{liveTrace.run.status || '—'}</p>
-                  </article>
-                  <article>
-                    <h2>Steps</h2>
-                    <p>{liveTrace.steps?.length ?? 0} total</p>
-                  </article>
-                  <article>
-                    <h2>Confidence</h2>
-                    <p>{liveTrace.run.final_confidence != null ? Number(liveTrace.run.final_confidence).toFixed(2) : '—'}</p>
-                  </article>
-                </div>
-              )}
-
-              <AgentTimeline steps={liveTrace?.steps ?? []} />
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
-    </main>
+      </AnimatePresence>
+    </>
   )
 }
 

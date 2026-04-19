@@ -1,10 +1,44 @@
-import React, { memo } from 'react'
+import React, { memo, useState, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Download, FileBadge2, ShieldCheck, Sparkles } from 'lucide-react'
+import { Download, FileBadge2, Mail, ShieldCheck, Sparkles, X, Send, CheckCircle2, AlertCircle } from 'lucide-react'
+import { emailBlueprint } from '../services/api'
 
 function BlueprintViewer({ blueprintResult, downloadUrl, blueprintLoading }) {
   const blueprint = blueprintResult?.blueprint
   const payload = blueprintResult?.payload
+
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [recipientEmail, setRecipientEmail] = useState('')
+  const [emailStatus, setEmailStatus] = useState(null) // null | 'sending' | 'sent' | 'error'
+  const [emailError, setEmailError] = useState('')
+
+  const handleDownloadClick = useCallback(() => {
+    // Trigger local download
+    if (downloadUrl) {
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = ''
+      a.click()
+    }
+    // Show email prompt
+    setShowEmailModal(true)
+    setRecipientEmail('')
+    setEmailStatus(null)
+    setEmailError('')
+  }, [downloadUrl])
+
+  const handleSendEmail = useCallback(async () => {
+    if (!recipientEmail.trim() || !blueprint?.id) return
+    setEmailStatus('sending')
+    setEmailError('')
+    try {
+      await emailBlueprint(blueprint.id, recipientEmail.trim())
+      setEmailStatus('sent')
+    } catch (err) {
+      setEmailStatus('error')
+      setEmailError(err?.response?.data?.detail || 'Failed to send email. Check Gmail configuration.')
+    }
+  }, [recipientEmail, blueprint?.id])
 
   return (
     <section className="rounded-3xl bg-white/90 p-6 shadow-panel ring-1 ring-slate-200 backdrop-blur">
@@ -14,17 +48,121 @@ function BlueprintViewer({ blueprintResult, downloadUrl, blueprintLoading }) {
           <h2 className="mt-1 text-xl font-semibold text-ink">Blueprint Viewer</h2>
         </div>
         {blueprint ? (
-          <a
-            href={downloadUrl}
+          <button
+            onClick={handleDownloadClick}
             className="rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl"
           >
             <span className="flex items-center gap-2">
               <Download className="h-4 w-4" />
               Download Blueprint
             </span>
-          </a>
+          </button>
         ) : null}
       </div>
+
+      {/* Email Modal */}
+      <AnimatePresence>
+        {showEmailModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowEmailModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 20 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 300 }}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-indigo-100 p-2.5">
+                    <Mail className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">Send Blueprint via Email</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">PDF downloaded successfully</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowEmailModal(false)}
+                  className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {emailStatus === 'sent' ? (
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5 text-center">
+                  <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
+                  <p className="text-sm font-semibold text-emerald-800">Blueprint sent!</p>
+                  <p className="text-xs text-emerald-600 mt-1">Delivered to {recipientEmail}</p>
+                  <button
+                    onClick={() => setShowEmailModal(false)}
+                    className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                      Recipient Email
+                    </label>
+                    <input
+                      type="email"
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendEmail()}
+                      placeholder="colleague@company.com"
+                      autoFocus
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+
+                  {emailStatus === 'error' && (
+                    <div className="mb-4 flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 p-3">
+                      <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-red-700">{emailError}</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowEmailModal(false)}
+                      className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                    >
+                      Skip
+                    </button>
+                    <button
+                      onClick={handleSendEmail}
+                      disabled={!recipientEmail.trim() || emailStatus === 'sending'}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {emailStatus === 'sending' ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4" />
+                          Send
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {blueprintLoading ? (

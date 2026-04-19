@@ -26,6 +26,7 @@ def _build_run_trace_payload(db: Session, run_id: UUID) -> schemas.RunTraceRespo
 
     asset = crud.get_asset(db, run.asset_id)
     hypothesis = next(iter(run.hypotheses), None) if getattr(run, "hypotheses", None) else None
+    ordered_steps = crud.list_steps_by_run(db, run_id)
     return schemas.RunTraceResponse(
         run=schemas.RunResponse.model_validate(run),
         asset_code=asset.asset_code if asset is not None else "unknown",
@@ -34,7 +35,7 @@ def _build_run_trace_payload(db: Session, run_id: UUID) -> schemas.RunTraceRespo
             if hypothesis is not None
             else None
         ),
-        steps=[schemas.StepResponse.model_validate(step) for step in run.steps],
+        steps=[schemas.StepResponse.model_validate(step) for step in ordered_steps],
     )
 
 

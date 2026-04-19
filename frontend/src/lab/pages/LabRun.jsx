@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, Download, FileText, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, AlertCircle, Download, FileText, Loader2, Mail, Send, X } from 'lucide-react'
 import AgentOrbitScene from '../three/AgentOrbit'
 import {
+  emailBlueprint,
   fetchBlueprintDetail,
   fetchRunTrace,
   getBlueprintDownloadUrl,
@@ -12,11 +13,11 @@ import {
 } from '../../services/api'
 
 const AGENT_ORDER = [
-  { id: 'scout', label: 'Scout — ingest' },
-  { id: 'coroner', label: 'Coroner — dissect' },
-  { id: 'defibrillator', label: 'Defibrillator — lift' },
-  { id: 'skeptic', label: 'Skeptic — audit' },
-  { id: 'trial_strategist', label: 'Strategist — blueprint' },
+  { id: 'scout', label: 'Scout — ingest', backendAliases: ['advocate', 'advocate_iteration'] },
+  { id: 'skeptic', label: 'Skeptic — audit', backendAliases: ['skeptic', 'skeptic_iteration'] },
+  { id: 'coroner', label: 'Coroner — dissect', backendAliases: ['parallel_evidence', 'evidence_curator', 'evidence_iteration'] },
+  { id: 'defibrillator', label: 'Defibrillator — lift', backendAliases: ['assessment', 'assessment_iteration', 'judge', 'hitl_router'] },
+  { id: 'trial_strategist', label: 'Strategist — blueprint', backendAliases: ['trial_strategist'] },
 ]
 
 const TICKER_MESSAGES = [
@@ -37,6 +38,26 @@ export default function LabRun() {
   const [tickerIndex, setTickerIndex] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const startRef = useRef(Date.now())
+
+  // Email modal state
+  const [labEmailModal, setLabEmailModal] = useState(false)
+  const [labEmailBpId, setLabEmailBpId] = useState(null)
+  const [labEmailAddr, setLabEmailAddr] = useState('')
+  const [labEmailStatus, setLabEmailStatus] = useState(null) // null | 'sending' | 'sent' | 'error'
+  const [labEmailError, setLabEmailError] = useState('')
+
+  const handleLabSendEmail = useCallback(async () => {
+    if (!labEmailAddr.trim() || !labEmailBpId) return
+    setLabEmailStatus('sending')
+    setLabEmailError('')
+    try {
+      await emailBlueprint(labEmailBpId, labEmailAddr.trim())
+      setLabEmailStatus('sent')
+    } catch (err) {
+      setLabEmailStatus('error')
+      setLabEmailError(err?.response?.data?.detail || 'Failed to send email.')
+    }
+  }, [labEmailAddr, labEmailBpId])
 
   /* ── Live stream subscription ── */
   useEffect(() => {
@@ -83,9 +104,6 @@ export default function LabRun() {
   const failed = trace?.run?.status === 'failed'
   const hypothesisId = trace?.hypothesis?.id
 
-  const completed = steps.filter((s) => s.status === 'completed').length
-  const progress = Math.round((completed / 5) * 100)
-
   const confidence = trace?.run?.final_confidence
   const formattedConfidence =
     typeof confidence === 'number'
@@ -96,9 +114,39 @@ export default function LabRun() {
 
   const stepByAgent = useMemo(() => {
     const m = {}
-    steps.forEach((s) => { m[s.agent_name] = s })
+    // Map each frontend agent ID to the first matching backend step
+    AGENT_ORDER.forEach((a) => {
+      const aliases = a.backendAliases || [a.id]
+      for (const alias of aliases) {
+        const match = steps.find((s) => s.agent_name === alias && s.status === 'completed')
+        if (match) { m[a.id] = match; break }
+      }
+      // If no completed match, check for any status (running, failed)
+      if (!m[a.id]) {
+        for (const alias of aliases) {
+          const match = steps.find((s) => s.agent_name === alias)
+          if (match) { m[a.id] = match; break }
+        }
+      }
+    })
     return m
   }, [steps])
+
+  const stageStates = useMemo(
+    () =>
+      AGENT_ORDER.map((agent) => {
+        const step = stepByAgent[agent.id]
+        return {
+          id: agent.id,
+          label: agent.label,
+          status: step?.status ?? 'pending',
+        }
+      }),
+    [stepByAgent],
+  )
+
+  const completed = stageStates.filter((stage) => stage.status === 'completed').length
+  const progress = Math.round((completed / AGENT_ORDER.length) * 100)
 
   /* ── Blueprint generation ── */
   const handleBlueprint = async () => {
@@ -134,6 +182,83 @@ export default function LabRun() {
 
   return (
     <div className="lab-run-root">
+      {/* ── Email Modal ── */}
+      <AnimatePresence>
+        {labEmailModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setLabEmailModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 20 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 300 }}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-indigo-100 p-2.5">
+                    <Mail className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">Send Blueprint via Email</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">PDF downloaded successfully</p>
+                  </div>
+                </div>
+                <button onClick={() => setLabEmailModal(false)} className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {labEmailStatus === 'sent' ? (
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5 text-center">
+                  <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
+                  <p className="text-sm font-semibold text-emerald-800">Blueprint sent!</p>
+                  <p className="text-xs text-emerald-600 mt-1">Delivered to {labEmailAddr}</p>
+                  <button onClick={() => setLabEmailModal(false)} className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">Done</button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Recipient Email</label>
+                    <input
+                      type="email"
+                      value={labEmailAddr}
+                      onChange={(e) => setLabEmailAddr(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLabSendEmail()}
+                      placeholder="colleague@company.com"
+                      autoFocus
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                  {labEmailStatus === 'error' && (
+                    <div className="mb-4 flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 p-3">
+                      <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-red-700">{labEmailError}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button onClick={() => setLabEmailModal(false)} className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Skip</button>
+                    <button
+                      onClick={handleLabSendEmail}
+                      disabled={!labEmailAddr.trim() || labEmailStatus === 'sending'}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {labEmailStatus === 'sending' ? (<><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />Sending...</>) : (<><Send className="h-4 w-4" />Send</>)}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── 3D scene ── */}
       <div className="lab-run-canvas">
         <AgentOrbitScene steps={steps} running={running} />
@@ -160,9 +285,8 @@ export default function LabRun() {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <div className="lab-run-panel-title">Agent pipeline</div>
-            {AGENT_ORDER.map((a) => {
-              const s = stepByAgent[a.id]
-              const status = s?.status ?? 'pending'
+            {stageStates.map((a) => {
+              const status = a.status
               return (
                 <div className="lab-agent-row" key={a.id}>
                   <span className="lab-agent-dot" data-status={status} />
@@ -309,14 +433,22 @@ export default function LabRun() {
                   </section>
                 )}
                 <section style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <a
-                    href={getBlueprintDownloadUrl(bpResult.blueprint.id)}
+                  <button
+                    onClick={() => {
+                      const a = document.createElement('a')
+                      a.href = getBlueprintDownloadUrl(bpResult.blueprint.id)
+                      a.download = ''
+                      a.click()
+                      setLabEmailBpId(bpResult.blueprint.id)
+                      setLabEmailModal(true)
+                      setLabEmailAddr('')
+                      setLabEmailStatus(null)
+                      setLabEmailError('')
+                    }}
                     className="lab-cta"
-                    target="_blank"
-                    rel="noreferrer"
                   >
                     <Download size={14} /> Download PDF
-                  </a>
+                  </button>
                   <Link to="/lab/analyze" className="lab-cta lab-cta-ghost">
                     <FileText size={14} /> New analysis
                   </Link>

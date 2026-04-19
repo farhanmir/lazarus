@@ -16,6 +16,7 @@ from backend.app.services.blueprint_service import (
     start_blueprint_job,
 )
 from backend.app.services.evidence_service import build_blueprint_payload
+from backend.app.services.gmail_service import send_blueprint_email
 
 router = APIRouter(tags=["blueprints"])
 
@@ -62,6 +63,30 @@ def download_blueprint(blueprint_id: UUID, db: Session = Depends(get_db)):
         media_type="application/pdf",
         filename=f"lazarus-blueprint-{blueprint_id}.pdf",
     )
+
+
+@router.post("/blueprints/{blueprint_id}/email")
+def email_blueprint(blueprint_id: UUID, body: schemas.BlueprintEmailRequest, db: Session = Depends(get_db)):
+    blueprint = crud.get_blueprint(db, blueprint_id)
+    if blueprint is None or not blueprint.pdf_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blueprint file not found.")
+
+    payload = build_blueprint_payload(db, blueprint.hypothesis_id)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blueprint payload not found.")
+
+    result = send_blueprint_email(
+        recipient_email=body.recipient_email,
+        drug_name=payload.drug_name,
+        asset_code=payload.asset_code,
+        proposed_indication=payload.proposed_indication,
+        confidence_score=payload.confidence_score,
+        recommendation=payload.recommendation,
+        pdf_path=blueprint.pdf_path,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=result.get("reason", "Email send failed."))
+    return result
 
 
 @router.post("/generate-blueprint/async", response_model=schemas.BlueprintJobResponse, status_code=status.HTTP_202_ACCEPTED)

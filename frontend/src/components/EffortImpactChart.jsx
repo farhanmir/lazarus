@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import PropTypes from 'prop-types'
 import * as d3 from 'd3'
 import { motion } from 'framer-motion'
 import { TrendingUp, DollarSign, Clock, Users, Zap } from 'lucide-react'
@@ -84,12 +83,12 @@ function EffortImpactChart({ runId }) {
       .attr('transform', `translate(0,${innerH})`)
       .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format('.1f')))
       .selectAll('text')
-      .attr('fill', '#94a3b8')
+      .attr('fill', '#6d7278')
 
     g.append('g')
       .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.1f')))
       .selectAll('text')
-      .attr('fill', '#94a3b8')
+      .attr('fill', '#6d7278')
 
     // Axis labels
     svg
@@ -97,7 +96,7 @@ function EffortImpactChart({ runId }) {
       .attr('x', margin.left + innerW / 2)
       .attr('y', height - 8)
       .attr('text-anchor', 'middle')
-      .attr('fill', '#94a3b8')
+      .attr('fill', '#6d7278')
       .attr('font-size', '12px')
       .text('Effort Score →')
 
@@ -107,7 +106,7 @@ function EffortImpactChart({ runId }) {
       .attr('x', -(margin.top + innerH / 2))
       .attr('y', 14)
       .attr('text-anchor', 'middle')
-      .attr('fill', '#94a3b8')
+      .attr('fill', '#6d7278')
       .attr('font-size', '12px')
       .text('← Impact Score')
 
@@ -140,13 +139,13 @@ function EffortImpactChart({ runId }) {
       .style('filter', 'drop-shadow(0 0 6px rgba(0,0,0,0.3))')
 
     // Style axis lines
-    svg.selectAll('.domain').attr('stroke', '#334155')
-    svg.selectAll('.tick line').attr('stroke', '#334155')
+    svg.selectAll('.domain').attr('stroke', '#7b8794')
+    svg.selectAll('.tick line').attr('stroke', '#7b8794')
   }, [data])
 
   if (!runId) {
     return (
-      <div className="nexus-glass-card p-6 text-center text-slate-400">
+      <div className="nexus-glass-card p-6 text-center text-[var(--text-dim)]">
         <TrendingUp className="mx-auto mb-2 h-8 w-8 opacity-40" />
         <p>Run an analysis to see the Effort vs Impact chart</p>
       </div>
@@ -155,7 +154,7 @@ function EffortImpactChart({ runId }) {
 
   if (loading) {
     return (
-      <div className="nexus-glass-card p-6 text-center text-slate-400">
+      <div className="nexus-glass-card p-6 text-center text-[var(--text-dim)]">
         <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
         <p>Loading effort & impact data…</p>
       </div>
@@ -164,7 +163,7 @@ function EffortImpactChart({ runId }) {
 
   if (error) {
     return (
-      <div className="nexus-glass-card p-6 text-center text-slate-400">
+      <div className="nexus-glass-card p-6 text-center text-[var(--text-dim)]">
         <TrendingUp className="mx-auto mb-2 h-8 w-8 opacity-40" />
         <p>{error}</p>
       </div>
@@ -174,9 +173,8 @@ function EffortImpactChart({ runId }) {
   if (!data) return null
 
   const readiness = data.investment_readiness_score
-  let readinessColor = 'text-red-400'
-  if (readiness >= 0.6) readinessColor = 'text-emerald-400'
-  else if (readiness >= 0.3) readinessColor = 'text-amber-400'
+  const readinessColor =
+    readiness >= 0.6 ? '#1f7a52' : readiness >= 0.3 ? '#9a6c12' : '#9b3d3d'
 
   return (
     <motion.div
@@ -189,8 +187,8 @@ function EffortImpactChart({ runId }) {
         <div className="nexus-glass-card flex items-center gap-3 p-4">
           <DollarSign className="h-5 w-5 text-emerald-400" />
           <div>
-            <div className="text-xs text-slate-400">Est. Cost</div>
-            <div className="text-sm font-semibold text-slate-800">
+            <div className="text-xs text-[var(--text-dim)]">Est. Cost</div>
+            <div className="text-sm font-semibold text-[var(--text-bright)]">
               ${(data.effort.estimated_cost_usd / 1_000_000).toFixed(1)}M
             </div>
           </div>
@@ -198,15 +196,15 @@ function EffortImpactChart({ runId }) {
         <div className="nexus-glass-card flex items-center gap-3 p-4">
           <Clock className="h-5 w-5 text-blue-400" />
           <div>
-            <div className="text-xs text-slate-400">Timeline</div>
-            <div className="text-sm font-semibold text-slate-800">{data.effort.estimated_time_months} months</div>
+            <div className="text-xs text-[var(--text-dim)]">Timeline</div>
+            <div className="text-sm font-semibold text-[var(--text-bright)]">{data.effort.estimated_time_months} months</div>
           </div>
         </div>
         <div className="nexus-glass-card flex items-center gap-3 p-4">
           <Users className="h-5 w-5 text-purple-400" />
           <div>
-            <div className="text-xs text-slate-400">Patient Pop.</div>
-            <div className="text-sm font-semibold text-slate-800">
+            <div className="text-xs text-[var(--text-dim)]">Patient Pop.</div>
+            <div className="text-sm font-semibold text-[var(--text-bright)]">
               {(data.impact.patient_population_size / 1_000_000).toFixed(1)}M
             </div>
           </div>
@@ -214,8 +212,8 @@ function EffortImpactChart({ runId }) {
         <div className="nexus-glass-card flex items-center gap-3 p-4">
           <Zap className="h-5 w-5 text-amber-400" />
           <div>
-            <div className="text-xs text-slate-400">Readiness</div>
-            <div className={`text-sm font-semibold ${readinessColor}`}>
+            <div className="text-xs text-[var(--text-dim)]">Readiness</div>
+            <div className="text-sm font-semibold" style={{ color: readinessColor }}>
               {(readiness * 100).toFixed(0)}%
             </div>
           </div>
@@ -224,45 +222,41 @@ function EffortImpactChart({ runId }) {
 
       {/* Chart */}
       <div className="nexus-glass-card p-4" ref={containerRef}>
-        <h3 className="mb-3 text-sm font-semibold text-slate-700">Effort vs Impact</h3>
+        <h3 className="mb-3 text-sm font-semibold text-[var(--text-bright)]">Effort vs Impact</h3>
         <svg ref={svgRef} className="w-full" />
       </div>
 
       {/* Detail cards */}
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="nexus-glass-card p-4">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Effort Details</h4>
-          <div className="space-y-1 text-sm text-slate-600">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-dim)]">Effort Details</h4>
+          <div className="space-y-1 text-sm text-[var(--text-base)]">
             <div className="flex justify-between">
               <span>Trial Complexity</span>
-              <span className="font-medium text-slate-800">{data.effort.trial_complexity}</span>
+              <span className="font-medium text-[var(--text-bright)]">{data.effort.trial_complexity}</span>
             </div>
             <div className="flex justify-between">
               <span>Effort Score</span>
-              <span className="font-medium text-slate-800">{data.effort.effort_score}</span>
+              <span className="font-medium text-[var(--text-bright)]">{data.effort.effort_score}</span>
             </div>
           </div>
         </div>
         <div className="nexus-glass-card p-4">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Impact Details</h4>
-          <div className="space-y-1 text-sm text-slate-600">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-dim)]">Impact Details</h4>
+          <div className="space-y-1 text-sm text-[var(--text-base)]">
             <div className="flex justify-between">
               <span>Breakthrough</span>
-              <span className="font-medium text-slate-800">{data.impact.expected_breakthrough_score}</span>
+              <span className="font-medium text-[var(--text-bright)]">{data.impact.expected_breakthrough_score}</span>
             </div>
             <div className="flex justify-between">
               <span>Commercial Value</span>
-              <span className="font-medium text-slate-800">{data.impact.commercial_value_estimate}</span>
+              <span className="font-medium text-[var(--text-bright)]">{data.impact.commercial_value_estimate}</span>
             </div>
           </div>
         </div>
       </div>
     </motion.div>
   )
-}
-
-EffortImpactChart.propTypes = {
-  runId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 }
 
 export default EffortImpactChart
