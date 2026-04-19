@@ -166,9 +166,9 @@ export default function MultiDiseaseScanPanel({ assets: initialAssets }) {
               exit={{ opacity: 0 }}
               style={{
                 position: 'absolute', left: 16, right: 16, top: 68, zIndex: 50,
-                background: '#1a1f2e', border: '1px solid rgba(255,255,255,0.15)',
+                background: '#0f172a', border: '1px solid rgba(148,163,184,0.45)',
                 borderRadius: 10, maxHeight: 240, overflowY: 'auto',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                boxShadow: '0 14px 36px rgba(0,0,0,0.55)',
               }}
             >
               {drugResults.map((drug) => (
@@ -177,22 +177,23 @@ export default function MultiDiseaseScanPanel({ assets: initialAssets }) {
                   onClick={() => selectSearchedDrug(drug)}
                   style={{
                     padding: '10px 14px', cursor: 'pointer',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: '1px solid rgba(148,163,184,0.18)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    color: '#f8fafc',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59,130,246,0.18)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{drug.name}</div>
-                    <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#ffffff' }}>{drug.name}</div>
+                    <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 3, lineHeight: 1.4 }}>
                       {drug.chembl_id} · {drug.drug_type} · Phase {drug.max_phase}
                       {drug.is_approved && ' · ✓ Approved'}
                       {drug.has_been_withdrawn && ' · ⚠ Withdrawn'}
                     </div>
                   </div>
                   {drug.description && (
-                    <div style={{ fontSize: 11, opacity: 0.4, maxWidth: 200, textAlign: 'right' }}>
+                    <div style={{ fontSize: 12, color: '#e2e8f0', maxWidth: 240, textAlign: 'right', lineHeight: 1.35 }}>
                       {drug.description.slice(0, 80)}...
                     </div>
                   )}
