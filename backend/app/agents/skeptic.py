@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from backend.app.agents.prompts import SKEPTIC_PROMPT
 from backend.app.agents.types import AdvocateOutput, AssetContext, SkepticOutput
 from backend.app.services.llm_service import dedalus_chat_completion, k2_chat_completion
-from backend.app.services.pubmed_service import check_hallucinated_citations
 
 
-K2_MODEL_NAME = "k2-think-v2"
+OPENAI_SKEPTIC_MODEL_NAME = "gpt-4o-mini"
+logger = logging.getLogger(__name__)
 
 TARGET_CONFLICTS = {
     ("JAK1", "Lupus"): [],
@@ -22,10 +23,10 @@ TARGET_CONFLICTS = {
 
 def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutput:
     """Run the Skeptic agent with deterministic fallback logic."""
-    dedalus_api_key = os.getenv("DEDALUS_API_KEY")
-    k2_api_key = os.getenv("K2_API_KEY")
-    skeptic_model = os.getenv("K2_MODEL", "MBZUAI-IFM/K2-Think-v2")
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    skeptic_model = os.getenv("OPENAI_SKEPTIC_MODEL", OPENAI_SKEPTIC_MODEL_NAME)
 
+    logger.info("[agent:skeptic] start asset=%s proposal=%s", context.asset_code, advocate.proposed_disease)
     response_schema = {
         "type": "object",
         "properties": {
@@ -57,7 +58,7 @@ def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutpu
         f"- advocate_reasoning: {advocate.reasoning}\n"
         "Return only structured JSON."
     )
-    llm_output = k2_chat_completion(
+    llm_output = openai_chat_completion(
         model=skeptic_model,
         system_prompt=SKEPTIC_PROMPT,
         user_prompt=user_prompt,
@@ -65,6 +66,7 @@ def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutpu
     )
     if llm_output:
         try:
+            logger.info("[agent:skeptic] resolved via openai_live asset=%s model=%s", context.asset_code, skeptic_model)
             return SkepticOutput(
                 risk_level=str(llm_output["risk_level"]),
                 contraindications=[str(item) for item in llm_output["contraindications"]],
@@ -72,28 +74,7 @@ def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutpu
                 skeptic_score=float(llm_output["skeptic_score"]),
                 verdict=str(llm_output["verdict"]),
                 model_used=skeptic_model,
-                mode="k2_live",
-            )
-        except (KeyError, TypeError, ValueError):
-            pass
-
-    dedalus_model = os.getenv("DEDALUS_SKEPTIC_MODEL", K2_MODEL_NAME)
-    llm_output = dedalus_chat_completion(
-        model=dedalus_model,
-        system_prompt=SKEPTIC_PROMPT,
-        user_prompt=user_prompt,
-        response_schema=response_schema,
-    )
-    if llm_output:
-        try:
-            return SkepticOutput(
-                risk_level=str(llm_output["risk_level"]),
-                contraindications=[str(item) for item in llm_output["contraindications"]],
-                conflict_summary=str(llm_output["conflict_summary"]),
-                skeptic_score=float(llm_output["skeptic_score"]),
-                verdict=str(llm_output["verdict"]),
-                model_used=dedalus_model,
-                mode="dedalus_live",
+                mode="openai_live",
             )
         except (KeyError, TypeError, ValueError):
             pass
@@ -136,6 +117,9 @@ def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutpu
         ).strip()
     )
 
+    fallback_mode = "deterministic_fallback" if not openai_api_key else "openai_fallback"
+    logger.info("[agent:skeptic] fallback asset=%s mode=%s", context.asset_code, fallback_mode)
+
     return SkepticOutput(
         risk_level=risk_level,
         contraindications=combined_conflicts,
@@ -143,11 +127,5 @@ def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutpu
         skeptic_score=skeptic_score,
         verdict=verdict,
         model_used=skeptic_model,
-        mode=(
-            "deterministic_fallback"
-            if not k2_api_key and not dedalus_api_key
-            else "k2_fallback"
-            if k2_api_key
-            else "dedalus_fallback"
-        ),
+        mode=fallback_mode,
     )

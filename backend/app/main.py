@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import logging
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +22,18 @@ from backend.app.api.runs import router as runs_router
 from backend.app.api.spectrum import router as spectrum_router
 from backend.app.api.strategy import router as strategy_router
 from backend.app.db import Base, apply_runtime_migrations, engine
+
+
+def configure_logging() -> None:
+    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    )
+
+
+configure_logging()
 
 
 @asynccontextmanager

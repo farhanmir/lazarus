@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from backend.app.agents.prompts import JUDGE_PROMPT
@@ -12,10 +13,11 @@ from backend.app.agents.types import (
     JudgeOutput,
     SkepticOutput,
 )
-from backend.app.services.llm_service import dedalus_chat_completion, gemini_chat_completion
+from backend.app.services.llm_service import gemini_chat_completion
 
 
 GEMINI_MODEL_NAME = "gemini-2.5-flash"
+logger = logging.getLogger(__name__)
 
 
 def run_judge(
@@ -24,10 +26,10 @@ def run_judge(
     skeptic: SkepticOutput,
     evidence: EvidenceCuratorOutput,
 ) -> JudgeOutput:
-    """Synthesize the final decision: tries Gemini direct, then Dedalus, then deterministic."""
+    """Synthesize the final decision: tries Gemini direct, then deterministic."""
     judge_model = os.getenv("DEDALUS_JUDGE_MODEL", "openai/gpt-5-mini")
-    dedalus_api_key = os.getenv("DEDALUS_API_KEY")
 
+    logger.info("[agent:judge] start asset=%s proposal=%s", context.asset_code, advocate.proposed_disease)
     response_schema = {
         "type": "object",
         "properties": {
@@ -66,6 +68,7 @@ def run_judge(
     )
     if llm_output:
         try:
+            logger.info("[agent:judge] resolved via gemini_live asset=%s", context.asset_code)
             return JudgeOutput(
                 final_decision=str(llm_output["final_decision"]),
                 summary=str(llm_output["summary"]),
@@ -74,27 +77,6 @@ def run_judge(
                 recommended_next_step=str(llm_output["recommended_next_step"]),
                 model_used=GEMINI_MODEL_NAME,
                 mode="gemini_live",
-            )
-        except (KeyError, TypeError, ValueError):
-            pass
-
-    # --- Try 2: Dedalus SDK/HTTP ---
-    llm_output = dedalus_chat_completion(
-        model=judge_model,
-        system_prompt=JUDGE_PROMPT,
-        user_prompt=user_prompt,
-        response_schema=response_schema,
-    )
-    if llm_output:
-        try:
-            return JudgeOutput(
-                final_decision=str(llm_output["final_decision"]),
-                summary=str(llm_output["summary"]),
-                judge_score=float(llm_output["judge_score"]),
-                final_confidence=float(llm_output["final_confidence"]),
-                recommended_next_step=str(llm_output["recommended_next_step"]),
-                model_used=judge_model,
-                mode="dedalus_live",
             )
         except (KeyError, TypeError, ValueError):
             pass
@@ -125,6 +107,12 @@ def run_judge(
         f"{context.asset_code} shows plausible repurposing potential for {advocate.proposed_disease} "
         f"due to {context.target}-linked pathway overlap, with {risk_phrase} in the current mock evidence set."
     )
+    logger.info(
+        "[agent:judge] fallback asset=%s mode=%s final_confidence=%.2f",
+        context.asset_code,
+        "deterministic",
+        final_confidence,
+    )
 
     return JudgeOutput(
         final_decision=final_decision,
@@ -133,5 +121,5 @@ def run_judge(
         final_confidence=final_confidence,
         recommended_next_step=recommended_next_step,
         model_used=judge_model,
-        mode="deterministic" if not dedalus_api_key else "dedalus_fallback",
+        mode="deterministic",
     )

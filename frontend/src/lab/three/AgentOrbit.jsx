@@ -4,11 +4,11 @@ import { Float, Html, MeshTransmissionMaterial, Environment, Stars } from '@reac
 import * as THREE from 'three'
 
 const AGENT_META = [
-  { id: 'scout', label: 'Scout',         color: '#d4c48a' },
-  { id: 'coroner', label: 'Coroner',     color: '#8e9fa8' },
-  { id: 'defibrillator', label: 'Defib', color: '#c9a24b' },
-  { id: 'skeptic', label: 'Skeptic',     color: '#9b3d3d' },
-  { id: 'trial_strategist', label: 'Strategist', color: '#2e5a47' },
+  { id: 'scout', label: 'Scout',         color: '#d4c48a', backendAliases: ['advocate', 'advocate_iteration'] },
+  { id: 'skeptic', label: 'Skeptic',     color: '#9b3d3d', backendAliases: ['skeptic', 'skeptic_iteration'] },
+  { id: 'coroner', label: 'Coroner',     color: '#8e9fa8', backendAliases: ['parallel_evidence', 'evidence_curator', 'evidence_iteration'] },
+  { id: 'defibrillator', label: 'Defib', color: '#c9a24b', backendAliases: ['assessment', 'assessment_iteration', 'judge', 'hitl_router'] },
+  { id: 'trial_strategist', label: 'Strategist', color: '#2e5a47', backendAliases: ['trial_strategist'] },
 ]
 
 /* Central asset nucleus — glass sphere that intensifies with progress */
@@ -191,7 +191,20 @@ function OrbitSystem({ agents, intensity, running }) {
   const statusByAgent = useMemo(() => {
     const map = {}
     AGENT_META.forEach((a) => { map[a.id] = 'pending' })
-    agents.forEach((a) => { map[a.agent_name] = a.status })
+    // Map backend agent names to frontend IDs via aliases
+    AGENT_META.forEach((meta) => {
+      const aliases = meta.backendAliases || [meta.id]
+      for (const alias of aliases) {
+        const match = agents.find((a) => a.agent_name === alias && a.status === 'completed')
+        if (match) { map[meta.id] = 'completed'; break }
+      }
+      if (map[meta.id] === 'pending') {
+        for (const alias of aliases) {
+          const match = agents.find((a) => a.agent_name === alias)
+          if (match) { map[meta.id] = match.status; break }
+        }
+      }
+    })
     return map
   }, [agents])
 

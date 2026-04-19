@@ -12,11 +12,11 @@ import {
 } from '../../services/api'
 
 const AGENT_ORDER = [
-  { id: 'scout', label: 'Scout — ingest' },
-  { id: 'coroner', label: 'Coroner — dissect' },
-  { id: 'defibrillator', label: 'Defibrillator — lift' },
-  { id: 'skeptic', label: 'Skeptic — audit' },
-  { id: 'trial_strategist', label: 'Strategist — blueprint' },
+  { id: 'scout', label: 'Scout — ingest', backendAliases: ['advocate', 'advocate_iteration'] },
+  { id: 'skeptic', label: 'Skeptic — audit', backendAliases: ['skeptic', 'skeptic_iteration'] },
+  { id: 'coroner', label: 'Coroner — dissect', backendAliases: ['parallel_evidence', 'evidence_curator', 'evidence_iteration'] },
+  { id: 'defibrillator', label: 'Defibrillator — lift', backendAliases: ['assessment', 'assessment_iteration', 'judge', 'hitl_router'] },
+  { id: 'trial_strategist', label: 'Strategist — blueprint', backendAliases: ['trial_strategist'] },
 ]
 
 const TICKER_MESSAGES = [
@@ -83,9 +83,6 @@ export default function LabRun() {
   const failed = trace?.run?.status === 'failed'
   const hypothesisId = trace?.hypothesis?.id
 
-  const completed = steps.filter((s) => s.status === 'completed').length
-  const progress = Math.round((completed / 5) * 100)
-
   const confidence = trace?.run?.final_confidence
   const formattedConfidence =
     typeof confidence === 'number'
@@ -96,9 +93,39 @@ export default function LabRun() {
 
   const stepByAgent = useMemo(() => {
     const m = {}
-    steps.forEach((s) => { m[s.agent_name] = s })
+    // Map each frontend agent ID to the first matching backend step
+    AGENT_ORDER.forEach((a) => {
+      const aliases = a.backendAliases || [a.id]
+      for (const alias of aliases) {
+        const match = steps.find((s) => s.agent_name === alias && s.status === 'completed')
+        if (match) { m[a.id] = match; break }
+      }
+      // If no completed match, check for any status (running, failed)
+      if (!m[a.id]) {
+        for (const alias of aliases) {
+          const match = steps.find((s) => s.agent_name === alias)
+          if (match) { m[a.id] = match; break }
+        }
+      }
+    })
     return m
   }, [steps])
+
+  const stageStates = useMemo(
+    () =>
+      AGENT_ORDER.map((agent) => {
+        const step = stepByAgent[agent.id]
+        return {
+          id: agent.id,
+          label: agent.label,
+          status: step?.status ?? 'pending',
+        }
+      }),
+    [stepByAgent],
+  )
+
+  const completed = stageStates.filter((stage) => stage.status === 'completed').length
+  const progress = Math.round((completed / AGENT_ORDER.length) * 100)
 
   /* ── Blueprint generation ── */
   const handleBlueprint = async () => {
@@ -160,9 +187,8 @@ export default function LabRun() {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <div className="lab-run-panel-title">Agent pipeline</div>
-            {AGENT_ORDER.map((a) => {
-              const s = stepByAgent[a.id]
-              const status = s?.status ?? 'pending'
+            {stageStates.map((a) => {
+              const status = a.status
               return (
                 <div className="lab-agent-row" key={a.id}>
                   <span className="lab-agent-dot" data-status={status} />

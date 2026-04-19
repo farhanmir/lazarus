@@ -14,7 +14,8 @@ def _render_with_weasyprint(html: str, output_path: Path, css_path: Path | None 
         return False
 
     stylesheets = [CSS(filename=str(css_path))] if css_path and css_path.exists() else None
-    HTML(string=html, base_url=str(output_path.parent)).write_pdf(
+    base_url = str(css_path.parent) if css_path and css_path.exists() else str(output_path.parent)
+    HTML(string=html, base_url=base_url).write_pdf(
         str(output_path),
         stylesheets=stylesheets,
     )
