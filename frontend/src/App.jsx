@@ -2,8 +2,9 @@
  * Operator dashboard shell.
  *
  * Owns top-level run state (selected asset, analysis result, live trace,
- * blueprint) and composes the tabs: Dashboard, Graph, Watchlist, Analysis,
- * Portfolio, Research, Ops, Blueprint. Live agent traces arrive over the
+ * blueprint) and composes the tabs in demo-story order: Dashboard, Graph,
+ * Analysis, Blueprint, Ops, Watchlist, Portfolio, Research. Live agent traces
+ * arrive over the
  * WebSocket stream in `services/api.js` and render into the panels below.
  */
 import React, { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
@@ -48,12 +49,12 @@ const emptyGraph = { nodes: [], links: [] }
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'graph',     label: 'Graph' },
-  { id: 'watchlist', label: 'Watchlist' },
   { id: 'analysis',  label: 'Analysis' },
+  { id: 'blueprint', label: 'Blueprint' },
+  { id: 'ops',       label: 'Ops' },
+  { id: 'watchlist', label: 'Watchlist' },
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'research',  label: 'Research' },
-  { id: 'ops',       label: 'Ops' },
-  { id: 'blueprint', label: 'Blueprint' },
 ]
 
 const TAB_IDS = new Set(TABS.map((t) => t.id))
