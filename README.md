@@ -387,12 +387,12 @@ A minimal zero-to-prod path is included:
 
 Built in 36 hours by:
 
-| | Name | Role | Links |
+| | Name | Links |
 |---|---|---|---|
-| 🧬 | **Dimural Murat** | _______________________________ | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
-| 🧠 | **__________________________** | _______________________________ | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
-| ⚗️ | **__________________________** | _______________________________ | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
-| 🚀 | **__________________________** | _______________________________ | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| 🧬 | **Dimural Murat** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| 🧠 | **__________________________** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| ⚗️ | **__________________________** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| 🚀 | **__________________________** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
 
 > _Teammates: feel free to fill in your name, role, and links above._
 
