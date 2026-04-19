@@ -92,6 +92,8 @@ npm install
 npm run dev
 ```
 
+By default the dev server **proxies API calls** to `http://127.0.0.1:8000`, so you usually **do not** need `VITE_API_BASE_URL`. If you set it to a dead URL, the UI will show **Network Error** — leave it unset for local dev, or point it at a live API and ensure **CORS** includes your UI origin.
+
 ### 5. Optional: local Spectrum bridge
 
 ```bash

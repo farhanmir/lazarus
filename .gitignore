@@ -39,6 +39,3 @@ lazarus-blueprint-*.pdf
 .claude/
 *.pyc
 frontend/.vite/
-
-# Local-only (do not commit)
-TreeHacks-main/

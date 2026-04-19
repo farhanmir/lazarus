@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { runRescuePipeline } from '../services/api'
+import { getApiBase, runRescuePipeline } from '../services/api'
 import './rescue-home.css'
 
 function stageClass(status) {
@@ -17,10 +17,7 @@ export default function RescueHome() {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
 
-  const apiBase = useMemo(
-    () => import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
-    [],
-  )
+  const apiBase = useMemo(() => getApiBase(), [])
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -39,8 +36,15 @@ export default function RescueHome() {
       })
       setResult(data)
     } catch (err) {
+      const network =
+        err?.code === 'ERR_NETWORK' ||
+        err?.message === 'Network Error' ||
+        String(err?.message || '').toLowerCase().includes('network')
       setError(
         err?.response?.data?.detail ||
+          (network
+            ? 'Cannot reach the API. Start uvicorn on port 8000, then restart `npm run dev` (Vite proxies /api to the backend). If you set VITE_API_BASE_URL, it must match a running server and CORS.'
+            : null) ||
           err?.message ||
           'Pipeline tripped. Is the backend awake?',
       )
@@ -51,7 +55,9 @@ export default function RescueHome() {
 
   const blueprintHref =
     result?.blueprint_download_path != null
-      ? `${apiBase.replace(/\/$/, '')}${result.blueprint_download_path}`
+      ? apiBase
+        ? `${apiBase.replace(/\/$/, '')}${result.blueprint_download_path}`
+        : `${typeof window !== 'undefined' ? window.location.origin : ''}${result.blueprint_download_path}`
       : null
 
   return (

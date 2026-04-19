@@ -1,7 +1,31 @@
 import axios from 'axios'
 
+/**
+ * In dev, default to same-origin (empty base) so Vite proxies to FastAPI (see vite.config.js).
+ * Set VITE_API_BASE_URL when the UI is hosted separately from the API (e.g. production).
+ */
+export function getApiBase() {
+  const explicit = import.meta.env.VITE_API_BASE_URL
+  if (explicit != null && String(explicit).trim() !== '') {
+    return String(explicit).trim().replace(/\/$/, '')
+  }
+  if (import.meta.env.DEV) {
+    return ''
+  }
+  return 'http://127.0.0.1:8000'
+}
+
+function httpToWsBase(httpBase) {
+  if (!httpBase) return 'ws://127.0.0.1:8000'
+  if (httpBase.startsWith('https://')) return `wss://${httpBase.slice(8)}`
+  if (httpBase.startsWith('http://')) return `ws://${httpBase.slice(7)}`
+  return httpBase
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
+  baseURL: getApiBase(),
+  /** Rescue pipeline can take a while (CT.gov + LLMs + PDF). */
+  timeout: 180_000,
 })
 
 export const fetchAssets = async () => {
@@ -19,7 +43,7 @@ export const fetchCandidates = async (disease, limit = 5) => {
 export const runRescuePipeline = async ({ disease, recipient }) => {
   const body = { disease }
   if (recipient) body.recipient = recipient
-  const { data } = await api.post('/api/rescue-pipeline', body)
+  const { data } = await api.post('/api/rescue-pipeline', body, { timeout: 180_000 })
   return data
 }
 
@@ -64,7 +88,13 @@ export const fetchRunTrace = async (runId) => {
 }
 
 export const subscribeRunStream = (runId, { onMessage, onError, onClose } = {}) => {
-  const wsUrl = api.defaults.baseURL.replace('http://', 'ws://').replace('https://', 'wss://')
+  const httpBase =
+    api.defaults.baseURL && api.defaults.baseURL.length > 0
+      ? api.defaults.baseURL
+      : typeof window !== 'undefined'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000'
+  const wsUrl = httpToWsBase(httpBase)
   let socket
   let intervalId = null
   let closed = false
@@ -182,8 +212,11 @@ export const sendPhotonNotification = async ({ recipient, message }) => {
   return data
 }
 
-export const getBlueprintDownloadUrl = (blueprintId) =>
-  `${api.defaults.baseURL}/blueprints/${blueprintId}/download`
+export const getBlueprintDownloadUrl = (blueprintId) => {
+  const base = api.defaults.baseURL
+  if (base) return `${base}/blueprints/${blueprintId}/download`
+  return `/blueprints/${blueprintId}/download`
+}
 
 export const emailBlueprint = async (blueprintId, recipientEmail) => {
   const { data } = await api.post(`/blueprints/${blueprintId}/email`, {
