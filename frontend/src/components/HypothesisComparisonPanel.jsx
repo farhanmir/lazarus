@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { GitCompareArrows, ShieldCheck, Target } from 'lucide-react'
 
 function formatPct(value) {
   if (typeof value !== 'number') return '—'
@@ -8,9 +7,9 @@ function formatPct(value) {
 
 function scoreColor(value) {
   if (typeof value !== 'number') return 'var(--text-dim)'
-  if (value >= 0.7) return '#1f7a52'
-  if (value >= 0.45) return '#9a6c12'
-  return '#9b3d3d'
+  if (value >= 0.7) return 'var(--score-good)'
+  if (value >= 0.45) return 'var(--score-caution)'
+  return 'var(--red)'
 }
 
 function HypothesisComparisonPanel({ comparison, loading, error }) {
@@ -147,35 +146,6 @@ function HypothesisComparisonPanel({ comparison, loading, error }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <GitCompareArrows size={15} />
-            Compare Side-by-Side
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            Lets a reviewer see whether the same asset points to one strong indication or several weak ones.
-          </div>
-        </div>
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <ShieldCheck size={15} />
-            Risk vs Readiness
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            Confidence alone is not enough; the comparison also shows disagreement, coverage, and HITL drag.
-          </div>
-        </div>
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <Target size={15} />
-            Portfolio Decision
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            This turns Lazarus from one-answer reasoning into a portfolio decision surface with competing bets.
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -136,7 +136,7 @@ function AgentTimeline({ steps = [] }) {
             const stepNum = (step.step_order ?? index + 1).toString().padStart(2, '0')
 
             return (
-              <motion.div key={step.id} layout>
+              <motion.div key={step.id}>
                 <button
                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : step.id)}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, ClipboardCheck } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 
 function HumanReviewDashboard({ dashboard, loading, error, onResolve }) {
   const [pendingResolveId, setPendingResolveId] = useState(null)
@@ -78,7 +78,7 @@ function HumanReviewDashboard({ dashboard, loading, error, onResolve }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <span style={{ color: 'var(--text-bright)', fontWeight: 600 }}>{item.asset_code}</span>
                       <span style={{ color: 'var(--text-base)' }}>{item.asset_name}</span>
-                      <span style={{ fontSize: '11px', color: item.status === 'pending' ? '#9a6c12' : '#1f7a52', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      <span style={{ fontSize: '11px', color: item.status === 'pending' ? 'var(--score-caution)' : 'var(--score-good)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         {item.status}
                       </span>
                     </div>
@@ -111,7 +111,7 @@ function HumanReviewDashboard({ dashboard, loading, error, onResolve }) {
                         {resolving ? 'Resolving…' : 'Resolve Review'}
                       </button>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#1f7a52', fontSize: '13px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--score-good)', fontSize: '13px' }}>
                         <CheckCircle2 size={16} />
                         Resolved
                       </div>
@@ -136,35 +136,6 @@ function HumanReviewDashboard({ dashboard, loading, error, onResolve }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <AlertTriangle size={15} />
-            Safety Queue
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            High disagreement or risk-sensitive programs can be slowed down intentionally before a trial commitment is made.
-          </div>
-        </div>
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <ClipboardCheck size={15} />
-            Reviewer Guidance
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            Each record carries a recommended reviewer and clear rationale, so escalation feels actionable instead of noisy.
-          </div>
-        </div>
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <CheckCircle2 size={15} />
-            Resolution Trail
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            Resolving a review closes the queue item but keeps the audit trail, which makes the system feel operationally serious.
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

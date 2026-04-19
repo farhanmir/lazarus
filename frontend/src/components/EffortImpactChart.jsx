@@ -4,11 +4,13 @@ import { motion } from 'framer-motion'
 import { TrendingUp, DollarSign, Clock, Users, Zap } from 'lucide-react'
 import { fetchEffortImpact } from '../services/api'
 
+// Hex values required for D3 SVG attrs; values mirror design tokens:
+// --accent-soft, --cyan, --amber, --red
 const ZONE_COLORS = {
-  ideal: '#10b981',     // green — low effort, high impact
-  promising: '#3b82f6', // blue — medium zone
-  cautious: '#f59e0b',  // amber — high effort, medium impact
-  avoid: '#ef4444',     // red — high effort, low impact
+  ideal:     '#2e5a47',  // --accent-soft — low effort, high impact
+  promising: '#2e5a6e',  // --cyan        — medium zone
+  cautious:  '#c9a24b',  // --amber       — high effort, medium impact
+  avoid:     '#9b3d3d',  // --red         — high effort, low impact
 }
 
 function EffortImpactChart({ runId }) {
@@ -138,9 +140,9 @@ function EffortImpactChart({ runId }) {
       .attr('stroke-width', 2)
       .style('filter', 'drop-shadow(0 0 6px rgba(0,0,0,0.3))')
 
-    // Style axis lines
-    svg.selectAll('.domain').attr('stroke', '#7b8794')
-    svg.selectAll('.tick line').attr('stroke', '#7b8794')
+    // Style axis lines — #6d7278 = --text-dim
+    svg.selectAll('.domain').attr('stroke', '#6d7278')
+    svg.selectAll('.tick line').attr('stroke', '#6d7278')
   }, [data])
 
   if (!runId) {
@@ -155,7 +157,7 @@ function EffortImpactChart({ runId }) {
   if (loading) {
     return (
       <div className="nexus-glass-card p-6 text-center text-[var(--text-dim)]">
-        <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+        <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
         <p>Loading effort & impact data…</p>
       </div>
     )
@@ -174,7 +176,7 @@ function EffortImpactChart({ runId }) {
 
   const readiness = data.investment_readiness_score
   const readinessColor =
-    readiness >= 0.6 ? '#1f7a52' : readiness >= 0.3 ? '#9a6c12' : '#9b3d3d'
+    readiness >= 0.6 ? 'var(--score-good)' : readiness >= 0.3 ? 'var(--score-caution)' : 'var(--red)'
 
   return (
     <motion.div
@@ -185,7 +187,7 @@ function EffortImpactChart({ runId }) {
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="nexus-glass-card flex items-center gap-3 p-4">
-          <DollarSign className="h-5 w-5 text-emerald-400" />
+          <DollarSign className="h-5 w-5 text-[var(--text-dim)]" />
           <div>
             <div className="text-xs text-[var(--text-dim)]">Est. Cost</div>
             <div className="text-sm font-semibold text-[var(--text-bright)]">
@@ -194,14 +196,14 @@ function EffortImpactChart({ runId }) {
           </div>
         </div>
         <div className="nexus-glass-card flex items-center gap-3 p-4">
-          <Clock className="h-5 w-5 text-blue-400" />
+          <Clock className="h-5 w-5 text-[var(--text-dim)]" />
           <div>
             <div className="text-xs text-[var(--text-dim)]">Timeline</div>
             <div className="text-sm font-semibold text-[var(--text-bright)]">{data.effort.estimated_time_months} months</div>
           </div>
         </div>
         <div className="nexus-glass-card flex items-center gap-3 p-4">
-          <Users className="h-5 w-5 text-purple-400" />
+          <Users className="h-5 w-5 text-[var(--text-dim)]" />
           <div>
             <div className="text-xs text-[var(--text-dim)]">Patient Pop.</div>
             <div className="text-sm font-semibold text-[var(--text-bright)]">
@@ -210,7 +212,7 @@ function EffortImpactChart({ runId }) {
           </div>
         </div>
         <div className="nexus-glass-card flex items-center gap-3 p-4">
-          <Zap className="h-5 w-5 text-amber-400" />
+          <Zap className="h-5 w-5 text-[var(--text-dim)]" />
           <div>
             <div className="text-xs text-[var(--text-dim)]">Readiness</div>
             <div className="text-sm font-semibold" style={{ color: readinessColor }}>
