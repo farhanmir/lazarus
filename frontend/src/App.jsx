@@ -39,9 +39,10 @@ import {
 const emptyGraph = { nodes: [], links: [] }
 
 const TABS = [
-  { id: 'rescue', label: 'Rescue' },
+  { id: 'rescue',    label: 'Rescue' },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'graph',     label: 'Graph' },
+  { id: 'watchlist', label: 'Watchlist' },
   { id: 'analysis',  label: 'Analysis' },
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'research',  label: 'Research' },
@@ -73,7 +74,7 @@ function App() {
     const t = new URLSearchParams(globalThis.window.location.search).get('tab')
     return t && TAB_IDS.has(t) ? t : 'dashboard'
   })
-  const [query, setQuery]                 = useState('')
+
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [portfolioRanking, setPortfolioRanking] = useState(null)
   const [portfolioLoading, setPortfolioLoading] = useState(false)
@@ -85,7 +86,6 @@ function App() {
   const [comparisonLoading, setComparisonLoading] = useState(false)
   const [comparisonError, setComparisonError] = useState('')
   const [analysisSubTab, setAnalysisSubTab]   = useState('strategy')   // 'strategy' | 'compare'
-  const [researchSubTab, setResearchSubTab]   = useState('scan')        // 'scan' | 'watchlist'
   const [timelineExpanded, setTimelineExpanded] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('lazarus-sidebar-collapsed') === 'true' } catch { return false }
@@ -113,14 +113,6 @@ function App() {
   const deferredSelectedNode = useDeferredValue(selectedNode)
   const runStatus = useRunStatus(analysisResult?.run, { analysisLoading, errorMessage })
   const { details: nodeDetails, overview: graphOverview, legendItems } = useGraphData(deferredGraphData, deferredSelectedNode)
-
-  const filteredAssets = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    if (!normalized) return assets
-    return assets.filter((asset) =>
-      `${asset.asset_code} ${asset.original_indication} ${asset.internal_name}`.toLowerCase().includes(normalized),
-    )
-  }, [assets, query])
 
   const metrics = useMemo(() => {
     const skepticStep    = runTrace?.steps?.find((s) => s.agent_name === 'skeptic')
@@ -362,9 +354,12 @@ function App() {
         <aside className={`nexus-left${sidebarCollapsed ? ' collapsed' : ''}`}>
           {/* Brand row: title/subtitle left, collapse toggle right */}
           <div className="nexus-brand-row">
-            <Link to="/" className="nexus-brand" style={{ textDecoration: 'none' }}>
-              <span className="brand-title">Lazarus</span>
-              <span className="brand-sub">Bio-R&amp;D Swarm · Clinical Reasoning Cluster</span>
+            <Link to="/welcome" className="nexus-brand" style={{ textDecoration: 'none' }}>
+              <img src="/logo.png" alt="Lazarus logo" className="brand-logo" />
+              <div className="brand-text">
+                <span className="brand-title">Lazarus</span>
+                <span className="brand-sub">Bio-R&amp;D Swarm · Clinical Reasoning Cluster</span>
+              </div>
             </Link>
             <button
               type="button"
@@ -375,6 +370,40 @@ function App() {
             >
               {sidebarCollapsed ? '›' : '‹'}
             </button>
+          </div>
+
+          {/* Sidebar Controls */}
+          <div className="sidebar-controls">
+            <select
+              aria-label="Select asset for analysis"
+              value={selectedAssetId}
+              onChange={(e) => setSelectedAssetId(e.target.value)}
+              className="term-select sidebar-asset-select"
+            >
+              <option value="">— SELECT ASSET —</option>
+              {assets.map((asset) => (
+                <option key={asset.id} value={asset.id}>
+                  {asset.asset_code} · {asset.internal_name}
+                </option>
+              ))}
+            </select>
+            <div className="sidebar-actions">
+              <button
+                type="button"
+                onClick={handleRunAnalysis}
+                disabled={!selectedAssetId || analysisLoading}
+                className={`term-btn term-btn-execute sidebar-run-btn${analysisLoading ? ' running' : ''}`}
+              >
+                {analysisLoading ? 'Running…' : 'Run Analysis'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(true)}
+                className="term-btn term-btn-ghost"
+              >
+                Reset
+              </button>
+            </div>
           </div>
 
           {/* Globe */}
@@ -412,70 +441,6 @@ function App() {
             </div>
 
             <div className="header-right">
-              {/* Search */}
-              <input
-                aria-label="Search compounds"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search compounds…"
-                style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-bright)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '9px',
-                  letterSpacing: '0.06em',
-                  padding: '5px 8px',
-                  outline: 'none',
-                  borderRadius: '2px',
-                  width: '130px',
-                }}
-              />
-
-              {/* Asset selector */}
-              <select
-                aria-label="Select asset for analysis"
-                value={selectedAssetId}
-                onChange={(e) => setSelectedAssetId(e.target.value)}
-                className="term-select"
-              >
-                <option value="">— SELECT ASSET —</option>
-                {filteredAssets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.asset_code} · {asset.internal_name}
-                  </option>
-                ))}
-              </select>
-
-              {/* Execute */}
-              <button
-                type="button"
-                onClick={handleRunAnalysis}
-                disabled={!selectedAssetId || analysisLoading}
-                className={`term-btn term-btn-execute${analysisLoading ? ' running' : ''}`}
-              >
-                {analysisLoading ? 'Running…' : 'Run Analysis'}
-              </button>
-
-              {/* Blueprint */}
-              <button
-                type="button"
-                onClick={handleGenerateBlueprint}
-                disabled={!analysisResult?.hypothesis?.id || blueprintLoading}
-                className="term-btn"
-              >
-                {blueprintLoading ? 'Generating…' : 'Blueprint'}
-              </button>
-
-              {/* Reset */}
-              <button
-                type="button"
-                onClick={() => setShowResetConfirm(true)}
-                className="term-btn term-btn-ghost"
-              >
-                Reset
-              </button>
-
               {/* Run ID chip */}
               {analysisResult?.run && (
                 <div className="run-id-chip">
@@ -712,37 +677,17 @@ function App() {
                 </motion.div>
               )}
 
-              {/* ═══ RESEARCH (Scan + Watchlist) ═══ */}
+              {/* ═══ WATCHLIST ═══ */}
+              {activeTab === 'watchlist' && (
+                <motion.div key="watchlist" role="tabpanel" id="panel-watchlist" aria-labelledby="tab-watchlist" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <WatchlistPanel />
+                </motion.div>
+              )}
+
+              {/* ═══ RESEARCH ═══ */}
               {activeTab === 'research' && (
                 <motion.div key="research" role="tabpanel" id="panel-research" aria-labelledby="tab-research" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                    {/* Sub-nav */}
-                    <div className="sub-tabnav" role="group" aria-label="Research view">
-                      <button
-                        type="button"
-                        className={`sub-tab-btn${researchSubTab === 'scan' ? ' active' : ''}`}
-                        onClick={() => setResearchSubTab('scan')}
-                        aria-pressed={researchSubTab === 'scan'}
-                      >
-                        Multi-Disease Scan
-                      </button>
-                      <button
-                        type="button"
-                        className={`sub-tab-btn${researchSubTab === 'watchlist' ? ' active' : ''}`}
-                        onClick={() => setResearchSubTab('watchlist')}
-                        aria-pressed={researchSubTab === 'watchlist'}
-                      >
-                        Watchlist
-                      </button>
-                    </div>
-
-                    {researchSubTab === 'scan' && (
-                      <MultiDiseaseScanPanel assets={assets} />
-                    )}
-                    {researchSubTab === 'watchlist' && (
-                      <WatchlistPanel />
-                    )}
-                  </div>
+                  <MultiDiseaseScanPanel assets={assets} />
                 </motion.div>
               )}
 
@@ -750,6 +695,20 @@ function App() {
               {activeTab === 'blueprint' && (
                 <motion.div key="blueprint" role="tabpanel" id="panel-blueprint" aria-labelledby="tab-blueprint" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    {/* Generate button lives here on the Blueprint page */}
+                    <div className="blueprint-generate-row">
+                      <button
+                        type="button"
+                        onClick={handleGenerateBlueprint}
+                        disabled={!analysisResult?.hypothesis?.id || blueprintLoading}
+                        className="term-btn term-btn-execute"
+                      >
+                        {blueprintLoading ? 'Generating…' : 'Generate Blueprint'}
+                      </button>
+                      {!analysisResult?.hypothesis?.id && (
+                        <span className="blueprint-generate-hint">Run an analysis first to enable blueprint generation.</span>
+                      )}
+                    </div>
                     <BlueprintProgress loading={blueprintLoading} ready={Boolean(blueprintResult?.blueprint?.id)} />
                     <BlueprintViewer
                       blueprintResult={blueprintResult}
