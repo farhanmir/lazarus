@@ -13,11 +13,19 @@ from backend.app.agents.types import (
     JudgeOutput,
     SkepticOutput,
 )
-from backend.app.services.llm_service import openai_chat_completion
+from backend.app.services.llm_service import gemini_chat_completion, openai_chat_completion
 
 
 OPENAI_JUDGE_MODEL_NAME = "gpt-4o"
+GEMINI_JUDGE_MODEL_NAME = "gemini-2.5-flash"
 logger = logging.getLogger(__name__)
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def run_judge(
@@ -26,8 +34,10 @@ def run_judge(
     skeptic: SkepticOutput,
     evidence: EvidenceCuratorOutput,
 ) -> JudgeOutput:
-    """Synthesize the final decision: tries OpenAI direct, then deterministic."""
+    """Synthesize the final decision: tries OpenAI direct, optional Gemini second, then deterministic."""
     judge_model = os.getenv("OPENAI_JUDGE_MODEL", OPENAI_JUDGE_MODEL_NAME)
+    gemini_model = os.getenv("GEMINI_JUDGE_MODEL", GEMINI_JUDGE_MODEL_NAME)
+    enable_gemini_fallback = _env_flag("ENABLE_GEMINI_JUDGE", default=False)
 
     logger.info("[agent:judge] start asset=%s proposal=%s", context.asset_code, advocate.proposed_disease)
     response_schema = {
@@ -81,6 +91,28 @@ def run_judge(
         except (KeyError, TypeError, ValueError):
             pass
 
+    if enable_gemini_fallback:
+        llm_output = gemini_chat_completion(
+            model=gemini_model,
+            system_prompt=JUDGE_PROMPT,
+            user_prompt=user_prompt,
+            response_schema=response_schema,
+        )
+        if llm_output:
+            try:
+                logger.info("[agent:judge] resolved via gemini_fallback asset=%s model=%s", context.asset_code, gemini_model)
+                return JudgeOutput(
+                    final_decision=str(llm_output["final_decision"]),
+                    summary=str(llm_output["summary"]),
+                    judge_score=float(llm_output["judge_score"]),
+                    final_confidence=float(llm_output["final_confidence"]),
+                    recommended_next_step=str(llm_output["recommended_next_step"]),
+                    model_used=gemini_model,
+                    mode="gemini_fallback",
+                )
+            except (KeyError, TypeError, ValueError):
+                pass
+
     # --- Fallback: deterministic ---
     final_confidence = round(
         (advocate.confidence * 0.4) + (skeptic.skeptic_score * 0.3) + (evidence.evidence_score * 0.3),
@@ -120,6 +152,6 @@ def run_judge(
         judge_score=final_confidence,
         final_confidence=final_confidence,
         recommended_next_step=recommended_next_step,
-        model_used=judge_model,
+        model_used=gemini_model if enable_gemini_fallback else judge_model,
         mode="deterministic",
     )

@@ -57,6 +57,70 @@ function ensureImessageService(recipient: string): string {
   return trimmed;
 }
 
+function normalizeRecipientCore(value: string): string {
+  const normalized = ensureImessageService(value);
+  if (normalized.includes("@")) {
+    return normalized.toLowerCase();
+  }
+  return normalized.replace(/[^\d+]/g, "");
+}
+
+function isGroupChatId(value: string): boolean {
+  return value.startsWith("chat") || value.startsWith("iMessage;+;chat");
+}
+
+function isSmsTarget(value: string): boolean {
+  return value.startsWith("SMS;") || value.startsWith("sms;");
+}
+
+async function resolvePreferredDeliveryTarget(
+  sdk: IMessageSDK,
+  recipient: string,
+): Promise<string> {
+  const normalized = ensureImessageService(recipient);
+  if (!normalized) {
+    return normalized;
+  }
+
+  if (isGroupChatId(normalized)) {
+    return normalized;
+  }
+
+  const desiredCore = normalizeRecipientCore(normalized);
+
+  try {
+    const chats = await sdk.listChats({ limit: 100, sortBy: "recent" });
+    const directMatches = chats.filter((chat) => {
+      if (chat.isGroup) return false;
+      return normalizeRecipientCore(chat.chatId) === desiredCore;
+    });
+
+    for (const chat of directMatches) {
+      const history = await sdk.getMessages({
+        chatId: chat.chatId,
+        limit: 5,
+        excludeOwnMessages: false,
+      });
+      const iMessageMatch = history.messages.find((message) => message.service === "iMessage");
+      if (iMessageMatch) {
+        return chat.chatId;
+      }
+    }
+
+    if (directMatches[0]?.chatId && !isSmsTarget(directMatches[0].chatId)) {
+      return directMatches[0].chatId;
+    }
+  } catch (error) {
+    console.warn("Spectrum local bridge target resolution warning:", error);
+  }
+
+  if (isSmsTarget(normalized)) {
+    throw new Error("No iMessage-capable chat found for recipient. Messages would fall back to SMS.");
+  }
+
+  return normalized;
+}
+
 function formatHelp(): string {
   return [
     "Lazarus is ready.",
@@ -174,10 +238,13 @@ async function main(): Promise<void> {
           return;
         }
 
-        const imessageRecipient = ensureImessageService(recipient);
-        await sdk.send(imessageRecipient, message);
+        const deliveryTarget = await resolvePreferredDeliveryTarget(sdk, recipient);
+        if (isSmsTarget(deliveryTarget)) {
+          throw new Error("Resolved target is SMS, not iMessage. Create or use a blue-bubble iMessage conversation first.");
+        }
+        await sdk.send(deliveryTarget, message);
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: true, status: "sent" }));
+        res.end(JSON.stringify({ ok: true, status: "sent", target: deliveryTarget }));
       } catch (error) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
@@ -210,7 +277,7 @@ async function main(): Promise<void> {
       }
 
       const rawDestination = message.chatId || message.sender;
-      const destination = ensureImessageService(rawDestination);
+      const destination = await resolvePreferredDeliveryTarget(sdk, rawDestination);
       console.log(`Incoming Spectrum command from ${destination}: ${text}`);
 
       try {
@@ -239,4 +306,3 @@ main().catch((error) => {
   console.error("Spectrum local bridge failed to start:", error);
   process.exit(1);
 });
-

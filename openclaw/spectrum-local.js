@@ -9,6 +9,86 @@ const webhookUrl = `${lazarusBaseUrl}/photon/spectrum/webhook`;
 const localModeEnabled = (process.env.IMESSAGE_LOCAL || "").toLowerCase() === "true";
 const localBridgePort = Number(process.env.SPECTRUM_LOCAL_BRIDGE_PORT || "8765");
 const localBridgePath = process.env.SPECTRUM_SEND_PATH || "/messages";
+/**
+ * Normalize recipient for the iMessage Kit SDK.
+ *
+ * The SDK's `send()` auto-detects routing based on the `to` value:
+ * - Raw phone number (+1234567890) → uses `buddy` AppleScript (correct)
+ * - 2-part chat ref (iMessage;+1234567890) → extracts recipient, uses `buddy`
+ * - 3-part format (iMessage;-;+1234567890) → treated as unknown chat id, FAILS
+ * - Chat GUID → uses `chat id` AppleScript
+ * - Email → uses `buddy` AppleScript
+ *
+ * This helper strips the legacy 3-part `iMessage;-;` prefix if present,
+ * so the SDK receives a clean phone number it can route correctly.
+ */
+function ensureImessageService(recipient) {
+    const trimmed = recipient.trim();
+    // Strip the 3-part iMessage;-;+phone format → raw phone number
+    const threePartMatch = trimmed.match(/^iMessage;-;(.+)$/);
+    if (threePartMatch) {
+        return threePartMatch[1];
+    }
+    // SMS;-;+phone → strip to raw phone as well (SDK will route via iMessage buddy)
+    const smsMatch = trimmed.match(/^SMS;-;(.+)$/);
+    if (smsMatch) {
+        return smsMatch[1];
+    }
+    // 2-part format (iMessage;+phone), chat GUIDs, emails, raw numbers → pass through
+    return trimmed;
+}
+function normalizeRecipientCore(value) {
+    const normalized = ensureImessageService(value);
+    if (normalized.includes("@")) {
+        return normalized.toLowerCase();
+    }
+    return normalized.replace(/[^\d+]/g, "");
+}
+function isGroupChatId(value) {
+    return value.startsWith("chat") || value.startsWith("iMessage;+;chat");
+}
+function isSmsTarget(value) {
+    return value.startsWith("SMS;") || value.startsWith("sms;");
+}
+async function resolvePreferredDeliveryTarget(sdk, recipient) {
+    const normalized = ensureImessageService(recipient);
+    if (!normalized) {
+        return normalized;
+    }
+    if (isGroupChatId(normalized)) {
+        return normalized;
+    }
+    const desiredCore = normalizeRecipientCore(normalized);
+    try {
+        const chats = await sdk.listChats({ limit: 100, sortBy: "recent" });
+        const directMatches = chats.filter((chat) => {
+            if (chat.isGroup)
+                return false;
+            return normalizeRecipientCore(chat.chatId) === desiredCore;
+        });
+        for (const chat of directMatches) {
+            const history = await sdk.getMessages({
+                chatId: chat.chatId,
+                limit: 5,
+                excludeOwnMessages: false,
+            });
+            const iMessageMatch = history.messages.find((message) => message.service === "iMessage");
+            if (iMessageMatch) {
+                return chat.chatId;
+            }
+        }
+        if (directMatches[0]?.chatId && !isSmsTarget(directMatches[0].chatId)) {
+            return directMatches[0].chatId;
+        }
+    }
+    catch (error) {
+        console.warn("Spectrum local bridge target resolution warning:", error);
+    }
+    if (isSmsTarget(normalized)) {
+        throw new Error("No iMessage-capable chat found for recipient. Messages would fall back to SMS.");
+    }
+    return normalized;
+}
 function formatHelp() {
     return [
         "Lazarus is ready.",
@@ -110,9 +190,13 @@ async function main() {
                     res.end(JSON.stringify({ ok: false, detail: "recipient and message are required." }));
                     return;
                 }
-                await sdk.send(recipient, message);
+                const deliveryTarget = await resolvePreferredDeliveryTarget(sdk, recipient);
+                if (isSmsTarget(deliveryTarget)) {
+                    throw new Error("Resolved target is SMS, not iMessage. Create or use a blue-bubble iMessage conversation first.");
+                }
+                await sdk.send(deliveryTarget, message);
                 res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ ok: true, status: "sent" }));
+                res.end(JSON.stringify({ ok: true, status: "sent", target: deliveryTarget }));
             }
             catch (error) {
                 res.writeHead(500, { "Content-Type": "application/json" });
@@ -138,7 +222,8 @@ async function main() {
             if (!shouldHandle(text)) {
                 return;
             }
-            const destination = message.chatId || message.sender;
+            const rawDestination = message.chatId || message.sender;
+            const destination = await resolvePreferredDeliveryTarget(sdk, rawDestination);
             console.log(`Incoming Spectrum command from ${destination}: ${text}`);
             try {
                 if (text.toLowerCase() === "help" || text.toLowerCase() === "lazarus") {
@@ -164,4 +249,3 @@ main().catch((error) => {
     console.error("Spectrum local bridge failed to start:", error);
     process.exit(1);
 });
-

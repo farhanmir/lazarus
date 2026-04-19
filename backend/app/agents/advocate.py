@@ -7,16 +7,26 @@ import os
 
 from backend.app.agents.prompts import ADVOCATE_PROMPT
 from backend.app.agents.types import AdvocateOutput, AssetContext
-from backend.app.services.llm_service import openai_chat_completion
+from backend.app.services.llm_service import gemini_chat_completion, openai_chat_completion
 
 
 OPENAI_ADVOCATE_MODEL_NAME = "gpt-4o"
+GEMINI_ADVOCATE_MODEL_NAME = "gemini-2.5-flash"
 logger = logging.getLogger(__name__)
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def run_advocate(context: AssetContext) -> AdvocateOutput:
-    """Run the Advocate agent: tries OpenAI direct, then deterministic fallback."""
+    """Run the Advocate agent: tries OpenAI first, optional Gemini second, then deterministic fallback."""
     advocate_model = os.getenv("OPENAI_ADVOCATE_MODEL", OPENAI_ADVOCATE_MODEL_NAME)
+    gemini_model = os.getenv("GEMINI_ADVOCATE_MODEL", GEMINI_ADVOCATE_MODEL_NAME)
+    enable_gemini_fallback = _env_flag("ENABLE_GEMINI_ADVOCATE", default=False)
 
     response_schema = {
         "type": "object",
@@ -60,6 +70,26 @@ def run_advocate(context: AssetContext) -> AdvocateOutput:
         except (KeyError, TypeError, ValueError):
             pass
 
+    if enable_gemini_fallback:
+        llm_output = gemini_chat_completion(
+            model=gemini_model,
+            system_prompt=ADVOCATE_PROMPT,
+            user_prompt=user_prompt,
+            response_schema=response_schema,
+        )
+        if llm_output:
+            try:
+                logger.info("[agent:advocate] resolved via gemini_fallback asset=%s model=%s", context.asset_code, gemini_model)
+                return AdvocateOutput(
+                    proposed_disease=str(llm_output["proposed_disease"]),
+                    reasoning=str(llm_output["reasoning"]),
+                    confidence=float(llm_output["confidence"]),
+                    model_used=gemini_model,
+                    mode="gemini_fallback",
+                )
+            except (KeyError, TypeError, ValueError):
+                pass
+
     # --- Fallback: deterministic ---
     proposed_disease = context.linked_diseases[0] if context.linked_diseases else context.source_disease
     confidence = 0.84 if proposed_disease != context.source_disease else 0.61
@@ -73,6 +103,6 @@ def run_advocate(context: AssetContext) -> AdvocateOutput:
         proposed_disease=proposed_disease,
         reasoning=reasoning,
         confidence=confidence,
-        model_used=advocate_model,
+        model_used=gemini_model if enable_gemini_fallback else advocate_model,
         mode="deterministic_fallback",
     )

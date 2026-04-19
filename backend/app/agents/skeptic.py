@@ -7,11 +7,12 @@ import os
 
 from backend.app.agents.prompts import SKEPTIC_PROMPT
 from backend.app.agents.types import AdvocateOutput, AssetContext, SkepticOutput
-from backend.app.services.llm_service import openai_chat_completion
+from backend.app.services.llm_service import k2_chat_completion, openai_chat_completion
 from backend.app.services.pubmed_service import check_hallucinated_citations
 
 
 OPENAI_SKEPTIC_MODEL_NAME = "gpt-4o-mini"
+K2_SKEPTIC_MODEL_NAME = "MBZUAI-IFM/K2-Think-v2"
 logger = logging.getLogger(__name__)
 
 TARGET_CONFLICTS = {
@@ -22,10 +23,19 @@ TARGET_CONFLICTS = {
 }
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutput:
-    """Run the Skeptic agent with deterministic fallback logic."""
+    """Run the Skeptic agent with OpenAI primary, optional K2 secondary, and deterministic fallback."""
     openai_api_key = os.getenv("OPENAI_API_KEY")
     skeptic_model = os.getenv("OPENAI_SKEPTIC_MODEL", OPENAI_SKEPTIC_MODEL_NAME)
+    k2_model = os.getenv("K2_MODEL", K2_SKEPTIC_MODEL_NAME)
+    enable_k2_fallback = _env_flag("ENABLE_K2_SKEPTIC", default=False)
 
     logger.info("[agent:skeptic] start asset=%s proposal=%s", context.asset_code, advocate.proposed_disease)
     response_schema = {
@@ -80,6 +90,28 @@ def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutpu
         except (KeyError, TypeError, ValueError):
             pass
 
+    if enable_k2_fallback:
+        llm_output = k2_chat_completion(
+            model=k2_model,
+            system_prompt=SKEPTIC_PROMPT,
+            user_prompt=user_prompt,
+            response_schema=response_schema,
+        )
+        if llm_output:
+            try:
+                logger.info("[agent:skeptic] resolved via k2_fallback asset=%s model=%s", context.asset_code, k2_model)
+                return SkepticOutput(
+                    risk_level=str(llm_output["risk_level"]),
+                    contraindications=[str(item) for item in llm_output["contraindications"]],
+                    conflict_summary=str(llm_output["conflict_summary"]),
+                    skeptic_score=float(llm_output["skeptic_score"]),
+                    verdict=str(llm_output["verdict"]),
+                    model_used=k2_model,
+                    mode="k2_fallback",
+                )
+            except (KeyError, TypeError, ValueError):
+                pass
+
     contraindications = list(context.adverse_events)
     target_conflicts = TARGET_CONFLICTS.get((context.target, advocate.proposed_disease), [])
     
@@ -127,6 +159,6 @@ def run_skeptic(context: AssetContext, advocate: AdvocateOutput) -> SkepticOutpu
         conflict_summary=conflict_summary,
         skeptic_score=skeptic_score,
         verdict=verdict,
-        model_used=skeptic_model,
+        model_used=k2_model if enable_k2_fallback else skeptic_model,
         mode=fallback_mode,
     )
