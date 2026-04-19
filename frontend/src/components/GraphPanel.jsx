@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import cytoscape from 'cytoscape'
 import cola from 'cytoscape-cola'
 import CytoscapeComponent from 'react-cytoscapejs'
@@ -100,11 +100,11 @@ function GraphPanel({ graphData, selectedNode, setSelectedNode, steps, runStatus
   const nodeIndex = useMemo(() => buildNodeIndex(graphData), [graphData])
   const highlight = useGraphHighlighting(graphData, steps, runStatus, selectedNode?.id, focusMode)
 
-  const runLayout = (mode = layoutMode) => {
+  const runLayout = useCallback((mode = layoutMode) => {
     const cy = cyRef.current
     if (!cy) return
     cy.layout(layouts[mode] ?? layouts.cola).run()
-  }
+  }, [layoutMode])
 
   useEffect(() => {
     const cy = cyRef.current
@@ -116,7 +116,7 @@ function GraphPanel({ graphData, selectedNode, setSelectedNode, steps, runStatus
     const cy = cyRef.current
     if (!cy) return
     runLayout(layoutMode)
-  }, [layoutMode, elements])
+  }, [layoutMode, elements, runLayout])
 
   useEffect(() => {
     const handleFullscreenChange = () => {

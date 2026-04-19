@@ -250,7 +250,11 @@ function App() {
   const toggleSidebar = () => {
     setSidebarCollapsed(prev => {
       const next = !prev
-      try { localStorage.setItem('lazarus-sidebar-collapsed', String(next)) } catch {}
+      try {
+        localStorage.setItem('lazarus-sidebar-collapsed', String(next))
+      } catch {
+        // Local storage may be unavailable in restricted browser contexts.
+      }
       return next
     })
   }
@@ -343,9 +347,6 @@ function App() {
       setPortfolioRanking(ranking)
     }
   }
-
-  const completedSteps = runTrace?.steps?.filter((s) => s.status === 'completed').length ?? 0
-  const totalSteps = 5
 
   // Derive status dot class
   const dotClass =

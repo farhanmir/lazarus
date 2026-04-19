@@ -56,7 +56,7 @@ function humanizeText(value) {
 
 function clampText(value, limit = 120) {
   if (!value) return ''
-  return value
+  return value.length > limit ? `${value.slice(0, limit).trimEnd()}...` : value
 }
 
 function summarizeEvidenceBranches(payload) {

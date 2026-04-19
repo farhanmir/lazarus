@@ -53,7 +53,7 @@ function GraphView({ graphData, selectedNode, setSelectedNode }) {
     })
 
     const defs = svg.append('defs')
-    const arrow = defs
+    defs
       .append('marker')
       .attr('id', 'arrow')
       .attr('viewBox', '0 -5 10 10')
