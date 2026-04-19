@@ -16,7 +16,7 @@ export default function LabLayout() {
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
           <Link to="/" className="lab-nav-brand">
-            <span className="lab-nav-brand-mark" />
+            <img src="/icon.png" alt="Lazarus" className="lab-nav-brand-mark" />
             <span>Lazarus</span>
             <span className="lab-mono" style={{ fontSize: 10, color: '#6d7278', letterSpacing: '0.2em', marginLeft: 10 }}>
               LAB / R&amp;D

@@ -105,11 +105,10 @@
 }
 
 .lab-nav-brand-mark {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #fff, var(--lab-beige) 70%, var(--lab-beige-deep));
-  border: 1px solid var(--lab-line-strong);
-  box-shadow: inset 0 0 8px rgba(0,0,0,0.08);
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .lab-nav-links {

@@ -322,7 +322,9 @@ function App() {
     <main className="pipeline-root">
       <div className="pipeline-shell">
         <nav className="pipeline-nav">
-          <Link to="/" className="pipeline-nav-link">Home</Link>
+          <Link to="/" className="pipeline-nav-home" aria-label="Back to home">
+            <img src="/icon.png" alt="" className="pipeline-nav-icon" />
+          </Link>
           <span className="pipeline-nav-sep">/</span>
           <span className="pipeline-nav-current">Dashboard</span>
           {latestRunId && (
