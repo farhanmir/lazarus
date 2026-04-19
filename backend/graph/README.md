@@ -1,6 +1,9 @@
-# Lazarus Step 1: Neo4j Graph Foundation
+# Lazarus — Neo4j Knowledge Graph
 
-This module creates the first demoable knowledge graph for Lazarus. It models failed clinical assets, original indications, targets, trials, evidence, and repurposing hypotheses in a way that is simple enough for a hackathon but structured enough to power later reasoning agents.
+This module owns the Lazarus biological knowledge graph. It models failed
+clinical assets, original indications, targets, trials, evidence, and
+repurposing hypotheses — the read side of this graph backs the Cytoscape
+"Graph" tab in the UI, and the reasoning agents consult it for context.
 
 ## Folder structure
 
@@ -66,4 +69,4 @@ python -m backend.graph.load_graph
 
 - The loader uses `MERGE` for both nodes and relationships, so rerunning it is safe.
 - Seed data lives in `seed_data.py` as plain Python dictionaries for easy hackathon editing.
-- This step intentionally stops at the graph foundation and does not introduce APIs, agents, or databases beyond Neo4j.
+- The reasoning pipeline currently *reads* from Neo4j for context but does not yet write hypotheses back — see [`docs/ISSUES.md`](../../docs/ISSUES.md).

@@ -374,11 +374,10 @@ A minimal zero-to-prod path is included:
 
 ## 🧾 Docs & Further Reading
 
-- [Project strategy](docs/Lazarus_Nexus_Strategy.md)
-- [Nexus data schema](docs/Lazarus_Nexus_Data_Schema.md)
-- [Implementation notes](docs/2026-04-17-lazarus-implementation.md)
-- [Product scan](docs/2026-04-18-product-scan.md)
-- [Team contracts](CONTRACTS.md)
+- [Product requirements (PRD)](docs/PRD.md) — what Lazarus is, who it serves, scope in/out
+- [User stories](docs/USER_STORIES.md) — the operator, reviewer, and executive journeys
+- [Architecture](docs/ARCHITECTURE.md) — data model, agent DAG, graph schema, runtime
+- [Issue tracker](docs/ISSUES.md) — known limitations, hackathon cut-lines, roadmap
 - Sub-READMEs: [`backend/app/README.md`](backend/app/README.md) · [`backend/app/README_OPENCLAW.md`](backend/app/README_OPENCLAW.md) · [`backend/app/README_PHOTON.md`](backend/app/README_PHOTON.md) · [`backend/app/README_SPECTRUM.md`](backend/app/README_SPECTRUM.md) · [`backend/graph/README.md`](backend/graph/README.md) · [`openclaw/README.md`](openclaw/README.md)
 
 ---
