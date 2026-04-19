@@ -755,9 +755,11 @@ body::after {
 .status-info {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-3);
   font-family: var(--font-mono);
   font-size: 11px;
+  min-width: 0;
 }
 
 .status-dot-strip {
@@ -784,6 +786,8 @@ body::after {
 .status-desc {
   color: var(--text-dim);
   letter-spacing: 0.04em;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .progress-track {
@@ -922,7 +926,8 @@ body::after {
   letter-spacing: -0.025em;
   line-height: 1.1;
   margin-bottom: 5px;
-  word-break: break-all;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .metric-val.sm {
@@ -934,6 +939,7 @@ body::after {
   color: var(--text-dim);
   letter-spacing: 0.01em;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 /* ─── Pipeline Bar ─── */
@@ -1053,6 +1059,7 @@ body::after {
   letter-spacing: 0.005em;
   line-height: 1.6;
   font-family: var(--font-body);
+  overflow-wrap: anywhere;
 }
 
 .decision-highlight {
@@ -1156,8 +1163,9 @@ body::after {
   color: var(--text-base);
   line-height: 1.75;
   white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 160px;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  max-height: 320px;
   overflow-y: auto;
 }
 

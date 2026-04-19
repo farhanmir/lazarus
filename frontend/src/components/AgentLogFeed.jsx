@@ -54,18 +54,13 @@ function humanizeText(value) {
   return value.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function clampText(value, limit = 120) {
-  if (!value) return ''
-  return value.length > limit ? `${value.slice(0, limit).trimEnd()}...` : value
-}
-
 function summarizeEvidenceBranches(payload) {
   const branchKeys = ['mechanism', 'safety', 'trial', 'business']
   const summaries = branchKeys
     .map((key) => payload[key]?.summary || payload[key]?.evidence_summary)
     .filter(Boolean)
-  if (summaries.length > 0) return clampText(summaries[0], 110)
-  if (payload.evidence_summary) return clampText(payload.evidence_summary, 110)
+  if (summaries.length > 0) return humanizeText(summaries[0])
+  if (payload.evidence_summary) return humanizeText(payload.evidence_summary)
   return 'Evidence branches merged across mechanism, safety, trial, and business.'
 }
 
@@ -79,7 +74,7 @@ function extractText(step) {
     }
     if (p.risk_level) {
       const parts = [`Risk: ${humanizeText(p.risk_level)}`]
-      if (p.conflict_summary) parts.push(clampText(p.conflict_summary, 72))
+      if (p.conflict_summary) parts.push(humanizeText(p.conflict_summary))
       else if (p.verdict) parts.push(humanizeText(p.verdict))
       return parts.join(' · ')
     }
@@ -87,7 +82,7 @@ function extractText(step) {
       return `Evidence: ${summarizeEvidenceBranches(p)}`
     }
     if (p.evidence_summary) {
-      return clampText(p.evidence_summary, 120)
+      return humanizeText(p.evidence_summary)
     }
     if (p.disagreement_score != null || p.evidence_coverage_score != null) {
       const parts = ['Assessment']
@@ -111,7 +106,7 @@ function extractText(step) {
     }
     if (typeof p.required === 'boolean' && p.review_type) {
       const state = p.required ? 'required' : 'not required'
-      const reason = p.reason ? ` · ${clampText(p.reason, 72)}` : ''
+      const reason = p.reason ? ` · ${humanizeText(p.reason)}` : ''
       return `HITL: ${humanizeText(p.review_type)} review ${state}${reason}`
     }
     if (p.estimated_cost_usd != null || p.estimated_time_months != null) {
@@ -132,9 +127,9 @@ function extractText(step) {
       if (commercial) parts.push(`commercial ${commercial}`)
       return parts.join(' · ')
     }
-    return clampText(humanizeText(raw), 120)
+    return humanizeText(raw)
   } catch {
-    return clampText(humanizeText(raw), 120)
+    return humanizeText(raw)
   }
 }
 
