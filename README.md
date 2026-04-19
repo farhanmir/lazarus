@@ -17,7 +17,10 @@
   <img alt="Python"     src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white" />
   <img alt="Vite"       src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white" />
   <img alt="License"    src="https://img.shields.io/badge/status-research%20preview-black" />
+  <img alt="HackPrinceton" src="https://img.shields.io/badge/HackPrinceton-Spring%202026-ff6b00" />
 </p>
+
+<sub>🏆 Built at <b>HackPrinceton Spring 2026</b></sub>
 
 </div>
 
@@ -380,10 +383,25 @@ A minimal zero-to-prod path is included:
 
 ---
 
+## 👥 Team — HackPrinceton Spring 2026
+
+Built in 36 hours by:
+
+| | Name | Role | Links |
+|---|---|---|---|
+| 🧬 | **Dimural Murat** | _______________________________ | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| 🧠 | **__________________________** | _______________________________ | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| ⚗️ | **__________________________** | _______________________________ | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| 🚀 | **__________________________** | _______________________________ | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+
+> _Teammates: feel free to fill in your name, role, and links above._
+
+---
+
 <div align="center">
 
 **Lazarus — giving shelved science a second life.**
 
-<sub>Built at HackPrinceton Spring 2026 · FastAPI · Postgres · Neo4j · React · OpenAI · Gemini · K2-Think · Photon · OpenClaw</sub>
+<sub>Built at 🏆 <b>HackPrinceton Spring 2026</b> · FastAPI · Postgres · Neo4j · React · OpenAI · Gemini · K2-Think · Photon · OpenClaw</sub>
 
 </div>
