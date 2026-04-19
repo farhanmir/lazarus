@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useRef, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import AgentTimeline from './components/AgentTimeline'
 import {
   evaluateCandidate,
   fetchBlueprintDetail,
@@ -8,6 +9,29 @@ import {
   startBlueprintJob,
   subscribeRunStream,
 } from './services/api'
+
+function readableOutput(raw) {
+  if (!raw) return 'Waiting for output...'
+  try {
+    const p = JSON.parse(raw)
+    if (p.proposed_disease && p.confidence != null)
+      return `Proposed: ${p.proposed_disease} · confidence ${(p.confidence * 100).toFixed(0)}%`
+    if (p.risk_level)
+      return `Risk: ${p.risk_level}${p.verdict ? ' · ' + p.verdict : ''}${p.reasoning ? '\n' + p.reasoning : ''}`
+    if (p.final_decision && p.final_confidence != null)
+      return `Verdict: ${p.final_decision} · confidence ${(p.final_confidence * 100).toFixed(0)}%${p.rationale ? '\n' + p.rationale : ''}`
+    if (p.recommended_action)
+      return `Action: ${p.recommended_action}${p.rationale ? '\n' + p.rationale : ''}`
+    if (p.evidence_summary)
+      return p.evidence_summary
+    const stringPairs = Object.entries(p)
+      .filter(([, v]) => typeof v === 'string' && v.length > 0)
+      .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+    return stringPairs.length > 0 ? stringPairs.join('\n') : raw
+  } catch {
+    return raw
+  }
+}
 
 const PIPELINE_STAGES = [
   { id: 'openclaw', label: 'Searching Trials (OpenClaw)' },
@@ -64,6 +88,42 @@ function App() {
   const [photonRecipient, setPhotonRecipient] = useState('')
   const [sendingPhoton, setSendingPhoton] = useState(false)
   const [photonResult, setPhotonResult] = useState('')
+  const [showTrace, setShowTrace] = useState(false)
+  const [outputTab, setOutputTab] = useState('output')
+  const liveStepsRef = useRef(null)
+  const traceDrawerRef = useRef(null)
+  const traceCloseRef = useRef(null)
+
+  useEffect(() => {
+    if (liveStepsRef.current) {
+      liveStepsRef.current.scrollTop = liveStepsRef.current.scrollHeight
+    }
+  }, [liveTrace?.steps?.length])
+
+  useEffect(() => {
+    if (showTrace && traceCloseRef.current) {
+      traceCloseRef.current.focus()
+    }
+  }, [showTrace])
+
+  function handleTraceKeyDown(e) {
+    if (e.key === 'Escape') {
+      setShowTrace(false)
+      return
+    }
+    if (e.key !== 'Tab' || !traceDrawerRef.current) return
+    const focusable = traceDrawerRef.current.querySelectorAll(
+      'button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    if (!focusable.length) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus() }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+  }
 
   const selectedCandidate = useMemo(
     () => searchResults.find((candidate) => candidate.asset_id === selectedCandidateId) ?? null,
@@ -198,9 +258,12 @@ function App() {
       updateStage('dedalus', 'running', 'Finalizing the blueprint from the completed reasoning trace...')
       const blueprintJob = await startBlueprintJob(hypothesis.id)
       let detail = null
+      let pollCount = 0
       while (!detail || detail.blueprint.generation_status === 'pending') {
+        if (pollCount >= 90) throw new Error('Dedalus blueprint generation timed out after 90s.')
         await new Promise((resolve) => globalThis.setTimeout(resolve, 1000))
         detail = await fetchBlueprintDetail(blueprintJob.blueprint.id)
+        pollCount++
       }
 
       if (detail.blueprint.generation_status === 'failed') {
@@ -271,9 +334,13 @@ function App() {
           {latestRunId && (
             <>
               <span className="pipeline-nav-sep">/</span>
-              <Link className="pipeline-nav-link" to={`/agents/${latestRunId}`}>
+              <button
+                type="button"
+                className="pipeline-nav-link pipeline-nav-btn"
+                onClick={() => setShowTrace(true)}
+              >
                 Agent Trace
-              </Link>
+              </button>
             </>
           )}
         </nav>
@@ -375,11 +442,12 @@ function App() {
         )}
 
         <section className="pipeline-timeline" aria-label="Lazarus timeline">
-          {PIPELINE_STAGES.map((stage) => {
+          {PIPELINE_STAGES.map((stage, index) => {
             const stageState = stages[stage.id]
-            let stageMarker = ''
+            let stageMarker = String(index + 1).padStart(2, '0')
             if (stageState.status === 'done') stageMarker = '✓'
-            if (stageState.status === 'failed') stageMarker = '!'
+            if (stageState.status === 'running') stageMarker = '›'
+            if (stageState.status === 'failed') stageMarker = '✗'
             return (
               <article className={`timeline-row ${stageState.status}`} key={stage.id}>
                 <span className="timeline-check" aria-hidden="true">
@@ -394,104 +462,207 @@ function App() {
           })}
         </section>
 
-        {(autopsy || rescue || blueprint || alertMessage) && (
-          <section className="pipeline-output">
-            {autopsy && (
-              <article>
-                <h3>Trial Autopsy</h3>
-                <p>
-                  {autopsy.trial_id}: {autopsy.scientific_wall}
-                </p>
-              </article>
-            )}
-
-            {rescue && (
-              <article>
-                <h3>Scientific Rescue Strategy</h3>
-                <p>{rescue.summary}</p>
-              </article>
-            )}
-
-            {blueprint && (
-              <article>
-                <h3>Rescue Blueprint</h3>
-                <p>{blueprint.executive_summary}</p>
-                <ul>
-                  {discoveredCandidates.map((candidate) => (
-                    <li key={candidate.asset_id}>{candidate.drug_name} ({candidate.asset_code})</li>
-                  ))}
-                </ul>
-              </article>
-            )}
-
-            {alertMessage && (
-              <article>
-                <h3>Photon Alert Payload</h3>
-                <p>{alertMessage}</p>
-                <div className="photon-send-row">
-                  <input
-                    type="tel"
-                    value={photonRecipient}
-                    onChange={(event) => setPhotonRecipient(event.target.value)}
-                    placeholder="+1 555 123 4567"
-                    aria-label="Photon recipient phone number"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendPhoton}
-                    disabled={!photonRecipient.trim() || sendingPhoton}
-                  >
-                    {sendingPhoton ? 'Sending...' : 'Send via Photon'}
-                  </button>
-                </div>
-                {photonResult && <p className="photon-send-result">{photonResult}</p>}
-              </article>
-            )}
-
-            {latestRunId && (
-              <article>
-                <h3>Agent Visibility</h3>
-                <p>Open a dedicated run page to inspect each agent output and score.</p>
-                <Link className="trace-link-btn" to={`/agents/${latestRunId}`}>
-                  View Agent Trace
-                </Link>
-              </article>
-            )}
-          </section>
-        )}
-
-        {(liveTrace || reasoningLoading) && (
-          <section className="live-findings-panel">
-            <div className="section-label-row">
-              <p className="pipeline-kicker">Live findings</p>
-              <span className="trial-count">{liveTrace?.run?.status || (reasoningLoading ? 'running' : 'idle')}</span>
-            </div>
-            <div className="live-summary">
-              <article>
-                <h3>Current hypothesis</h3>
-                <p>{liveTrace?.hypothesis?.summary || 'Reasoning has not converged yet.'}</p>
-              </article>
-              <article>
-                <h3>Progress</h3>
-                <p>{liveTrace?.steps?.filter((step) => step.status === 'completed').length ?? 0} steps complete</p>
-              </article>
-            </div>
-
-            <div className="live-steps">
-              {(liveTrace?.steps || []).map((step) => (
-                <article key={step.id} className={`live-step ${step.status}`}>
-                  <div className="live-step-head">
-                    <strong>{step.agent_name}</strong>
-                    <span>{step.status}</span>
-                  </div>
-                  <p>{step.output_summary || step.input_summary || 'Waiting for output...'}</p>
-                </article>
-              ))}
-              {reasoningLoading && (!liveTrace?.steps || liveTrace.steps.length === 0) && (
-                <p className="trace-info">Waiting for the first agent response...</p>
+        {(autopsy || rescue || blueprint || alertMessage || liveTrace || reasoningLoading) && (
+          <div className="output-tabs-wrap">
+            <div className="output-tabs" role="tablist" aria-label="Pipeline output views">
+              <button
+                type="button"
+                role="tab"
+                id="tab-output"
+                aria-selected={outputTab === 'output'}
+                aria-controls="panel-output"
+                className={`output-tab${outputTab === 'output' ? ' active' : ''}`}
+                onClick={() => setOutputTab('output')}
+              >
+                Pipeline Output
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="tab-live"
+                aria-selected={outputTab === 'live'}
+                aria-controls="panel-live"
+                className={`output-tab${outputTab === 'live' ? ' active' : ''}`}
+                onClick={() => setOutputTab('live')}
+              >
+                Live Findings
+                {(reasoningLoading || liveTrace?.run?.status === 'running') && (
+                  <span className="live-tab-dot" aria-hidden="true" />
+                )}
+              </button>
+              {latestRunId && (
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-trace"
+                  aria-selected={outputTab === 'trace'}
+                  aria-controls="panel-trace"
+                  className={`output-tab${outputTab === 'trace' ? ' active' : ''}`}
+                  onClick={() => setOutputTab('trace')}
+                >
+                  Agent Trace
+                </button>
               )}
             </div>
-          </section>
+
+            {outputTab === 'output' && (autopsy || rescue || blueprint || alertMessage) && (
+              <section className="pipeline-output" role="tabpanel" id="panel-output" aria-labelledby="tab-output">
+                {autopsy && (
+                  <article>
+                    <h3>Trial Autopsy</h3>
+                    <p>
+                      {autopsy.trial_id}: {autopsy.scientific_wall}
+                    </p>
+                  </article>
+                )}
+
+                {rescue && (
+                  <article>
+                    <h3>Scientific Rescue Strategy</h3>
+                    <p>{rescue.summary}</p>
+                  </article>
+                )}
+
+                {blueprint && (
+                  <article>
+                    <h3>Rescue Blueprint</h3>
+                    <p>{blueprint.executive_summary}</p>
+                    <ul>
+                      {discoveredCandidates.map((candidate) => (
+                        <li key={candidate.asset_id}>{candidate.drug_name} ({candidate.asset_code})</li>
+                      ))}
+                    </ul>
+                  </article>
+                )}
+
+                {alertMessage && (
+                  <article>
+                    <h3>Photon Alert Payload</h3>
+                    <p>{alertMessage}</p>
+                    <div className="photon-send-row">
+                      <input
+                        type="tel"
+                        value={photonRecipient}
+                        onChange={(event) => setPhotonRecipient(event.target.value)}
+                        placeholder="+1 555 123 4567"
+                        aria-label="Photon recipient phone number"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSendPhoton}
+                        disabled={!photonRecipient.trim() || sendingPhoton}
+                      >
+                        {sendingPhoton ? 'Sending...' : 'Send via Photon'}
+                      </button>
+                    </div>
+                    {photonResult && <p className="photon-send-result">{photonResult}</p>}
+                  </article>
+                )}
+              </section>
+            )}
+
+            {outputTab === 'live' && (
+              <section className="live-findings-panel" role="tabpanel" id="panel-live" aria-labelledby="tab-live">
+                {!liveTrace && !reasoningLoading && (
+                  <p className="trace-info" style={{ padding: '20px 0' }}>No live run data yet. Start reasoning to see live findings.</p>
+                )}
+                {(liveTrace || reasoningLoading) && (
+                  <>
+                    <div className="live-summary">
+                      <article>
+                        <h3>Current hypothesis</h3>
+                        <p>{liveTrace?.hypothesis?.summary || 'Reasoning has not converged yet.'}</p>
+                      </article>
+                      <article>
+                        <h3>Progress</h3>
+                        <p>
+                          {liveTrace?.steps?.filter((step) => step.status === 'completed').length ?? 0}
+                          {' '}of {liveTrace?.steps?.length ?? 0} steps complete
+                        </p>
+                      </article>
+                      <article>
+                        <h3>Status</h3>
+                        <p>{liveTrace?.run?.status || (reasoningLoading ? 'running' : 'idle')}</p>
+                      </article>
+                    </div>
+
+                    <div className="stream-feed-wrap">
+                      <div className="stream-feed-gradient" aria-hidden="true">
+                        <span className="stream-feed-direction">↑ older</span>
+                      </div>
+                      <div className="live-steps" ref={liveStepsRef}>
+                        {(liveTrace?.steps || []).map((step) => (
+                          <article key={step.id} className={`live-step ${step.status}`}>
+                            <div className="live-step-head">
+                              <strong>{step.agent_name.replace(/_/g, ' ').toUpperCase()}</strong>
+                              <span>{step.status}</span>
+                            </div>
+                            <p style={{ whiteSpace: 'pre-line' }}>
+                              {readableOutput(step.output_summary || step.input_summary)}
+                            </p>
+                          </article>
+                        ))}
+                        {reasoningLoading && (!liveTrace?.steps || liveTrace.steps.length === 0) && (
+                          <p className="trace-info" style={{ marginTop: 'auto' }}>Waiting for the first agent response...</p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+
+            {outputTab === 'trace' && latestRunId && (
+              <section className="pipeline-output" role="tabpanel" id="panel-trace" aria-labelledby="tab-trace">
+                <AgentTimeline steps={liveTrace?.steps ?? []} />
+              </section>
+            )}
+          </div>
+        )}
+
+        {showTrace && (
+          <div
+            className="trace-overlay"
+            onClick={(e) => e.target === e.currentTarget && setShowTrace(false)}
+            onKeyDown={handleTraceKeyDown}
+          >
+            <div
+              className="trace-drawer"
+              ref={traceDrawerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="trace-drawer-title"
+            >
+              <div className="trace-drawer-header">
+                <div>
+                  <p className="pipeline-kicker">Agent Trace</p>
+                  <h2 id="trace-drawer-title" style={{ margin: '4px 0 0', fontSize: '18px' }}>Run {latestRunId?.slice(0, 8)}</h2>
+                </div>
+                <button type="button" className="trace-drawer-close" ref={traceCloseRef} onClick={() => setShowTrace(false)}>
+                  ✕ Close
+                </button>
+              </div>
+
+              {liveTrace?.run && (
+                <div className="trace-run-meta" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                  <article>
+                    <h2>Status</h2>
+                    <p>{liveTrace.run.status || '—'}</p>
+                  </article>
+                  <article>
+                    <h2>Steps</h2>
+                    <p>{liveTrace.steps?.length ?? 0} total</p>
+                  </article>
+                  <article>
+                    <h2>Confidence</h2>
+                    <p>{liveTrace.run.final_confidence != null ? Number(liveTrace.run.final_confidence).toFixed(2) : '—'}</p>
+                  </article>
+                </div>
+              )}
+
+              <AgentTimeline steps={liveTrace?.steps ?? []} />
+            </div>
+          </div>
         )}
       </div>
     </main>

@@ -21,6 +21,35 @@ function prettyAgentName(raw) {
     .join(' ')
 }
 
+function readableOutput(raw) {
+  if (!raw) return '—'
+  try {
+    const p = JSON.parse(raw)
+    const lines = []
+    const priority = [
+      'proposed_disease', 'target_disease', 'confidence', 'final_confidence',
+      'risk_level', 'verdict', 'final_decision', 'recommended_action',
+      'evidence_summary', 'rationale', 'reasoning', 'summary',
+    ]
+    for (const key of priority) {
+      if (p[key] == null) continue
+      const label = key.replace(/_/g, ' ')
+      const val = typeof p[key] === 'number'
+        ? (key.includes('confidence') ? `${(p[key] * 100).toFixed(1)}%` : p[key].toFixed(3))
+        : String(p[key])
+      lines.push(`${label}: ${val}`)
+    }
+    for (const [key, val] of Object.entries(p)) {
+      if (priority.includes(key)) continue
+      if (typeof val !== 'string' || !val) continue
+      lines.push(`${key.replace(/_/g, ' ')}: ${val}`)
+    }
+    return lines.length > 0 ? lines.join('\n') : raw
+  } catch {
+    return raw
+  }
+}
+
 function formatTimestamp(value) {
   if (!value) return '—'
   const date = new Date(value)
@@ -121,11 +150,11 @@ export default function AgentTrace() {
                   <div className="trace-grid">
                     <div>
                       <h4>Input Summary</h4>
-                      <p>{step.input_summary || '—'}</p>
+                      <p style={{ whiteSpace: 'pre-line' }}>{readableOutput(step.input_summary)}</p>
                     </div>
                     <div>
                       <h4>Output Summary</h4>
-                      <p>{step.output_summary || '—'}</p>
+                      <p style={{ whiteSpace: 'pre-line' }}>{readableOutput(step.output_summary)}</p>
                     </div>
                     <div>
                       <h4>Score</h4>

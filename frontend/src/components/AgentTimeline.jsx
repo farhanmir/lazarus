@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from 'react'
+import React, { memo, useEffect, useRef, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 const AGENT_COLORS = {
@@ -14,6 +14,9 @@ const AGENT_COLORS = {
   judge:               '#8a6e1e',
   trial_strategist:    '#1f3a2e',
   hitl_router:         '#1f3a2e',
+  effort_estimator:    '#5a4a2e',
+  impact_predictor:    '#2e4a5a',
+  follow_up_assistant: '#2e3a5a',
 }
 
 const AGENT_LABELS = {
@@ -29,6 +32,9 @@ const AGENT_LABELS = {
   judge:               'JUDGE',
   trial_strategist:    'STRATEGY',
   hitl_router:         'HITL',
+  effort_estimator:    'EFFORT',
+  impact_predictor:    'IMPACT',
+  follow_up_assistant: 'FOLLOW-UP',
 }
 
 function statusSymbol(status) {
@@ -66,19 +72,53 @@ function parseOutput(step) {
   try { return JSON.parse(step.output_summary) } catch { return null }
 }
 
+function renderParsedOutput(parsed, raw) {
+  if (!parsed && !raw) return '—'
+  if (!parsed) return raw
+  // Render the most useful fields in a readable format
+  const lines = []
+  const fieldOrder = [
+    'proposed_disease', 'target_disease', 'confidence', 'final_confidence',
+    'risk_level', 'verdict', 'final_decision', 'recommended_action',
+    'evidence_summary', 'rationale', 'reasoning', 'summary',
+  ]
+  for (const key of fieldOrder) {
+    if (parsed[key] == null) continue
+    const label = key.replace(/_/g, ' ').toUpperCase()
+    const val = typeof parsed[key] === 'number'
+      ? (key.includes('confidence') ? `${(parsed[key] * 100).toFixed(1)}%` : parsed[key].toFixed(3))
+      : String(parsed[key])
+    lines.push(`${label}: ${val}`)
+  }
+  // Append any other string fields not already shown
+  for (const [key, val] of Object.entries(parsed)) {
+    if (fieldOrder.includes(key)) continue
+    if (typeof val !== 'string' || !val) continue
+    lines.push(`${key.replace(/_/g, ' ').toUpperCase()}: ${val}`)
+  }
+  return lines.length > 0 ? lines.join('\n') : raw ?? '—'
+}
+
 function AgentTimeline({ steps = [] }) {
   const [expandedId, setExpandedId] = useState(null)
+  const listRef = useRef(null)
 
   const normalizedSteps = useMemo(
     () => steps.map(s => ({ ...s, parsedOutput: parseOutput(s) })),
     [steps],
   )
 
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight
+    }
+  }, [normalizedSteps.length])
+
   return (
     <div className="term-panel">
       <div className="term-panel-header">
         <span className="term-panel-title">AGENT TIMELINE</span>
-        <span style={{ fontSize: '7.5px', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>
           {steps.filter(s => s.status === 'completed').length}/{steps.length} COMPLETE
         </span>
       </div>
@@ -86,19 +126,24 @@ function AgentTimeline({ steps = [] }) {
       {normalizedSteps.length === 0 ? (
         <div style={{
           padding: 'var(--space-6) var(--space-4)',
-          fontSize: '9px',
+          fontSize: '12px',
           color: 'var(--text-dim)',
-          letterSpacing: '0.16em',
+          letterSpacing: '0.1em',
         }}>
           &gt; AWAITING RUN · NO STEPS LOGGED
         </div>
       ) : (
-        <div className="timeline-list" style={{ padding: 'var(--space-3)' }}>
-          {normalizedSteps.map((step) => {
+        <div className="stream-feed-wrap">
+          <div className="stream-feed-gradient" aria-hidden="true">
+            <span className="stream-feed-direction">↑ older</span>
+          </div>
+          <div className="timeline-list" ref={listRef} style={{ padding: 'var(--space-3)' }}>
+          {normalizedSteps.map((step, index) => {
             const color  = AGENT_COLORS[step.agent_name] ?? '#1f3a2e'
             const label  = AGENT_LABELS[step.agent_name] ?? step.agent_name.toUpperCase()
             const { sym, color: symColor } = statusSymbol(step.status)
             const isExpanded = expandedId === step.id
+            const stepNum = (step.step_order ?? index + 1).toString().padStart(2, '0')
 
             return (
               <motion.div key={step.id} layout>
@@ -110,6 +155,7 @@ function AgentTimeline({ steps = [] }) {
                   aria-expanded={isExpanded}
                 >
                   <div className="step-agent-tag">
+                    <span className="step-num">{stepNum}</span>
                     <span
                       className="agent-badge"
                       style={{
@@ -143,11 +189,11 @@ function AgentTimeline({ steps = [] }) {
 
                     {step.input_summary && (
                       <div style={{
-                        fontSize: '8.5px',
+                        fontSize: '12px',
                         color: 'var(--text-base)',
-                        letterSpacing: '0.02em',
+                        letterSpacing: '0.01em',
                         marginTop: 2,
-                        lineHeight: 1.5,
+                        lineHeight: 1.55,
                       }}>
                         {step.input_summary.slice(0, 120)}{step.input_summary.length > 120 ? '…' : ''}
                       </div>
@@ -162,9 +208,7 @@ function AgentTimeline({ steps = [] }) {
                           style={{ overflow: 'hidden' }}
                         >
                           <pre className="step-output">
-                            {step.parsedOutput
-                              ? JSON.stringify(step.parsedOutput, null, 2)
-                              : step.output_summary ?? '—'}
+                            {renderParsedOutput(step.parsedOutput, step.output_summary)}
                           </pre>
                         </motion.div>
                       )}
@@ -174,6 +218,7 @@ function AgentTimeline({ steps = [] }) {
               </motion.div>
             )
           })}
+          </div>
         </div>
       )}
     </div>
