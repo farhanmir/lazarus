@@ -74,9 +74,11 @@ function AgentProgressBar({ steps = [], runStatus = 'idle' }) {
                   {stage.label}
                 </span>
               </div>
-              <span className={`stage-status ${stage.status}`}>
-                {stage.status.toUpperCase()}
-              </span>
+              {(stage.status === 'running' || stage.status === 'failed') && (
+                <span className={`stage-status ${stage.status}`}>
+                  {stage.status.toUpperCase()}
+                </span>
+              )}
             </div>
           ))}
         </div>

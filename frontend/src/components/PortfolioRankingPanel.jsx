@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { ArrowUpRight, FlaskConical, ShieldAlert, Sparkles } from 'lucide-react'
+import { ShieldAlert, Sparkles } from 'lucide-react'
 
 function formatPct(value) {
   if (typeof value !== 'number') return '—'
@@ -13,9 +13,9 @@ function formatRank(value) {
 
 function scoreTone(value) {
   if (typeof value !== 'number') return 'var(--text-dim)'
-  if (value >= 0.7) return '#1f7a52'
-  if (value >= 0.45) return '#9a6c12'
-  return '#9b3d3d'
+  if (value >= 0.7) return 'var(--score-good)'
+  if (value >= 0.45) return 'var(--score-caution)'
+  return 'var(--red)'
 }
 
 function PortfolioRankingPanel({ ranking, loading, error, onSelectAsset }) {
@@ -141,7 +141,7 @@ function PortfolioRankingPanel({ ranking, loading, error, onSelectAsset }) {
               </div>
               <div style={{ padding: '14px', color: 'var(--text-base)', fontSize: '13px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <ShieldAlert size={14} color={item.requires_hitl ? '#9b3d3d' : '#1f7a52'} />
+                  <ShieldAlert size={14} color={item.requires_hitl ? 'var(--red)' : 'var(--score-good)'} />
                   {item.risk_level ?? 'Pending'}
                 </div>
                 <div style={{ color: 'var(--text-dim)', marginTop: 6 }}>{item.priority_level ?? 'No priority set'}</div>
@@ -166,35 +166,6 @@ function PortfolioRankingPanel({ ranking, loading, error, onSelectAsset }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <FlaskConical size={15} />
-            Portfolio Mode
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            Surfaces which shelved programs deserve capital first, instead of forcing one-by-one analysis decisions.
-          </div>
-        </div>
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <ShieldAlert size={15} />
-            Review Pressure
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            HITL gates and unresolved reviews reduce rank, which keeps risky assets from floating to the top prematurely.
-          </div>
-        </div>
-        <div className="nexus-glass-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-bright)]">
-            <ArrowUpRight size={15} />
-            Investment Signal
-          </div>
-          <div className="text-sm text-[var(--text-base)]">
-            Rank combines confidence, impact, effort, and risk into one board-ready queue for portfolio triage.
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

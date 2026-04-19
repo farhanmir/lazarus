@@ -1,5 +1,4 @@
 import React, { memo } from 'react'
-import { FileCheck2, LoaderCircle } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 function BlueprintProgress({ loading, ready }) {
@@ -7,22 +6,25 @@ function BlueprintProgress({ loading, ready }) {
     <AnimatePresence>
       {(loading || ready) ? (
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-panel"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          style={{ overflow: 'hidden' }}
         >
-          <div className="flex items-center gap-3">
-            <div className={`rounded-2xl p-3 text-white ${loading ? 'bg-blue-600' : 'bg-emerald-600'}`}>
-              {loading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <FileCheck2 className="h-5 w-5" />}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {loading ? 'Generating Executive Blueprint...' : 'Blueprint Ready'}
-              </p>
-              <p className="text-sm text-slate-500">
-                {loading ? 'Rendering PDF package and artifact bundle.' : 'Executive artifact is ready to download and share.'}
-              </p>
+          <div className="term-panel" style={{ marginBottom: 0 }}>
+            <div className="term-panel-header">
+              <span className="term-panel-title">
+                {loading ? 'Generating Blueprint' : 'Blueprint Ready'}
+              </span>
+              <span style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-body)',
+                letterSpacing: '0.06em',
+                color: loading ? 'var(--amber)' : 'var(--accent)',
+                animation: loading ? 'hudPulse 1.5s ease-in-out infinite' : 'none',
+              }}>
+                {loading ? 'PROCESSING' : 'COMPLETE'}
+              </span>
             </div>
           </div>
         </motion.div>

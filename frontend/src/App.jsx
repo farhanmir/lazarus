@@ -39,15 +39,11 @@ const emptyGraph = { nodes: [], links: [] }
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'portfolio', label: 'Portfolio' },
   { id: 'graph',     label: 'Graph' },
-  { id: 'agents',    label: 'Agents' },
-  { id: 'strategy',  label: 'Strategy' },
-  { id: 'compare',   label: 'Compare' },
-  { id: 'reviews',   label: 'Reviews' },
-  { id: 'messages',  label: 'Messages' },
-  { id: 'scan',      label: 'Scan' },
-  { id: 'watchlist', label: 'Watchlist' },
+  { id: 'analysis',  label: 'Analysis' },
+  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'research',  label: 'Research' },
+  { id: 'ops',       label: 'Ops' },
   { id: 'blueprint', label: 'Blueprint' },
 ]
 
@@ -80,6 +76,12 @@ function App() {
   const [hypothesisComparison, setHypothesisComparison] = useState(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
   const [comparisonError, setComparisonError] = useState('')
+  const [analysisSubTab, setAnalysisSubTab]   = useState('strategy')   // 'strategy' | 'compare'
+  const [researchSubTab, setResearchSubTab]   = useState('scan')        // 'scan' | 'watchlist'
+  const [timelineExpanded, setTimelineExpanded] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('lazarus-sidebar-collapsed') === 'true' } catch { return false }
+  })
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
   const deferredGraphData    = useDeferredValue(graphData)
@@ -201,7 +203,7 @@ function App() {
   }, [activeTab, analysisResult?.run?.id])
 
   useEffect(() => {
-    if (activeTab !== 'reviews') return
+    if (activeTab !== 'ops') return
     setReviewLoading(true)
     setReviewError('')
     fetchHumanReviewDashboard()
@@ -211,14 +213,22 @@ function App() {
   }, [activeTab, analysisResult?.run?.id])
 
   useEffect(() => {
-    if (activeTab !== 'compare' || !selectedAssetId) return
+    if (activeTab !== 'analysis' || analysisSubTab !== 'compare' || !selectedAssetId) return
     setComparisonLoading(true)
     setComparisonError('')
     fetchHypothesisComparison(selectedAssetId)
       .then(setHypothesisComparison)
       .catch(() => setComparisonError('Unable to compare hypotheses for the selected asset.'))
       .finally(() => setComparisonLoading(false))
-  }, [activeTab, selectedAssetId, analysisResult?.run?.id])
+  }, [activeTab, analysisSubTab, selectedAssetId, analysisResult?.run?.id])
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev
+      try { localStorage.setItem('lazarus-sidebar-collapsed', String(next)) } catch {}
+      return next
+    })
+  }
 
   const resetGraph = () => {
     setGraphData(emptyGraph)
@@ -321,14 +331,25 @@ function App() {
 
   return (
     <>
-      <div className="lazarus-shell">
+      <div className={`lazarus-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
         {/* ══════════════ LEFT PANEL ══════════════ */}
-        <aside className="nexus-left">
-          {/* Brand header */}
-          <Link to="/" className="nexus-brand" style={{ textDecoration: 'none', display: 'block' }}>
-            <span className="brand-title">Lazarus</span>
-            <span className="brand-sub">Bio-R&amp;D Swarm · Clinical Reasoning Cluster</span>
-          </Link>
+        <aside className={`nexus-left${sidebarCollapsed ? ' collapsed' : ''}`}>
+          {/* Brand row: title/subtitle left, collapse toggle right */}
+          <div className="nexus-brand-row">
+            <Link to="/" className="nexus-brand" style={{ textDecoration: 'none' }}>
+              <span className="brand-title">Lazarus</span>
+              <span className="brand-sub">Bio-R&amp;D Swarm · Clinical Reasoning Cluster</span>
+            </Link>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={toggleSidebar}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!sidebarCollapsed}
+            >
+              {sidebarCollapsed ? '›' : '‹'}
+            </button>
+          </div>
 
           {/* Globe */}
           <div className="globe-wrap">
@@ -367,6 +388,7 @@ function App() {
             <div className="header-right">
               {/* Search */}
               <input
+                aria-label="Search compounds"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search compounds…"
@@ -386,6 +408,7 @@ function App() {
 
               {/* Asset selector */}
               <select
+                aria-label="Select asset for analysis"
                 value={selectedAssetId}
                 onChange={(e) => setSelectedAssetId(e.target.value)}
                 className="term-select"
@@ -438,11 +461,15 @@ function App() {
           </header>
 
           {/* Tab nav */}
-          <nav className="nexus-tabnav">
+          <nav className="nexus-tabnav" role="tablist" aria-label="Application tabs">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
+                id={`tab-${tab.id}`}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls={`panel-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={`tab-btn${activeTab === tab.id ? ' active' : ''}`}
               >
@@ -487,7 +514,7 @@ function App() {
             <AnimatePresence mode="wait">
               {/* ═══ DASHBOARD ═══ */}
               {activeTab === 'dashboard' && (
-                <motion.div key="dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                <motion.div key="dashboard" role="tabpanel" id="panel-dashboard" aria-labelledby="tab-dashboard" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                     <AgentProgressBar steps={runTrace?.steps ?? []} runStatus={analysisResult?.run?.status ?? 'idle'} />
                     <MetricsBar metrics={metrics} />
@@ -523,37 +550,41 @@ function App() {
                           </div>
                         </div>
 
-                        {/* Mini pipeline progress dots */}
-                        <div className="term-panel" style={{ marginTop: 'var(--space-4)' }}>
-                          <div className="term-panel-header">
-                            <span className="term-panel-title">Pipeline Progress</span>
-                            <span style={{ fontSize: '7.5px', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
-                              {completedSteps}/{totalSteps}
-                            </span>
-                          </div>
-                          <div style={{ padding: 'var(--space-3)', display: 'flex', gap: 'var(--space-2)' }}>
-                            {Array.from({ length: totalSteps }, (_, i) => (
-                              <motion.div
-                                key={i}
-                                style={{
-                                  height: 3,
-                                  flex: 1,
-                                  borderRadius: 2,
-                                  background: i < completedSteps ? 'var(--accent)' : 'rgba(20,23,26,0.1)',
-                                  boxShadow: 'none',
-                                }}
-                                initial={{ scaleX: 0 }}
-                                animate={{ scaleX: 1 }}
-                                transition={{ duration: 0.3, delay: i * 0.07 }}
-                              />
-                            ))}
-                          </div>
-                        </div>
                       </div>
 
                       <div className="dash-side">
                         <ConfidenceGauge value={analysisResult?.run?.final_confidence} />
                       </div>
+                    </div>
+
+                    {/* Collapsible Agent Timeline */}
+                    <div>
+                      <button
+                        type="button"
+                        className="timeline-collapse-btn"
+                        onClick={() => setTimelineExpanded(prev => !prev)}
+                        aria-expanded={timelineExpanded}
+                        aria-controls="agent-timeline-body"
+                      >
+                        <span className="timeline-collapse-label">Agent Timeline</span>
+                        <span className="timeline-collapse-meta">
+                          {runTrace?.steps?.filter(s => s.status === 'completed').length ?? 0}/{runTrace?.steps?.length ?? 0} complete
+                          <span className="timeline-collapse-chevron">{timelineExpanded ? '▲' : '▼'}</span>
+                        </span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {timelineExpanded && (
+                          <motion.div
+                            id="agent-timeline-body"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <AgentTimeline steps={runTrace?.steps ?? []} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
                 </motion.div>
@@ -561,14 +592,15 @@ function App() {
 
               {/* ═══ GRAPH ═══ */}
               {activeTab === 'portfolio' && (
-                <motion.div key="portfolio" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                <motion.div key="portfolio" role="tabpanel" id="panel-portfolio" aria-labelledby="tab-portfolio" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <PortfolioRankingPanel
                     ranking={portfolioRanking}
                     loading={portfolioLoading}
                     error={portfolioError}
                     onSelectAsset={(assetId) => {
                       setSelectedAssetId(assetId)
-                      setActiveTab('compare')
+                      setAnalysisSubTab('compare')
+                      setActiveTab('analysis')
                     }}
                   />
                 </motion.div>
@@ -576,8 +608,8 @@ function App() {
 
               {/* ═══ GRAPH ═══ */}
               {activeTab === 'graph' && (
-                <motion.div key="graph" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(280px,0.6fr)', gap: 'var(--space-4)' }}>
+                <motion.div key="graph" role="tabpanel" id="panel-graph" aria-labelledby="tab-graph" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div className="graph-tab-grid">
                     <InteractiveGraph
                       graphData={deferredGraphData}
                       selectedNode={selectedNode}
@@ -591,67 +623,99 @@ function App() {
                 </motion.div>
               )}
 
-              {/* ═══ AGENTS ═══ */}
-              {activeTab === 'agents' && (
-                <motion.div key="agents" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <AgentTimeline steps={runTrace?.steps ?? []} />
+              {/* ═══ ANALYSIS (Strategy + Compare) ═══ */}
+              {activeTab === 'analysis' && (
+                <motion.div key="analysis" role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    {/* Sub-nav */}
+                    <div className="sub-tabnav" role="group" aria-label="Analysis view">
+                      <button
+                        type="button"
+                        className={`sub-tab-btn${analysisSubTab === 'strategy' ? ' active' : ''}`}
+                        onClick={() => setAnalysisSubTab('strategy')}
+                        aria-pressed={analysisSubTab === 'strategy'}
+                      >
+                        Strategy
+                      </button>
+                      <button
+                        type="button"
+                        className={`sub-tab-btn${analysisSubTab === 'compare' ? ' active' : ''}`}
+                        onClick={() => setAnalysisSubTab('compare')}
+                        aria-pressed={analysisSubTab === 'compare'}
+                      >
+                        Compare
+                      </button>
+                    </div>
+
+                    {analysisSubTab === 'strategy' && (
+                      <EffortImpactChart runId={analysisResult?.run?.id} />
+                    )}
+                    {analysisSubTab === 'compare' && (
+                      <HypothesisComparisonPanel
+                        comparison={hypothesisComparison}
+                        loading={comparisonLoading}
+                        error={comparisonError}
+                      />
+                    )}
+                  </div>
                 </motion.div>
               )}
 
-              {/* ═══ STRATEGY ═══ */}
-              {activeTab === 'strategy' && (
-                <motion.div key="strategy" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <EffortImpactChart runId={analysisResult?.run?.id} />
+              {/* ═══ OPS (Reviews + Messages) ═══ */}
+              {activeTab === 'ops' && (
+                <motion.div key="ops" role="tabpanel" id="panel-ops" aria-labelledby="tab-ops" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+                    <HumanReviewDashboard
+                      dashboard={reviewDashboard}
+                      loading={reviewLoading}
+                      error={reviewError}
+                      onResolve={handleResolveReview}
+                    />
+                    <div className="ops-section-divider">
+                      <span className="ops-section-label">Messaging</span>
+                    </div>
+                    <MessagingPanel runId={analysisResult?.run?.id} />
+                  </div>
                 </motion.div>
               )}
 
-              {/* ═══ COMPARE ═══ */}
-              {activeTab === 'compare' && (
-                <motion.div key="compare" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <HypothesisComparisonPanel
-                    comparison={hypothesisComparison}
-                    loading={comparisonLoading}
-                    error={comparisonError}
-                  />
-                </motion.div>
-              )}
+              {/* ═══ RESEARCH (Scan + Watchlist) ═══ */}
+              {activeTab === 'research' && (
+                <motion.div key="research" role="tabpanel" id="panel-research" aria-labelledby="tab-research" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    {/* Sub-nav */}
+                    <div className="sub-tabnav" role="group" aria-label="Research view">
+                      <button
+                        type="button"
+                        className={`sub-tab-btn${researchSubTab === 'scan' ? ' active' : ''}`}
+                        onClick={() => setResearchSubTab('scan')}
+                        aria-pressed={researchSubTab === 'scan'}
+                      >
+                        Multi-Disease Scan
+                      </button>
+                      <button
+                        type="button"
+                        className={`sub-tab-btn${researchSubTab === 'watchlist' ? ' active' : ''}`}
+                        onClick={() => setResearchSubTab('watchlist')}
+                        aria-pressed={researchSubTab === 'watchlist'}
+                      >
+                        Watchlist
+                      </button>
+                    </div>
 
-              {/* ═══ REVIEWS ═══ */}
-              {activeTab === 'reviews' && (
-                <motion.div key="reviews" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <HumanReviewDashboard
-                    dashboard={reviewDashboard}
-                    loading={reviewLoading}
-                    error={reviewError}
-                    onResolve={handleResolveReview}
-                  />
-                </motion.div>
-              )}
-
-              {/* ═══ MESSAGES ═══ */}
-              {activeTab === 'messages' && (
-                <motion.div key="messages" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <MessagingPanel runId={analysisResult?.run?.id} />
-                </motion.div>
-              )}
-
-              {/* ═══ MULTI-DISEASE SCAN ═══ */}
-              {activeTab === 'scan' && (
-                <motion.div key="scan" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <MultiDiseaseScanPanel assets={assets} />
-                </motion.div>
-              )}
-
-              {/* ═══ WATCHLIST ═══ */}
-              {activeTab === 'watchlist' && (
-                <motion.div key="watchlist" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
-                  <WatchlistPanel />
+                    {researchSubTab === 'scan' && (
+                      <MultiDiseaseScanPanel assets={assets} />
+                    )}
+                    {researchSubTab === 'watchlist' && (
+                      <WatchlistPanel />
+                    )}
+                  </div>
                 </motion.div>
               )}
 
               {/* ═══ BLUEPRINT ═══ */}
               {activeTab === 'blueprint' && (
-                <motion.div key="blueprint" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
+                <motion.div key="blueprint" role="tabpanel" id="panel-blueprint" aria-labelledby="tab-blueprint" tabIndex={0} variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.22 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                     <BlueprintProgress loading={blueprintLoading} ready={Boolean(blueprintResult?.blueprint?.id)} />
                     <BlueprintViewer

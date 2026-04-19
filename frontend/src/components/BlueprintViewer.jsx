@@ -1,6 +1,5 @@
 import React, { memo, useState, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Download, FileBadge2, Mail, ShieldCheck, Sparkles, X, Send, CheckCircle2, AlertCircle } from 'lucide-react'
 import { emailBlueprint } from '../services/api'
 
 function BlueprintViewer({ blueprintResult, downloadUrl, blueprintLoading }) {
@@ -13,14 +12,12 @@ function BlueprintViewer({ blueprintResult, downloadUrl, blueprintLoading }) {
   const [emailError, setEmailError] = useState('')
 
   const handleDownloadClick = useCallback(() => {
-    // Trigger local download
     if (downloadUrl) {
       const a = document.createElement('a')
       a.href = downloadUrl
       a.download = ''
       a.click()
     }
-    // Show email prompt
     setShowEmailModal(true)
     setRecipientEmail('')
     setEmailStatus(null)
@@ -40,121 +37,79 @@ function BlueprintViewer({ blueprintResult, downloadUrl, blueprintLoading }) {
     }
   }, [recipientEmail, blueprint?.id])
 
+  const confidenceDisplay = typeof payload?.confidence_score === 'number'
+    ? `${(payload.confidence_score <= 1 ? payload.confidence_score * 100 : payload.confidence_score).toFixed(1)}%`
+    : '—'
+
   return (
-    <section className="rounded-3xl bg-white/90 p-6 shadow-panel ring-1 ring-slate-200 backdrop-blur">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Executive Artifact</p>
-          <h2 className="mt-1 text-xl font-semibold text-ink">Blueprint Viewer</h2>
-        </div>
-        {blueprint ? (
+    <div className="term-panel">
+      {/* Panel header */}
+      <div className="term-panel-header">
+        <span className="term-panel-title">Clinical Trial Blueprint</span>
+        {blueprint && (
           <button
+            type="button"
             onClick={handleDownloadClick}
-            className="rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl"
+            className="term-btn term-btn-execute"
+            style={{ padding: '4px 10px' }}
           >
-            <span className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Download Blueprint
-            </span>
+            Download PDF
           </button>
-        ) : null}
+        )}
       </div>
 
-      {/* Email Modal */}
+      {/* Email modal */}
       <AnimatePresence>
         {showEmailModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            className="reset-overlay"
             onClick={() => setShowEmailModal(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 20 }}
-              transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200"
+              initial={{ y: 16, opacity: 0, scale: 0.96 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 8, opacity: 0, scale: 0.97 }}
+              className="reset-dialog"
+              style={{ maxWidth: 400, width: '100%' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-indigo-100 p-2.5">
-                    <Mail className="h-5 w-5 text-indigo-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900">Send Blueprint via Email</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">PDF downloaded successfully</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowEmailModal(false)}
-                  className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+              <div className="reset-title">Send Blueprint</div>
+              <div className="reset-msg">PDF downloaded. Send a copy via email?</div>
 
               {emailStatus === 'sent' ? (
-                <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5 text-center">
-                  <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
-                  <p className="text-sm font-semibold text-emerald-800">Blueprint sent!</p>
-                  <p className="text-xs text-emerald-600 mt-1">Delivered to {recipientEmail}</p>
-                  <button
-                    onClick={() => setShowEmailModal(false)}
-                    className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                  >
-                    Done
-                  </button>
+                <div style={{ padding: 'var(--space-3)', color: 'var(--accent)', fontSize: '13px', fontFamily: 'var(--font-body)' }}>
+                  Sent to {recipientEmail}
                 </div>
               ) : (
                 <>
-                  <div className="mb-4">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                      Recipient Email
-                    </label>
-                    <input
-                      type="email"
-                      value={recipientEmail}
-                      onChange={(e) => setRecipientEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendEmail()}
-                      placeholder="colleague@company.com"
-                      autoFocus
-                      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </div>
-
+                  <input
+                    type="email"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendEmail()}
+                    placeholder="colleague@company.com"
+                    autoFocus
+                    className="bp-email-input"
+                  />
                   {emailStatus === 'error' && (
-                    <div className="mb-4 flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 p-3">
-                      <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-red-700">{emailError}</p>
+                    <div style={{ fontSize: '12px', color: 'var(--red)', marginBottom: 'var(--space-3)' }}>
+                      {emailError}
                     </div>
                   )}
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setShowEmailModal(false)}
-                      className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                    >
+                  <div className="reset-actions">
+                    <button type="button" onClick={() => setShowEmailModal(false)} className="term-btn term-btn-ghost">
                       Skip
                     </button>
                     <button
+                      type="button"
                       onClick={handleSendEmail}
                       disabled={!recipientEmail.trim() || emailStatus === 'sending'}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="term-btn term-btn-execute"
                     >
-                      {emailStatus === 'sending' ? (
-                        <>
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4" />
-                          Send
-                        </>
-                      )}
+                      {emailStatus === 'sending' ? 'Sending…' : 'Send'}
                     </button>
                   </div>
                 </>
@@ -164,135 +119,109 @@ function BlueprintViewer({ blueprintResult, downloadUrl, blueprintLoading }) {
         )}
       </AnimatePresence>
 
+      {/* Content */}
       <AnimatePresence mode="wait">
         {blueprintLoading ? (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            className="rounded-3xl border border-blue-100 bg-blue-50/80 p-6"
-          >
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-blue-600 p-3 text-white">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-blue-900">Generating executive blueprint...</p>
-                <p className="text-sm text-blue-700">Packaging evidence, risk, and next-step strategy into a shareable artifact.</p>
-              </div>
-            </div>
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white">
-              <motion.div
-                className="h-full rounded-full bg-blue-600"
-                initial={{ width: '10%' }}
-                animate={{ width: ['18%', '76%', '92%'] }}
-                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-              />
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="bp-loading-state">
+              <span className="bp-loading-dot" />
+              <span>Packaging evidence, risk, and next-step strategy into a shareable artifact…</span>
             </div>
           </motion.div>
+
         ) : blueprint ? (
           <motion.div
             key="ready"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]"
-          >
-            <div className="space-y-4 rounded-2xl bg-slate-50 p-5">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Drug</span>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {payload?.drug_name} ({payload?.asset_code})
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Target Disease</span>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">{payload?.proposed_indication}</p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Confidence</span>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">
-                    {typeof payload?.confidence_score === 'number'
-                      ? `${payload.confidence_score <= 1 ? (payload.confidence_score * 100).toFixed(1) : payload.confidence_score.toFixed(1)}%`
-                      : 'n/a'}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Recommendation</span>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{payload?.recommendation ?? 'Not generated'}</p>
-                </div>
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Priority</span>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{payload?.priority_level ?? 'Not assigned'}</p>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Executive Summary</span>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
-                  {blueprint.executive_summary ?? 'Blueprint content is still being assembled.'}
-                </p>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <FileBadge2 className="h-4 w-4 text-blue-600" />
-                    Trial Focus
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{payload?.trial_focus ?? 'Awaiting strategy generation'}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                    Business Rationale
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{payload?.business_rationale ?? 'Awaiting strategy generation'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-blue-900 p-5 text-white">
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Download Status</span>
-                <p className="mt-1 text-lg font-semibold">Download Ready</p>
-              </div>
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Blueprint Status</span>
-                <p className="mt-1 text-lg font-semibold">{blueprint.generation_status}</p>
-              </div>
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Recommended Action</span>
-                <p className="mt-1 text-base font-semibold">{payload?.recommended_action ?? 'Not generated'}</p>
-              </div>
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Suggested Cohort</span>
-                <p className="mt-1 text-sm text-slate-100">{payload?.suggested_patient_cohort ?? 'Not assigned'}</p>
-              </div>
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">PDF Path</span>
-                <p className="mt-1 break-all text-sm text-slate-100">{blueprint.pdf_path}</p>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="empty"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
-            className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500"
           >
-            Generate a blueprint to preview executive metadata, strategy summary, and the final downloadable artifact.
+            {/* ── Document hero header ── */}
+            <div className="bp-hero">
+              <div className="bp-hero-left">
+                <div className="bp-hero-kicker">Drug Candidate</div>
+                <div className="bp-hero-name">
+                  {payload?.drug_name ?? '—'}
+                  {payload?.asset_code && (
+                    <span className="bp-hero-code">{payload.asset_code}</span>
+                  )}
+                </div>
+              </div>
+              <div className="bp-hero-divider" />
+              <div className="bp-hero-right">
+                <div className="bp-hero-kicker">Target Indication</div>
+                <div className="bp-hero-disease">{payload?.proposed_indication ?? '—'}</div>
+              </div>
+            </div>
+
+            {/* ── Key metrics strip ── */}
+            <div className="bp-metrics">
+              <div className="bp-metric">
+                <span className="bp-metric-lbl">Confidence</span>
+                <span className="bp-metric-val bp-metric-val--accent">{confidenceDisplay}</span>
+              </div>
+              <div className="bp-metric-sep" />
+              <div className="bp-metric">
+                <span className="bp-metric-lbl">Recommendation</span>
+                <span className="bp-metric-val">{payload?.recommendation ?? '—'}</span>
+              </div>
+              <div className="bp-metric-sep" />
+              <div className="bp-metric">
+                <span className="bp-metric-lbl">Priority</span>
+                <span className="bp-metric-val">{payload?.priority_level ?? '—'}</span>
+              </div>
+            </div>
+
+            {/* ── Executive Summary ── */}
+            <div className="bp-section">
+              <div className="bp-section-label">Executive Summary</div>
+              <p className="bp-summary-text">
+                {blueprint.executive_summary ?? 'Blueprint content is still being assembled.'}
+              </p>
+            </div>
+
+            {/* ── Detail grid ── */}
+            <div className="bp-detail-grid">
+              <div className="bp-detail-cell">
+                <div className="bp-detail-label">Trial Focus</div>
+                <p className="bp-detail-text">{payload?.trial_focus ?? '—'}</p>
+              </div>
+              <div className="bp-detail-cell">
+                <div className="bp-detail-label">Business Rationale</div>
+                <p className="bp-detail-text">{payload?.business_rationale ?? '—'}</p>
+              </div>
+              <div className="bp-detail-cell">
+                <div className="bp-detail-label">Recommended Action</div>
+                <p className="bp-detail-text bp-detail-text--strong">{payload?.recommended_action ?? '—'}</p>
+              </div>
+              <div className="bp-detail-cell">
+                <div className="bp-detail-label">Suggested Cohort</div>
+                <p className="bp-detail-text">{payload?.suggested_patient_cohort ?? '—'}</p>
+              </div>
+            </div>
+
+            {/* ── Footer ── */}
+            <div className="bp-footer">
+              <span>Generated by Lazarus · Lazarus Bio-R&amp;D Swarm</span>
+              {blueprint.id && (
+                <span className="bp-footer-id">ID {blueprint.id.slice(0, 8)}</span>
+              )}
+            </div>
+          </motion.div>
+
+        ) : (
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="bp-empty-state">
+              <div className="bp-empty-icon">⬡</div>
+              <div className="bp-empty-title">No blueprint generated yet</div>
+              <p className="bp-empty-desc">
+                Run an analysis, then click <strong>Blueprint</strong> in the toolbar to generate a downloadable clinical trial dossier — including executive summary, trial strategy, cohort selection, and business rationale.
+              </p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </section>
+    </div>
   )
 }
 
