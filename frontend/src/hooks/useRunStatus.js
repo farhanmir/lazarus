@@ -1,3 +1,8 @@
+/**
+ * Derives the UI status chip (label, tone, description, progress %) from the
+ * backend run object plus local loading/error flags. Keeps status rendering
+ * logic out of App.jsx so the dashboard stays declarative.
+ */
 import { useMemo } from 'react'
 
 const statusConfig = {

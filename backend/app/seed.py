@@ -1,4 +1,9 @@
-"""Seed Step 3 with a rerunnable operational dataset."""
+"""Idempotent demo seed.
+
+Bootstraps a small but realistic portfolio of shelved assets so the dashboard,
+reasoning pipeline, and graph views have something to chew on out of the box.
+Run via ``python -m backend.app.seed`` — safe to re-run.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Skeptic agent implementation."""
+"""Skeptic agent: red-teams the Advocate's proposal.
+
+Surfaces mechanistic conflicts, runs a PubMed cross-check to catch hallucinated
+citations, and produces a risk level + safety caveats that feed the Judge.
+"""
 
 from __future__ import annotations
 

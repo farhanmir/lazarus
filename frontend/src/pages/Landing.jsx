@@ -1,3 +1,4 @@
+/** Public landing page — pitch + call-to-action into the operator dashboard. */
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'

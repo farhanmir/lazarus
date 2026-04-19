@@ -1,3 +1,9 @@
+/**
+ * Reasoning lab — a deep-dive view of a single run's agent trace.
+ *
+ * The operator dashboard (App.jsx) shows the live swarm; this page is the
+ * post-hoc forensic view keyed by run_id in the URL.
+ */
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'

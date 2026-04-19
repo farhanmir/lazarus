@@ -1,4 +1,9 @@
-"""CRUD helpers for the Step 2 backend."""
+"""Thin persistence helpers over SQLAlchemy models.
+
+Kept deliberately free of business logic — services compose these. Centralising
+writes here keeps timestamps, status defaults, and relationship hydration
+consistent across the reasoning, blueprint, and review flows.
+"""
 
 from __future__ import annotations
 

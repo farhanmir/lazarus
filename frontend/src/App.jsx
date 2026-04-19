@@ -1,3 +1,11 @@
+/**
+ * Operator dashboard shell.
+ *
+ * Owns top-level run state (selected asset, analysis result, live trace,
+ * blueprint) and composes the eight tabs: Rescue, Dashboard, Graph, Analysis,
+ * Portfolio, Research, Ops, Blueprint. Live agent traces arrive over the
+ * WebSocket stream in `services/api.js` and render into the panels below.
+ */
 import React, { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'

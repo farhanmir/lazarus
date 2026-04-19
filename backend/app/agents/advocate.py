@@ -1,4 +1,9 @@
-"""Advocate agent implementation."""
+"""Advocate agent: proposes the best repurposed indication.
+
+Runs an OpenAI chat completion with a strict JSON schema and falls back to a
+deterministic heuristic so the pipeline always produces a usable proposal even
+when API keys are missing.
+"""
 
 from __future__ import annotations
 

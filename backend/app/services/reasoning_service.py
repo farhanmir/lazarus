@@ -1,4 +1,14 @@
-"""Reasoning orchestration service for Step 3."""
+"""Reasoning pipeline orchestrator.
+
+Drives the agent swarm end-to-end for a single asset:
+
+    Advocate → Skeptic → Evidence Curator → (parallel evidence branches) →
+    Trial Strategist → Effort + Impact → Judge → HITL gate
+
+Every agent step is persisted as an ``AgentStep`` row *and* emitted on the
+WebSocket stream, so the UI watches the pipeline think in real time rather
+than receiving a single lump at the end.
+"""
 
 from __future__ import annotations
 

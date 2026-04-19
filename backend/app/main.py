@@ -1,4 +1,10 @@
-"""FastAPI entrypoint for Step 2."""
+"""FastAPI application entrypoint.
+
+Wires up every API router, configures CORS from the ``CORS_ORIGINS`` env var
+(with safe local defaults), and runs schema creation + runtime migrations on
+startup via the lifespan context. All operational routes — assets, runs,
+blueprints, portfolio, reviews, messaging bridges — are mounted here.
+"""
 
 from __future__ import annotations
 
@@ -42,6 +48,8 @@ configure_logging()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Idempotent bootstrap: create any missing tables, then apply additive
+    # runtime migrations so redeploys don't need a separate migration step.
     Base.metadata.create_all(bind=engine)
     apply_runtime_migrations()
     yield

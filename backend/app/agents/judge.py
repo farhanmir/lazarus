@@ -1,4 +1,9 @@
-"""Judge agent implementation."""
+"""Judge agent: synthesises the final verdict.
+
+Consumes the Advocate proposal, Skeptic critique, and curated evidence, then
+emits a ``final_confidence`` score and ``final_recommendation`` that the rest
+of the product (blueprints, portfolio ranking, HITL gate) keys off.
+"""
 
 from __future__ import annotations
 

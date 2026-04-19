@@ -1,4 +1,8 @@
-"""Evidence Curator agent implementation."""
+"""Evidence Curator: structures supporting and contradicting literature.
+
+Pulls PubMed / trials context and emits a citable evidence set with
+provenance so downstream agents (and the blueprint PDF) can ground claims.
+"""
 
 from __future__ import annotations
 

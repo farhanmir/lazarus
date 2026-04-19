@@ -1,4 +1,9 @@
-"""Pydantic schemas for the Step 2 backend."""
+"""Pydantic contracts for the public API.
+
+These models are the wire format between FastAPI routes and clients (the React
+dashboard, OpenClaw skills, Photon webhooks). Keeping them in one module makes
+the API surface easy to audit and diff.
+"""
 
 from __future__ import annotations
 

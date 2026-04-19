@@ -1,4 +1,9 @@
-"""Database setup for the Lazarus operational truth ledger."""
+"""SQLAlchemy engine, session factory, and runtime migrations.
+
+Postgres is the operational truth store: runs, agent steps, hypotheses,
+blueprints, human reviews, watchlists. Neo4j handles the knowledge graph
+separately (see ``backend/graph``).
+"""
 
 from __future__ import annotations
 
@@ -31,7 +36,11 @@ class Base(DeclarativeBase):
 
 
 def apply_runtime_migrations() -> None:
-    """Apply small additive schema changes for local MVP compatibility."""
+    """Apply small additive schema changes at startup.
+
+    We avoid Alembic for the hackathon footprint — these ``ADD COLUMN IF NOT
+    EXISTS`` statements are idempotent and safe to run on every boot.
+    """
     statements = [
         """
         ALTER TABLE hypotheses

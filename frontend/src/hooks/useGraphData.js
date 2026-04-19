@@ -1,3 +1,8 @@
+/**
+ * Memoises the Cytoscape graph view-model: legend entries, a flat node
+ * overview, and the detail block for the currently selected node. Consumers
+ * (InteractiveGraph, NodeDetailsPanel) stay pure render components.
+ */
 import { useMemo } from 'react'
 
 const legendItems = [

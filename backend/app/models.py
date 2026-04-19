@@ -1,4 +1,14 @@
-"""SQLAlchemy models for Step 2."""
+"""SQLAlchemy ORM models.
+
+Schema is organised around four aggregates:
+
+* **Portfolio** — ``CompanyAsset`` and its memories.
+* **Reasoning** — ``AgentRun`` → ``AgentStep`` (stream trace), plus
+  ``Hypothesis``, ``EffortAnalysis``, ``ImpactAnalysis``.
+* **Delivery** — ``Blueprint`` (PDF dossier) and ``Notification`` channels.
+* **Operator** — ``HumanReview`` queue, ``Message`` chat log, and the
+  ``DiseaseWatchlist``/``WatchlistAlert`` subscription pair.
+"""
 
 from __future__ import annotations
 
