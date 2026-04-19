@@ -19,6 +19,7 @@ from backend.app.api.messages import router as messages_router
 from backend.app.api.openclaw import router as openclaw_router
 from backend.app.api.portfolio import router as portfolio_router
 from backend.app.api.photon import router as photon_router
+from backend.app.api.rescue_pipeline import router as rescue_pipeline_router
 from backend.app.api.reviews import router as reviews_router
 from backend.app.api.runs import router as runs_router
 from backend.app.api.scan import router as scan_router
@@ -77,6 +78,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(rescue_pipeline_router)
 app.include_router(discovery_router)
 app.include_router(runs_router)
 app.include_router(blueprints_router)

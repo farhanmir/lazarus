@@ -10,6 +10,7 @@ This module implements a deterministic multi-stage filter:
 from __future__ import annotations
 
 import json
+import os
 import re
 import statistics
 import urllib.parse
@@ -50,6 +51,12 @@ BIOLOGY_FAILURE_TERMS = {
     "endpoint not met",
     "did not meet",
     "no meaningful",
+    "not efficacious",
+    "failed primary",
+    "primary endpoint",
+    "superiority",
+    "non-inferiority not met",
+    "worse than placebo",
 }
 
 LOGISTICAL_TERMS = {
@@ -127,8 +134,96 @@ def _fetch_json(url: str, timeout: int = 8) -> dict | None:
         return None
 
 
+def _discovery_demo_cache_enabled() -> bool:
+    """Offline / flaky-Wi-Fi demo: return shaped CT.gov-style payloads (no network)."""
+    return os.getenv("LAZARUS_DISCOVERY_DEMO_CACHE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _discovery_demo_studies_raw() -> list[dict]:
+    """Golden-path studies for judge demos (Type 2 diabetes + enrollment / signal narrative)."""
+    return [
+        {
+            "protocolSection": {
+                "identificationModule": {
+                    "nctId": "NCT08277421",
+                    "briefTitle": (
+                        "Phase II study of investigational anti-inflammatory agent in Type 2 Diabetes "
+                        "(terminated — sponsor redirection)"
+                    ),
+                },
+                "statusModule": {
+                    "overallStatus": "TERMINATED",
+                    "whyStopped": (
+                        "Slow enrollment and portfolio reprioritization; not for futility. "
+                        "Exploratory secondary analyses suggested signal in high-baseline CRP participants."
+                    ),
+                },
+                "conditionsModule": {
+                    "conditions": [
+                        "Type 2 Diabetes Mellitus",
+                        "Cardiometabolic risk",
+                    ],
+                },
+                "descriptionModule": {
+                    "briefSummary": (
+                        "Randomized placebo-controlled Phase II evaluating metabolic endpoints. "
+                        "Post-hoc exploratory cohort: elevated hs-CRP at baseline."
+                    ),
+                    "detailedDescription": "",
+                },
+                "designModule": {"enrollmentInfo": {"count": 168}},
+                "armsInterventionsModule": {
+                    "interventions": [
+                        {"name": "Rexalon (investigational oral agent, RX-782 class)"},
+                        {"name": "Placebo"},
+                    ],
+                },
+                "outcomesModule": {
+                    "secondaryOutcomes": [
+                        {
+                            "measure": "High-sensitivity C-reactive protein (hs-CRP)",
+                            "description": (
+                                "Exploratory change from baseline; nominal trend in prespecified biomarker stratum"
+                            ),
+                        },
+                    ],
+                },
+            },
+            "hasResults": False,
+        },
+        {
+            "protocolSection": {
+                "identificationModule": {
+                    "nctId": "NCT08277422",
+                    "briefTitle": "Companion feasibility study — metabolic syndrome cohort (withdrawn)",
+                },
+                "statusModule": {
+                    "overallStatus": "WITHDRAWN",
+                    "whyStopped": "Funding withdrawn prior to first patient in.",
+                },
+                "conditionsModule": {"conditions": ["Metabolic Syndrome", "Insulin resistance"]},
+                "descriptionModule": {
+                    "briefSummary": "Planned enrichment for high-CRP; never activated.",
+                    "detailedDescription": "",
+                },
+                "designModule": {"enrollmentInfo": {"count": 0}},
+                "armsInterventionsModule": {
+                    "interventions": [{"name": "Investigational agent (not administered)"}],
+                },
+                "outcomesModule": {"secondaryOutcomes": []},
+            },
+            "hasResults": False,
+        },
+    ]
+
+
 @lru_cache(maxsize=64)
-def _fetch_ctgov_failed_studies(
+def _fetch_ctgov_failed_studies_live(
     disease: str, *, page_size: int = 100, max_pages: int = 2
 ) -> list[dict]:
     """Fetch failed/terminated study pages using official v2 query/filter params."""
@@ -162,6 +257,15 @@ def _fetch_ctgov_failed_studies(
             break
 
     return studies
+
+
+def _fetch_ctgov_failed_studies(
+    disease: str, *, page_size: int = 100, max_pages: int = 2
+) -> list[dict]:
+    """Registry pull; optional demo cache skips HTTP for hackathon Wi-Fi."""
+    if _discovery_demo_cache_enabled():
+        return _discovery_demo_studies_raw()
+    return _fetch_ctgov_failed_studies_live(disease, page_size, max_pages)
 
 
 def _extract_study_fields(study: dict) -> dict[str, object]:
@@ -397,10 +501,13 @@ def fetch_lazarus_candidates(
     therapeutic_area: str,
     *,
     limit: int = 15,
+    allowed_asset_ids: set[UUID] | frozenset[UUID] | None = None,
 ) -> dict[UUID, LazarusDiscoverySignal]:
     """Return asset-level discovery signals that pass Lazarus shortlist logic."""
     assets = crud.list_assets(db)
     if not assets:
+        return {}
+    if allowed_asset_ids is not None and not allowed_asset_ids:
         return {}
 
     disease_studies = _fetch_ctgov_failed_studies(therapeutic_area)
@@ -411,6 +518,8 @@ def fetch_lazarus_candidates(
     shortlisted: list[LazarusDiscoverySignal] = []
 
     for asset in assets:
+        if allowed_asset_ids is not None and asset.id not in allowed_asset_ids:
+            continue
         context = build_asset_context(asset)
         asset_linked_studies = [
             item for item in parsed_disease_studies if _study_matches_asset(asset, item)
@@ -452,6 +561,10 @@ def fetch_lazarus_candidates(
 
             # Stage 1: Binary toxicity gate.
             if not _is_safe_to_rescue(asset, reason_class):
+                continue
+
+            # Efficacy / futility terminations are not execution-rescue candidates.
+            if reason_class == "futility":
                 continue
 
             enrollment = item.get("enrollment")
@@ -518,3 +631,12 @@ def fetch_lazarus_candidates(
     shortlisted.sort(key=lambda item: item.score, reverse=True)
     trimmed = shortlisted[: max(limit, 1)]
     return {item.asset_id: item for item in trimmed}
+
+
+def list_failed_trial_summaries(disease: str, *, max_trials: int = 15) -> list[dict[str, object]]:
+    """Structured failed/terminated trial rows from ClinicalTrials.gov v2 (public API)."""
+    studies = _fetch_ctgov_failed_studies(disease)
+    summaries: list[dict[str, object]] = []
+    for study in studies[:max_trials]:
+        summaries.append(_extract_study_fields(study))
+    return summaries

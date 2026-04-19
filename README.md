@@ -66,6 +66,8 @@ cp .env.example .env
 
 Fill keys you use (`DATABASE_URL`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `K2_API_KEY`, Spectrum vars if messaging).
 
+**Demo Wi-Fi:** set `LAZARUS_DISCOVERY_DEMO_CACHE=true` to serve a canned ClinicalTrials.gov-shaped payload (Type 2 diabetes / Rexalon-class narrative) so discovery and rescue pipeline never block on venue network.
+
 ### 2. Dependencies (Docker)
 
 ```bash

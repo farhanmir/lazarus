@@ -9,11 +9,15 @@ from sqlalchemy.orm import Session
 from backend.app import crud, schemas
 from backend.app.agents.advocate import run_advocate
 from backend.app.services.context_service import build_asset_context
-from backend.app.services.discovery_service import fetch_lazarus_candidates
-from backend.app.services.llm_service import (
-    gemini_chat_completion,
-    openai_chat_completion,
+from backend.app.services.discovery_service import (
+    LazarusDiscoverySignal,
+    fetch_lazarus_candidates,
 )
+from backend.app.services.graph_plausibility_service import (
+    graph_first_asset_ids,
+    score_assets_pathway_first,
+)
+from backend.app.services.llm_service import gemini_chat_completion, openai_chat_completion
 
 
 def _normalize(text: str) -> str:
@@ -186,7 +190,10 @@ def _build_candidate_fast(asset, disease_query: str) -> schemas.CandidateRespons
         f"Target pathway: {context.target}",
         f"Primary failure note: {context.business_failure_reason or 'not recorded'}",
     ]
-    relevance_summary = f"{asset.asset_code} is ranked using live ClinicalTrials.gov evidence and deterministic Lazarus filters for {disease_query}."
+    relevance_summary = (
+        f"{asset.asset_code} is ranked pathway-first (target and indication graph), "
+        f"then filtered with ClinicalTrials.gov failure metadata for {disease_query}."
+    )
     rescue_angle = f"Test {asset.internal_name} toward {proposed_disease} if pathway overlap and non-toxicity hold in deeper review."
 
     return schemas.CandidateResponse(
@@ -300,13 +307,44 @@ def search_candidates(
     if not assets:
         return schemas.CandidateSearchResponse(disease=disease_query, candidates=[])
 
+    pathway_scores = score_assets_pathway_first(assets, disease_query)
+    graph_pool = graph_first_asset_ids(
+        assets,
+        pathway_scores,
+        min_score=0.18,
+        pool_size=max(limit * 4, 12),
+    )
+    if not graph_pool:
+        return schemas.CandidateSearchResponse(disease=disease_query, candidates=[])
+
     discovery_signals = fetch_lazarus_candidates(
         db,
         disease_query,
         limit=max(limit * 3, 10),
+        allowed_asset_ids=graph_pool,
     )
+
     if not discovery_signals:
-        return schemas.CandidateSearchResponse(disease=disease_query, candidates=[])
+        for asset in sorted(
+            (a for a in assets if a.id in graph_pool),
+            key=lambda a: pathway_scores.get(a.id, 0.0),
+            reverse=True,
+        )[: max(limit * 2, 6)]:
+            p = pathway_scores.get(asset.id, 0.0)
+            if p < 0.12:
+                continue
+            discovery_signals[asset.id] = LazarusDiscoverySignal(
+                asset_id=asset.id,
+                score=round(min(0.72, 0.32 + p * 0.55), 3),
+                termination_reason="pathway_prior",
+                source_coverage_score=0.48,
+                has_secondary_signal=False,
+                enrollment_ratio=None,
+                near_neighbor_match=p >= 0.35,
+                prime_candidate=False,
+            )
+        if not discovery_signals:
+            return schemas.CandidateSearchResponse(disease=disease_query, candidates=[])
 
     allowed_asset_ids = set(discovery_signals.keys())
 
@@ -316,6 +354,7 @@ def search_candidates(
             continue
 
         context = build_asset_context(asset)
+        pathway_score = pathway_scores.get(asset.id, 0.0)
         mortician_score, reason = _mortician_scan(context, disease_query)
         relevance_score = _query_relevance_score(asset, context, disease_query)
         discovery_score = (
@@ -323,10 +362,20 @@ def search_candidates(
             if asset.id in discovery_signals
             else 0.0
         )
-        combined_score = max(mortician_score * 0.7, relevance_score, discovery_score)
+        combined_score = min(
+            0.99,
+            pathway_score * 0.42
+            + discovery_score * 0.38
+            + max(mortician_score * 0.55, relevance_score * 0.45) * 0.20,
+        )
 
-        # Require either lexical relevance or a strong mechanistic match to avoid random-looking results.
-        if relevance_score < 0.14 and mortician_score < 0.55 and discovery_score < 0.45:
+        # Pathway-first gate: weak biology + weak trials should not surface.
+        if (
+            pathway_score < 0.16
+            and relevance_score < 0.14
+            and mortician_score < 0.52
+            and discovery_score < 0.42
+        ):
             continue
 
         preliminary.append((combined_score, reason, asset))

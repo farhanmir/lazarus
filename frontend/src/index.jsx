@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App'
 import Landing from './pages/Landing'
+import RescueHome from './pages/RescueHome'
 import AgentTrace from './pages/AgentTrace'
 import LabLayout from './lab/LabLayout'
 import LabLanding from './lab/pages/LabLanding'
@@ -15,7 +16,8 @@ function Root() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<RescueHome />} />
+        <Route path="/welcome" element={<Landing />} />
         <Route path="/dashboard" element={<App />} />
         <Route path="/agents/:runId" element={<AgentTrace />} />
         <Route path="/lab" element={<LabLayout />}>

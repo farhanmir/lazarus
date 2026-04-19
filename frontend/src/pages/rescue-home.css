@@ -1,0 +1,196 @@
+.rescue-root {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+}
+
+.rescue-header h1 {
+  font-size: 2rem;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.35rem;
+}
+
+.rescue-tagline {
+  margin: 0 0 1.75rem;
+  color: #475569;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.rescue-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.rescue-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #334155;
+}
+
+.rescue-label--muted {
+  margin-top: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.rescue-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  font-size: 1rem;
+}
+
+.rescue-input--sm {
+  font-size: 0.95rem;
+}
+
+.rescue-input:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.rescue-submit {
+  margin-top: 1rem;
+  align-self: flex-start;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rescue-submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.rescue-error {
+  color: #b91c1c;
+  margin-top: 1rem;
+}
+
+.rescue-loading {
+  margin-top: 1.25rem;
+  color: #4338ca;
+  font-style: italic;
+}
+
+.rescue-timeline-wrap {
+  margin-top: 2rem;
+}
+
+.rescue-h2 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+
+.rescue-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid #e2e8f0;
+  margin-left: 0.5rem;
+}
+
+.rescue-stage {
+  position: relative;
+  padding: 0 0 1.25rem 1.25rem;
+}
+
+.rescue-stage-head {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.rescue-stage-dot {
+  position: absolute;
+  left: -0.4rem;
+  top: 0.35rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.rescue-stage--ok .rescue-stage-dot {
+  background: #16a34a;
+}
+
+.rescue-stage--err .rescue-stage-dot {
+  background: #dc2626;
+}
+
+.rescue-stage--skip .rescue-stage-dot {
+  background: #94a3b8;
+}
+
+.rescue-stage-title {
+  font-weight: 600;
+}
+
+.rescue-stage-status {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rescue-stage-humor {
+  margin-top: 0.35rem;
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+.rescue-details {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.rescue-pre {
+  margin: 0.35rem 0 0;
+  padding: 0.6rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 220px;
+  font-size: 0.75rem;
+}
+
+.rescue-blueprint {
+  margin-top: 1rem;
+}
+
+.rescue-blueprint a {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.rescue-footnote {
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+  color: #64748b;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 1rem;
+}
+
+.rescue-nav {
+  margin-top: 2.5rem;
+  font-size: 0.9rem;
+}
+
+.rescue-nav a {
+  color: #475569;
+}
+
+.rescue-nav-sep {
+  margin: 0 0.35rem;
+  color: #94a3b8;
+}

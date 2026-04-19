@@ -99,7 +99,7 @@ short summary message through the local Spectrum bridge.
 
 The Spectrum bridge calls these Lazarus routes:
 
-- `POST /spectrum/webhook`
+- `POST /photon/spectrum/webhook` (Photon alias; local bridge targets this URL)
 - `POST /openclaw/review-asset`
 - `POST /openclaw/generate-blueprint`
 

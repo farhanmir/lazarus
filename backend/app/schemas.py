@@ -414,6 +414,32 @@ class PhotonNotifyResponse(BaseModel):
     queued: bool
 
 
+class RescuePipelineRequest(BaseModel):
+    disease: str = Field(min_length=2, max_length=220)
+    recipient: str | None = Field(
+        default=None,
+        max_length=120,
+        description="Optional Spectrum / iMessage recipient for Photon stage.",
+    )
+
+
+class RescueStagePayload(BaseModel):
+    id: str
+    label: str
+    status: str
+    humor: str = ""
+    data: dict = Field(default_factory=dict)
+
+
+class RescuePipelineResponse(BaseModel):
+    disease: str
+    stages: list[RescueStagePayload]
+    artifact_id: UUID | None = None
+    blueprint_download_path: str | None = None
+    photon_status: dict = Field(default_factory=dict)
+    footnote: str = ""
+
+
 # --- Effort & Impact Analysis ---
 
 

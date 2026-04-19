@@ -25,5 +25,4 @@ typing_extensions==4.15.0
 uvicorn==0.44.0
 websockets==16.0
 weasyprint==66.0
-scipy==1.15.2
 httpx==0.28.1

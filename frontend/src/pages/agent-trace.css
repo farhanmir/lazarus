@@ -1,0 +1,138 @@
+/* Agent trace — adversarial “court” lanes (demo polish) */
+
+.trace-root {
+  min-height: 100vh;
+  background: radial-gradient(1200px 600px at 10% 0%, #0f172a 0%, #020617 55%);
+  color: #e2e8f0;
+}
+
+.trace-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.trace-header h1 {
+  color: #f8fafc;
+  letter-spacing: -0.02em;
+}
+
+.trace-wow {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.65);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+.trace-wow strong {
+  color: #f1f5f9;
+}
+
+.trace-run-meta article {
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(71, 85, 105, 0.45);
+}
+
+.trace-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trace-step {
+  border-radius: 12px;
+  border: 1px solid rgba(71, 85, 105, 0.55);
+  background: rgba(15, 23, 42, 0.75);
+  overflow: hidden;
+}
+
+.trace-step--advocate {
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12), 0 12px 40px rgba(37, 99, 235, 0.08);
+}
+
+.trace-step--skeptic {
+  border-color: rgba(248, 113, 113, 0.5);
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.12), 0 12px 40px rgba(220, 38, 38, 0.07);
+}
+
+.trace-step--neutral {
+  border-color: rgba(100, 116, 139, 0.45);
+}
+
+.trace-lane-bar {
+  height: 4px;
+  width: 100%;
+}
+
+.trace-step--advocate .trace-lane-bar {
+  background: linear-gradient(90deg, #1d4ed8, #60a5fa);
+}
+
+.trace-step--skeptic .trace-lane-bar {
+  background: linear-gradient(90deg, #b91c1c, #f87171);
+}
+
+.trace-step--neutral .trace-lane-bar {
+  background: linear-gradient(90deg, #475569, #94a3b8);
+}
+
+.trace-lane-label {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.trace-step--advocate .trace-lane-label {
+  color: #93c5fd;
+}
+
+.trace-step--skeptic .trace-lane-label {
+  color: #fca5a5;
+}
+
+.trace-step--neutral .trace-lane-label {
+  color: #94a3b8;
+}
+
+.trace-step-head h3 {
+  color: #f8fafc;
+}
+
+.trace-terminal {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: #cbd5e1;
+  background: rgba(2, 6, 23, 0.55);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.trace-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.trace-back {
+  color: #93c5fd;
+}
+
+.trace-error {
+  color: #fecaca;
+}
