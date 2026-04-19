@@ -388,10 +388,10 @@ Built in 36 hours by:
 
 | | Name | Links |
 |---|---|---|
-| 🧬 | **Dimural Murat** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| 🧬 | **Dimural Murat** | [GitHub](https://github.com/Dimural) · [LinkedIn](https://linkedin.com/in/dimural) |
 | 🧠 | **Nikhil Juluri** | [GitHub](https://github.com/DoSomethingGreat07) · [LinkedIn](www.linkedin.com/in/nikhil-juluri-001a98178) |
-| ⚗️ | **__________________________** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
-| 🚀 | **__________________________** | [GitHub](https://github.com/_________) · [LinkedIn](https://linkedin.com/in/_________) |
+| ⚗️ | **Fayzan Malik** | [GitHub](https://github.com/fayzan123) · [LinkedIn](https://linkedin.com/in/fayzan-malik) |
+| 🚀 | **Farhan Mir** | [GitHub](https://github.com/farhanmir) · [LinkedIn](https://linkedin.com/in/farhan-mir) |
 
 
 
