@@ -17,10 +17,10 @@
   <img alt="Python"     src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white" />
   <img alt="Vite"       src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white" />
   <img alt="License"    src="https://img.shields.io/badge/status-research%20preview-black" />
-  <img alt="HackPrinceton" src="https://img.shields.io/badge/HackPrinceton-Spring%202026-ff6b00" />
+  <img alt="HackPrinceton Spring 2026" src="https://img.shields.io/badge/HackPrinceton-Winner-gold?logo=powerpoint&logoColor=white" />
 </p>
 
-<sub>🏆 Built at <b>HackPrinceton Spring 2026</b></sub>
+<sub>🏆 Winner: <b>Best Use of AI & Tech for Clinical Trials</b> @ HackPrinceton Spring 2026</sub>
 
 </div>
 
@@ -393,14 +393,14 @@ Built in 36 hours by:
 | ⚗️ | **Fayzan Malik** | [GitHub](https://github.com/fayzan123) · [LinkedIn](https://linkedin.com/in/fayzan-malik) |
 | 🚀 | **Farhan Mir** | [GitHub](https://github.com/farhanmir) · [LinkedIn](https://linkedin.com/in/farhan-mir) |
 
-
-
 ---
 
 <div align="center">
 
 **Lazarus — giving shelved science a second life.**
 
-<sub>Built at 🏆 <b>HackPrinceton Spring 2026</b> · FastAPI · Postgres · Neo4j · React · OpenAI · Gemini · K2-Think · Photon · OpenClaw</sub>
+<sub>FastAPI · Postgres · Neo4j · React · OpenAI · Gemini · K2-Think · Photon · OpenClaw</sub>
+
+</div>
 
 </div>
